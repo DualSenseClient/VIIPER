@@ -33,7 +33,7 @@ if (-not $Yes) {
     }
 }
 
-$repo = "hbashton/VIIPER"
+$repo = "DualSenseClient/VIIPER"
 $apiUrl = "https://api.github.com/repos/$repo/releases/tags/$viiperVersion"
 
 Write-Host "[1/4] Fetching VIIPER release: $viiperVersion..." -ForegroundColor Cyan
@@ -51,7 +51,7 @@ $arch = if ([Environment]::Is64BitOperatingSystem) { "amd64" } else {
 }
 
 if ((Get-CimInstance Win32_ComputerSystem).SystemType -match "ARM") {
-    throw "The current hbashton VIIPER package supports Windows x64 only."
+    throw "The current DualSenseClient VIIPER package supports Windows x64 only."
 }
 
 $preferredAssetNames = @("viiper-windows-$arch.zip", "viiper.exe")
