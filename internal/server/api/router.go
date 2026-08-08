@@ -6,7 +6,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/Alia5/VIIPER/usb"
+	"github.com/DualSenseClient/VIIPER/usb"
 )
 
 // Request contains route parameters and additional args from the command.

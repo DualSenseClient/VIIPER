@@ -1,8 +1,8 @@
 package ns2pro
 
 import (
-	"github.com/Alia5/VIIPER/usb"
-	"github.com/Alia5/VIIPER/usb/hid"
+	"github.com/DualSenseClient/VIIPER/usb"
+	"github.com/DualSenseClient/VIIPER/usb/hid"
 )
 
 const microsoftOS10VendorCode = 0x20

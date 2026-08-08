@@ -6,7 +6,7 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"github.com/Alia5/VIIPER/usbip"
+	"github.com/DualSenseClient/VIIPER/usbip"
 )
 
 func TestDualSenseAudioFeatureControlsMatchProductionReference(t *testing.T) {

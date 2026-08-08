@@ -1,4 +1,4 @@
-module github.com/Alia5/VIIPER
+module github.com/DualSenseClient/VIIPER
 
 go 1.26.2
 

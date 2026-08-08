@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Alia5/VIIPER/device/keyboard"
-	"github.com/Alia5/VIIPER/viiperclient"
+	"github.com/DualSenseClient/VIIPER/device/keyboard"
+	"github.com/DualSenseClient/VIIPER/viiperclient"
 )
 
 func main() {

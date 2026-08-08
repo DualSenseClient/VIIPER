@@ -20,9 +20,9 @@ import (
   "log"
   "time"
 
-  apiclient "github.com/Alia5/VIIPER/apiclient"
-  "github.com/Alia5/VIIPER/device"
-  "github.com/Alia5/VIIPER/device/keyboard"
+  apiclient "github.com/DualSenseClient/VIIPER/apiclient"
+  "github.com/DualSenseClient/VIIPER/device"
+  "github.com/DualSenseClient/VIIPER/device/keyboard"
 )
 
 func main() {
@@ -98,7 +98,7 @@ Device input is sent using structs that implement `encoding.BinaryMarshaler`.
 Every device package (e.g. `device/xbox360`) provides type-safe input state structs.  
 
 ```go
-import "github.com/Alia5/VIIPER/device/xbox360"
+import "github.com/DualSenseClient/VIIPER/device/xbox360"
 
 input := &xbox360.InputState{
   Buttons: xbox360.ButtonA,
@@ -119,7 +119,7 @@ import (
   "bufio"
   "encoding"
   "io"
-  "github.com/Alia5/VIIPER/device/xbox360"
+  "github.com/DualSenseClient/VIIPER/device/xbox360"
 )
 
 // Start async reading for rumble commands

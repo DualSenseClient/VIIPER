@@ -9,8 +9,8 @@ import (
 	"io"
 	"testing"
 
-	"github.com/Alia5/VIIPER/internal/server/api/auth"
-	apierror "github.com/Alia5/VIIPER/internal/server/api/error"
+	"github.com/DualSenseClient/VIIPER/internal/server/api/auth"
+	apierror "github.com/DualSenseClient/VIIPER/internal/server/api/error"
 	"github.com/stretchr/testify/assert"
 )
 

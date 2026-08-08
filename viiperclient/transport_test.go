@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Alia5/VIIPER/internal/server/api/auth"
-	"github.com/Alia5/VIIPER/viiperclient"
-	"github.com/Alia5/VIIPER/viipertypes"
+	"github.com/DualSenseClient/VIIPER/internal/server/api/auth"
+	"github.com/DualSenseClient/VIIPER/viiperclient"
+	"github.com/DualSenseClient/VIIPER/viipertypes"
 
 	"github.com/stretchr/testify/assert"
 )

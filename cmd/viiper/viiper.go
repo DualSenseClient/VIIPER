@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Alia5/VIIPER/internal/config"
-	"github.com/Alia5/VIIPER/internal/configpaths"
-	"github.com/Alia5/VIIPER/internal/log"
-	"github.com/Alia5/VIIPER/internal/updater"
+	"github.com/DualSenseClient/VIIPER/internal/config"
+	"github.com/DualSenseClient/VIIPER/internal/configpaths"
+	"github.com/DualSenseClient/VIIPER/internal/log"
+	"github.com/DualSenseClient/VIIPER/internal/updater"
 
-	_ "github.com/Alia5/VIIPER/internal/registry" // Register all device handlers
+	_ "github.com/DualSenseClient/VIIPER/internal/registry" // Register all device handlers
 
 	"github.com/alecthomas/kong"
 	kongtoml "github.com/alecthomas/kong-toml"

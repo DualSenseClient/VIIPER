@@ -7,11 +7,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Alia5/VIIPER/device"
-	"github.com/Alia5/VIIPER/internal/server/api"
-	apierror "github.com/Alia5/VIIPER/internal/server/api/error"
-	usbs "github.com/Alia5/VIIPER/internal/server/usb"
-	"github.com/Alia5/VIIPER/viipertypes"
+	"github.com/DualSenseClient/VIIPER/device"
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
+	apierror "github.com/DualSenseClient/VIIPER/internal/server/api/error"
+	usbs "github.com/DualSenseClient/VIIPER/internal/server/usb"
+	"github.com/DualSenseClient/VIIPER/viipertypes"
 )
 
 var attachLocalhostClientWithResult = api.AttachLocalhostClientWithResult

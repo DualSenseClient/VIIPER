@@ -80,9 +80,9 @@ import (
 	"runtime/cgo"
 	"slices"
 
-	"github.com/Alia5/VIIPER/device"
-	"github.com/Alia5/VIIPER/device/dualshock4"
-	"github.com/Alia5/VIIPER/internal/server/api"
+	"github.com/DualSenseClient/VIIPER/device"
+	"github.com/DualSenseClient/VIIPER/device/dualshock4"
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
 )
 
 // CreateDS4Device creates a new DualShock 4 device on the bus with the given ID on the server associated with the given handle.

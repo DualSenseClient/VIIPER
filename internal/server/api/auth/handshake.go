@@ -10,8 +10,8 @@ import (
 	"io"
 	"strings"
 
-	apierror "github.com/Alia5/VIIPER/internal/server/api/error"
-	"github.com/Alia5/VIIPER/viipertypes"
+	apierror "github.com/DualSenseClient/VIIPER/internal/server/api/error"
+	"github.com/DualSenseClient/VIIPER/viipertypes"
 )
 
 const (

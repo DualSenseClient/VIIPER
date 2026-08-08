@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Alia5/VIIPER/internal/server/api"
-	apierror "github.com/Alia5/VIIPER/internal/server/api/error"
-	"github.com/Alia5/VIIPER/internal/server/usb"
-	"github.com/Alia5/VIIPER/viipertypes"
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
+	apierror "github.com/DualSenseClient/VIIPER/internal/server/api/error"
+	"github.com/DualSenseClient/VIIPER/internal/server/usb"
+	"github.com/DualSenseClient/VIIPER/viipertypes"
 )
 
 // BusDevicesList returns a handler that lists devices on a bus.
@@ -68,7 +68,7 @@ func inferDeviceType(dev any) string {
 	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
-	pkg := t.PkgPath() // e.g., "github.com/Alia5/VIIPER/device/xbox360"
+	pkg := t.PkgPath() // e.g., "github.com/DualSenseClient/VIIPER/device/xbox360"
 	if pkg != "" {
 		base := filepath.Base(pkg)
 		if base != "." && base != string(filepath.Separator) {

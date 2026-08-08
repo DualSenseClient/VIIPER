@@ -7,17 +7,17 @@ import (
 	"testing"
 	"time"
 
-	viiperTesting "github.com/Alia5/VIIPER/_testing"
-	"github.com/Alia5/VIIPER/device/dualshock4"
-	"github.com/Alia5/VIIPER/internal/server/api"
-	"github.com/Alia5/VIIPER/internal/server/api/handler"
-	"github.com/Alia5/VIIPER/usbip"
-	"github.com/Alia5/VIIPER/viiperclient"
-	"github.com/Alia5/VIIPER/virtualbus"
+	viiperTesting "github.com/DualSenseClient/VIIPER/_testing"
+	"github.com/DualSenseClient/VIIPER/device/dualshock4"
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
+	"github.com/DualSenseClient/VIIPER/internal/server/api/handler"
+	"github.com/DualSenseClient/VIIPER/usbip"
+	"github.com/DualSenseClient/VIIPER/viiperclient"
+	"github.com/DualSenseClient/VIIPER/virtualbus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	_ "github.com/Alia5/VIIPER/internal/registry" // Register devices
+	_ "github.com/DualSenseClient/VIIPER/internal/registry" // Register devices
 )
 
 func TestInputReports(t *testing.T) {

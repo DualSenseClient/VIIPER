@@ -75,7 +75,7 @@ The password file is _intentionally_ separated from the main configuration
 
 - **Location:**  
     - **Windows:** `%APPDATA%\VIIPER\`  
-    - **Linux/macOS (user):** `~/.config/github.com/Alia5/viiper/`  
+    - **Linux/macOS (user):** `~/.config/github.com/DualSenseClient/viiper/`
     - **Linux (root/systemd):** `/etc/viiper/`  
 - **Auto-generation:** If the file doesn't exist,  
 VIIPER generates a random 16-character password on first start and displays it in the console

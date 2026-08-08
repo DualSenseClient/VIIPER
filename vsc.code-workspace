@@ -1,28 +1,26 @@
 {
-    "folders": [
-        {
-            "path": "docs"
-        },
-        {
-            "path": "scripts"
-        },
-        {
-            "path": "examples"
-        },
-        {
-            "path": ".github"
-        },
-        {
-            "name": "root",
-            "path": "."
-        }
-    ],
-    "extensions": {
-        "recommendations": [
-            "golang.go"
-        ]
+  "folders": [
+    {
+      "path": ".github",
     },
-    "settings": {
-        "powershell.cwd": "root"
-    }
+    {
+      "path": "docs",
+    },
+    {
+      "path": "scripts",
+    },
+    {
+      "path": "examples",
+    },
+    {
+      "name": "root",
+      "path": ".",
+    },
+  ],
+  "extensions": {
+    "recommendations": ["golang.go"],
+  },
+  "settings": {
+    "powershell.cwd": "root",
+  },
 }

@@ -1,8 +1,8 @@
 package dualshock4
 
 import (
-	"github.com/Alia5/VIIPER/usb"
-	"github.com/Alia5/VIIPER/usb/hid"
+	"github.com/DualSenseClient/VIIPER/usb"
+	"github.com/DualSenseClient/VIIPER/usb/hid"
 )
 
 var defaultDescriptor = usb.Descriptor{

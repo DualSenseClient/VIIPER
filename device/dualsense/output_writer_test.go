@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Alia5/VIIPER/usb"
-	"github.com/Alia5/VIIPER/usbip"
+	"github.com/DualSenseClient/VIIPER/usb"
+	"github.com/DualSenseClient/VIIPER/usbip"
 )
 
 func testV5Media(marker byte) ([]byte, []byte) {

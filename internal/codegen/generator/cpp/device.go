@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Alia5/VIIPER/internal/codegen/meta"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/meta"
 )
 
 const deviceTemplate = `// Auto-generated VIIPER C++ Client Library

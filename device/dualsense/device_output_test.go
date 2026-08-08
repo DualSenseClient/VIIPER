@@ -7,7 +7,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/Alia5/VIIPER/usbip"
+	"github.com/DualSenseClient/VIIPER/usbip"
 )
 
 func TestAudioOnlyDescriptorKeepsAudioAndRemovesHID(t *testing.T) {

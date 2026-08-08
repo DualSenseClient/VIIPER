@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"fyne.io/systray"
-	"github.com/Alia5/VIIPER/internal/codegen/common"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/common"
 	"golang.org/x/sys/windows/registry"
 )
 

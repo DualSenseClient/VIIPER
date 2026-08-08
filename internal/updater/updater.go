@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Alia5/VIIPER/internal/config"
-	"github.com/Alia5/VIIPER/internal/configpaths"
+	"github.com/DualSenseClient/VIIPER/internal/config"
+	"github.com/DualSenseClient/VIIPER/internal/configpaths"
 )
 
 const (
@@ -25,9 +25,9 @@ const (
 	ActionUpdateNow   = 2
 	ActionDismiss     = 3
 
-	repositoryURL        = "https://github.com/hbashton/VIIPER"
-	releasesAPIURL       = "https://api.github.com/repos/hbashton/VIIPER/releases"
-	installScriptBaseURL = "https://raw.githubusercontent.com/hbashton/VIIPER/main/scripts/install"
+	repositoryURL        = "https://github.com/DualSenseClient/VIIPER"
+	releasesAPIURL       = "https://api.github.com/repos/DualSenseClient/VIIPER/releases"
+	installScriptBaseURL = "https://raw.githubusercontent.com/DualSenseClient/VIIPER/main/scripts/install"
 )
 
 var (

@@ -17,10 +17,10 @@ func DefaultConfigDir() (string, error) {
 		return "", errors.New("AppData not set")
 	default:
 		if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-			return filepath.Join(xdg, "github.com/Alia5/viiper"), nil
+			return filepath.Join(xdg, "github.com/DualSenseClient/viiper"), nil
 		}
 		if home := os.Getenv("HOME"); home != "" {
-			return filepath.Join(home, ".config", "github.com/Alia5/viiper"), nil
+			return filepath.Join(home, ".config", "github.com/DualSenseClient/viiper"), nil
 		}
 		return "", errors.New("HOME not set")
 	}
@@ -73,7 +73,7 @@ func ConfigCandidatePaths(userPath string) (jsonPaths, yamlPaths, tomlPaths []st
 
 	// Working directory candidates
 	wd, _ := os.Getwd()
-	for _, base := range []string{"github.com/Alia5/viiper", "config", "server", "proxy"} {
+	for _, base := range []string{"github.com/DualSenseClient/viiper", "config", "server", "proxy"} {
 		add(&jsonPaths, filepath.Join(wd, base+".json"))
 		add(&yamlPaths, filepath.Join(wd, base+".yaml"))
 		add(&yamlPaths, filepath.Join(wd, base+".yml"))

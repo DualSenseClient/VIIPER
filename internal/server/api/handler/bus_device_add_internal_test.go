@@ -8,13 +8,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	_ "github.com/Alia5/VIIPER/device/xbox360"
-	th "github.com/Alia5/VIIPER/internal/_testing"
-	"github.com/Alia5/VIIPER/internal/server/api"
-	usbs "github.com/Alia5/VIIPER/internal/server/usb"
-	"github.com/Alia5/VIIPER/usbip"
-	"github.com/Alia5/VIIPER/viiperclient"
-	"github.com/Alia5/VIIPER/virtualbus"
+	_ "github.com/DualSenseClient/VIIPER/device/xbox360"
+	th "github.com/DualSenseClient/VIIPER/internal/_testing"
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
+	usbs "github.com/DualSenseClient/VIIPER/internal/server/usb"
+	"github.com/DualSenseClient/VIIPER/usbip"
+	"github.com/DualSenseClient/VIIPER/viiperclient"
+	"github.com/DualSenseClient/VIIPER/virtualbus"
 )
 
 func TestBusDeviceAddReturnsNativeAutoAttachMetadata(t *testing.T) {

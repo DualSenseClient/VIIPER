@@ -2,7 +2,7 @@
 package config
 
 import (
-	"github.com/Alia5/VIIPER/internal/cmd"
+	"github.com/DualSenseClient/VIIPER/internal/cmd"
 )
 
 type UpdateNotify string

@@ -5,7 +5,7 @@
 Ensure you have:
 
 1. **USBIP installed** on your system (see [Installation](installation.md#requirements))
-2. **VIIPER binary** downloaded from [hbashton/VIIPER Releases](https://github.com/hbashton/VIIPER/releases) or [built from source](installation.md#building-from-source)
+2. **VIIPER binary** downloaded from [DualSenseClient/VIIPER Releases](https://github.com/DualSenseClient/VIIPER/releases) or [built from source](installation.md#building-from-source)
 
 ## Starting the Server
 
@@ -24,7 +24,7 @@ This starts two services:
     On first start, VIIPER generates a random password
     and saves it to `<USER_CONFIG_DIR>/viiper.key.txt`.  
     Windows: `%APPDATA%\VIIPER\viiper.key.txt`  
-    Linux (user): `~/.config/github.com/Alia5/viiper/viiper.key.txt`  
+    Linux (user): `~/.config/github.com/DualSenseClient/viiper/viiper.key.txt`
     Linux (root/systemd): `/etc/viiper/viiper.key.txt`
 
     - **Localhost clients** (`127.0.0.1`, `::1`): Authentication is **optional** (but supported)

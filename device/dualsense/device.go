@@ -12,10 +12,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Alia5/VIIPER/device"
-	"github.com/Alia5/VIIPER/device/internal/microphonebuffer"
-	"github.com/Alia5/VIIPER/usb"
-	"github.com/Alia5/VIIPER/usbip"
+	"github.com/DualSenseClient/VIIPER/device"
+	"github.com/DualSenseClient/VIIPER/device/internal/microphonebuffer"
+	"github.com/DualSenseClient/VIIPER/usb"
+	"github.com/DualSenseClient/VIIPER/usbip"
 )
 
 const (

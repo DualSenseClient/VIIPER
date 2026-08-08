@@ -34,7 +34,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/Alia5/VIIPER/internal/server/usb"
+	"github.com/DualSenseClient/VIIPER/internal/server/usb"
 )
 
 // NewUSBServer creates a new USB server with the given configuration and returns a handle to it.

@@ -14,11 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Alia5/VIIPER/internal/server/api/auth"
-	apierror "github.com/Alia5/VIIPER/internal/server/api/error"
-	"github.com/Alia5/VIIPER/internal/server/usb"
-	pusb "github.com/Alia5/VIIPER/usb"
-	"github.com/Alia5/VIIPER/viipertypes"
+	"github.com/DualSenseClient/VIIPER/internal/server/api/auth"
+	apierror "github.com/DualSenseClient/VIIPER/internal/server/api/error"
+	"github.com/DualSenseClient/VIIPER/internal/server/usb"
+	pusb "github.com/DualSenseClient/VIIPER/usb"
+	"github.com/DualSenseClient/VIIPER/viipertypes"
 )
 
 // Server implements a small TCP API for managing virtual bus topology.

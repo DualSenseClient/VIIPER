@@ -16,8 +16,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Alia5/VIIPER/device/dualsense"
-	"github.com/Alia5/VIIPER/viiperclient"
+	"github.com/DualSenseClient/VIIPER/device/dualsense"
+	"github.com/DualSenseClient/VIIPER/viiperclient"
 )
 
 // Usage:

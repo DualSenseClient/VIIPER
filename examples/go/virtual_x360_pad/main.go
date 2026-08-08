@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Alia5/VIIPER/device/xbox360"
-	"github.com/Alia5/VIIPER/viiperclient"
+	"github.com/DualSenseClient/VIIPER/device/xbox360"
+	"github.com/DualSenseClient/VIIPER/viiperclient"
 )
 
 func main() {

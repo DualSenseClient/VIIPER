@@ -7,7 +7,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/Alia5/VIIPER/usbip"
+	"github.com/DualSenseClient/VIIPER/usbip"
 )
 
 type capturedV5Generation struct {

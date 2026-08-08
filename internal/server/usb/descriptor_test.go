@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	usbdesc "github.com/Alia5/VIIPER/usb"
-	"github.com/Alia5/VIIPER/usbip"
-	"github.com/Alia5/VIIPER/virtualbus"
+	usbdesc "github.com/DualSenseClient/VIIPER/usb"
+	"github.com/DualSenseClient/VIIPER/usbip"
+	"github.com/DualSenseClient/VIIPER/virtualbus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

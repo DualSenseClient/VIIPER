@@ -1,10 +1,10 @@
 {{ $viiperVersion := "VERSION_PLACEHOLDER" }}
 
-# github.com/Alia5/VIIPER
+# github.com/DualSenseClient/VIIPER
 
-* Name: github.com/Alia5/VIIPER
+* Name: github.com/DualSenseClient/VIIPER
 * Version: {{ $viiperVersion }}
-* License: [GPL-3.0](https://github.com/Alia5/VIIPER/blob/HEAD/LICENSE.txt)
+* License: [GPL-3.0](https://github.com/DualSenseClient/VIIPER/blob/HEAD/LICENSE.txt)
 
 VIIPER - Virtual Input over IP EmulatoR
 

@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Alia5/VIIPER/internal/configpaths"
+	"github.com/DualSenseClient/VIIPER/internal/configpaths"
 	"golang.org/x/sys/windows/registry"
 )
 

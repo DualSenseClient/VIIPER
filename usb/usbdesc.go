@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"unicode/utf16"
 
-	"github.com/Alia5/VIIPER/usb/hid"
+	"github.com/DualSenseClient/VIIPER/usb/hid"
 )
 
 // USB descriptor type constants

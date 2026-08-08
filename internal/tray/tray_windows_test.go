@@ -5,7 +5,7 @@ package tray
 import (
 	"testing"
 
-	"github.com/Alia5/VIIPER/internal/codegen/common"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/common"
 	"github.com/stretchr/testify/require"
 )
 

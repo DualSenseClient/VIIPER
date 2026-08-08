@@ -10,15 +10,15 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/Alia5/VIIPER/device/dualsense"
-	"github.com/Alia5/VIIPER/device/dualshock4"
-	"github.com/Alia5/VIIPER/internal/log"
-	_ "github.com/Alia5/VIIPER/internal/registry" // Register devices.
-	"github.com/Alia5/VIIPER/internal/server/api"
-	"github.com/Alia5/VIIPER/internal/server/api/handler"
-	srvusb "github.com/Alia5/VIIPER/internal/server/usb"
-	"github.com/Alia5/VIIPER/viiperclient"
-	"github.com/Alia5/VIIPER/virtualbus"
+	"github.com/DualSenseClient/VIIPER/device/dualsense"
+	"github.com/DualSenseClient/VIIPER/device/dualshock4"
+	"github.com/DualSenseClient/VIIPER/internal/log"
+	_ "github.com/DualSenseClient/VIIPER/internal/registry" // Register devices.
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
+	"github.com/DualSenseClient/VIIPER/internal/server/api/handler"
+	srvusb "github.com/DualSenseClient/VIIPER/internal/server/usb"
+	"github.com/DualSenseClient/VIIPER/viiperclient"
+	"github.com/DualSenseClient/VIIPER/virtualbus"
 )
 
 // TestAPIServer_DeviceStreamCloseFirstReconnectKeepsDS4MicrophoneQueue proves

@@ -4,15 +4,15 @@ import (
 	"context"
 	"testing"
 
-	viiperTesting "github.com/Alia5/VIIPER/_testing"
-	"github.com/Alia5/VIIPER/device/mouse"
-	"github.com/Alia5/VIIPER/internal/server/api"
-	"github.com/Alia5/VIIPER/internal/server/api/handler"
-	"github.com/Alia5/VIIPER/viiperclient"
-	"github.com/Alia5/VIIPER/virtualbus"
+	viiperTesting "github.com/DualSenseClient/VIIPER/_testing"
+	"github.com/DualSenseClient/VIIPER/device/mouse"
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
+	"github.com/DualSenseClient/VIIPER/internal/server/api/handler"
+	"github.com/DualSenseClient/VIIPER/viiperclient"
+	"github.com/DualSenseClient/VIIPER/virtualbus"
 	"github.com/stretchr/testify/assert"
 
-	_ "github.com/Alia5/VIIPER/internal/registry" // Register devices
+	_ "github.com/DualSenseClient/VIIPER/internal/registry" // Register devices
 )
 
 func TestInputReports(t *testing.T) {

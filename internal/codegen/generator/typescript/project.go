@@ -16,7 +16,7 @@ const packageJSONTemplate = `{
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Alia5/VIIPER.git"
+    "url": "git+https://github.com/DualSenseClient/VIIPER.git"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

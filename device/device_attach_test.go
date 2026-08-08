@@ -7,15 +7,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Alia5/VIIPER/internal/server/api"
-	"github.com/Alia5/VIIPER/internal/server/api/handler"
-	"github.com/Alia5/VIIPER/viiperclient"
-	"github.com/Alia5/VIIPER/virtualbus"
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
+	"github.com/DualSenseClient/VIIPER/internal/server/api/handler"
+	"github.com/DualSenseClient/VIIPER/viiperclient"
+	"github.com/DualSenseClient/VIIPER/virtualbus"
 	"github.com/stretchr/testify/assert"
 
-	viiperTesting "github.com/Alia5/VIIPER/_testing"
+	viiperTesting "github.com/DualSenseClient/VIIPER/_testing"
 
-	_ "github.com/Alia5/VIIPER/internal/registry" // Register devices
+	_ "github.com/DualSenseClient/VIIPER/internal/registry" // Register devices
 )
 
 func TestDualSenseRegistryOnlyExposesV5Contract(t *testing.T) {

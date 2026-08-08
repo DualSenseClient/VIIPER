@@ -1,8 +1,8 @@
 site_name: VIIPER Documentation
 site_description: Virtual Input over IP EmulatoR - Documentation
 site_author: Peter Repukat
-repo_name: hbashton/VIIPER
-repo_url: https://github.com/hbashton/VIIPER
+repo_name: DualSenseClient/VIIPER
+repo_url: https://github.com/DualSenseClient/VIIPER
 
 theme:
   name: material

@@ -8,8 +8,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/Alia5/VIIPER/internal/server/usb"
-	pusb "github.com/Alia5/VIIPER/usb"
+	"github.com/DualSenseClient/VIIPER/internal/server/usb"
+	pusb "github.com/DualSenseClient/VIIPER/usb"
 )
 
 // DeviceStreamHandler returns a stream handler func that dynamically dispatches
@@ -48,7 +48,7 @@ func inferDeviceType(dev any) string {
 	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
-	pkg := t.PkgPath() // e.g., "github.com/Alia5/VIIPER/device/xbox360"
+	pkg := t.PkgPath() // e.g., "github.com/DualSenseClient/VIIPER/device/xbox360"
 	if pkg != "" {
 		base := filepath.Base(pkg)
 		if base != "." && base != string(filepath.Separator) {

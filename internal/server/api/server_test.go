@@ -12,20 +12,20 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	viiperTesting "github.com/Alia5/VIIPER/_testing"
-	"github.com/Alia5/VIIPER/device"
-	"github.com/Alia5/VIIPER/device/xbox360"
-	th "github.com/Alia5/VIIPER/internal/_testing"
-	"github.com/Alia5/VIIPER/internal/log"
-	_ "github.com/Alia5/VIIPER/internal/registry" // Register devices
-	"github.com/Alia5/VIIPER/internal/server/api"
-	apierror "github.com/Alia5/VIIPER/internal/server/api/error"
-	"github.com/Alia5/VIIPER/internal/server/api/handler"
-	srvusb "github.com/Alia5/VIIPER/internal/server/usb"
-	pusb "github.com/Alia5/VIIPER/usb"
-	"github.com/Alia5/VIIPER/usbip"
-	"github.com/Alia5/VIIPER/viiperclient"
-	"github.com/Alia5/VIIPER/virtualbus"
+	viiperTesting "github.com/DualSenseClient/VIIPER/_testing"
+	"github.com/DualSenseClient/VIIPER/device"
+	"github.com/DualSenseClient/VIIPER/device/xbox360"
+	th "github.com/DualSenseClient/VIIPER/internal/_testing"
+	"github.com/DualSenseClient/VIIPER/internal/log"
+	_ "github.com/DualSenseClient/VIIPER/internal/registry" // Register devices
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
+	apierror "github.com/DualSenseClient/VIIPER/internal/server/api/error"
+	"github.com/DualSenseClient/VIIPER/internal/server/api/handler"
+	srvusb "github.com/DualSenseClient/VIIPER/internal/server/usb"
+	pusb "github.com/DualSenseClient/VIIPER/usb"
+	"github.com/DualSenseClient/VIIPER/usbip"
+	"github.com/DualSenseClient/VIIPER/viiperclient"
+	"github.com/DualSenseClient/VIIPER/virtualbus"
 )
 
 func TestAPIServer_StreamHandlerError_ClosesConn(t *testing.T) {

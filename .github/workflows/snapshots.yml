@@ -134,7 +134,7 @@ jobs:
                       <summary><b>Linux</b></summary>
 
                       ```bash
-                      curl -fsSL https://raw.githubusercontent.com/hbashton/VIIPER/main/scripts/install.sh | sh
+                      curl -fsSL https://raw.githubusercontent.com/DualSenseClient/VIIPER/main/scripts/install.sh | sh
                       ```
                       Installs / updates to `/usr/local/bin/viiper`
                       </details>

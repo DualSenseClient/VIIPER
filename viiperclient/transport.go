@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Alia5/VIIPER/internal/server/api/auth"
-	apierror "github.com/Alia5/VIIPER/internal/server/api/error"
+	"github.com/DualSenseClient/VIIPER/internal/server/api/auth"
+	apierror "github.com/DualSenseClient/VIIPER/internal/server/api/error"
 )
 
 // Config controls low-level transport behavior such as timeouts.

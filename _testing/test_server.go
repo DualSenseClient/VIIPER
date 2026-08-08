@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Alia5/VIIPER/internal/cmd"
-	"github.com/Alia5/VIIPER/internal/config"
-	"github.com/Alia5/VIIPER/internal/server/api"
-	"github.com/Alia5/VIIPER/internal/server/usb"
+	"github.com/DualSenseClient/VIIPER/internal/cmd"
+	"github.com/DualSenseClient/VIIPER/internal/config"
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
+	"github.com/DualSenseClient/VIIPER/internal/server/usb"
 )
 
 // IntegrationTimeout covers the real localhost API and USB/IP hops used by

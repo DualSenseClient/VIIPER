@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	usbdesc "github.com/Alia5/VIIPER/usb"
-	"github.com/Alia5/VIIPER/usbip"
+	usbdesc "github.com/DualSenseClient/VIIPER/usb"
+	"github.com/DualSenseClient/VIIPER/usbip"
 )
 
 type isoInTestDevice struct {

@@ -6,11 +6,11 @@ import (
 	"log/slog"
 	"strconv"
 
-	"github.com/Alia5/VIIPER/internal/server/api"
-	apierror "github.com/Alia5/VIIPER/internal/server/api/error"
-	"github.com/Alia5/VIIPER/internal/server/usb"
-	"github.com/Alia5/VIIPER/viipertypes"
-	"github.com/Alia5/VIIPER/virtualbus"
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
+	apierror "github.com/DualSenseClient/VIIPER/internal/server/api/error"
+	"github.com/DualSenseClient/VIIPER/internal/server/usb"
+	"github.com/DualSenseClient/VIIPER/viipertypes"
+	"github.com/DualSenseClient/VIIPER/virtualbus"
 )
 
 // BusCreate returns a handler that creates a new bus.

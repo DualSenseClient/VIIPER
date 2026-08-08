@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Alia5/VIIPER/internal/log"
-	"github.com/Alia5/VIIPER/internal/server/api"
-	"github.com/Alia5/VIIPER/internal/server/usb"
+	"github.com/DualSenseClient/VIIPER/internal/log"
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
+	"github.com/DualSenseClient/VIIPER/internal/server/usb"
 
 	"log/slog"
 )

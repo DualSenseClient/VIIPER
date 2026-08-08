@@ -113,7 +113,7 @@ You must have a USBIP-Client implementation available on your system to use VIIP
 
     ### Pre-built Binaries
 
-    Download the latest release from the [hbashton/VIIPER Releases](https://github.com/hbashton/VIIPER/releases) page. Pre-built binaries are available for:
+    Download the latest release from the [DualSenseClient/VIIPER Releases](https://github.com/DualSenseClient/VIIPER/releases) page. Pre-built binaries are available for:
 
     - Windows (x64, ARM64)
     - Linux (x64, ARM64)
@@ -141,7 +141,7 @@ You must have a USBIP-Client implementation available on your system to use VIIP
     === "Windows"
 
         ```powershell
-        irm https://raw.githubusercontent.com/hbashton/VIIPER/main/scripts/install.ps1 | iex
+        irm https://raw.githubusercontent.com/DualSenseClient/VIIPER/main/scripts/install.ps1 | iex
         ```
 
         Installs to: `%LOCALAPPDATA%\VIIPER\viiper.exe`
@@ -157,7 +157,7 @@ You must have a USBIP-Client implementation available on your system to use VIIP
     === "Linux"
 
         ```bash
-        curl -fsSL https://raw.githubusercontent.com/hbashton/VIIPER/main/scripts/install.sh | sh
+        curl -fsSL https://raw.githubusercontent.com/DualSenseClient/VIIPER/main/scripts/install.sh | sh
         ```
 
         Installs to: `/usr/local/bin/viiper`
@@ -180,7 +180,7 @@ You must have a USBIP-Client implementation available on your system to use VIIP
 
     ## Pre-built Binaries
 
-    Download the latest `libVIIPER` release artifact from the [hbashton/VIIPER Releases](https://github.com/hbashton/VIIPER/releases) page.
+    Download the latest `libVIIPER` release artifact from the [DualSenseClient/VIIPER Releases](https://github.com/DualSenseClient/VIIPER/releases) page.
     The archive contains:
 
     - `libVIIPER.dll` / `libVIIPER.so`: the shared library
@@ -190,7 +190,7 @@ You must have a USBIP-Client implementation available on your system to use VIIP
     ## Building from Source
 
     ```bash
-    git clone https://github.com/hbashton/VIIPER.git
+    git clone https://github.com/DualSenseClient/VIIPER.git
     cd VIIPER
     just build-libVIIPER
     ```

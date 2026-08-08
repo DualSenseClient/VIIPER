@@ -5,10 +5,10 @@ import (
 	"context"
 	"sync"
 
-	"github.com/Alia5/VIIPER/device"
-	"github.com/Alia5/VIIPER/usb"
-	"github.com/Alia5/VIIPER/usb/hid"
-	"github.com/Alia5/VIIPER/usbip"
+	"github.com/DualSenseClient/VIIPER/device"
+	"github.com/DualSenseClient/VIIPER/usb"
+	"github.com/DualSenseClient/VIIPER/usb/hid"
+	"github.com/DualSenseClient/VIIPER/usbip"
 )
 
 // Mouse implements the minimal Device interface for a 5-button HID mouse
