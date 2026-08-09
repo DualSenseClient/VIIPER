@@ -69,6 +69,7 @@ type DualSense struct {
 	realtimeHapticsFunc    func(OutputState)
 	speakerResetFunc       func()
 	outputFunc             func(OutputState)
+	audioOutFunc           func([]byte)
 	outputState            OutputState
 	descriptor             usb.Descriptor
 
@@ -106,6 +107,53 @@ func NewEdge(o *device.CreateOptions) (*DualSense, error) {
 	return new(o, true)
 }
 
+// NewAudioOnly creates a DualSense exposing only the audio interfaces and no
+// HID gamepad interface. Windows can then expose speaker/microphone endpoints
+// without enumerating a second game controller.
+func NewAudioOnly(o *device.CreateOptions) (*DualSense, error) {
+	d, err := new(o, false)
+	if err != nil {
+		return nil, err
+	}
+	d.descriptor = makeAudioOnlyDescriptor(false)
+	d.deviceType = DeviceTypeAudioOnlyDuplexV5
+	return d, nil
+}
+
+// NewEdgeAudioOnly creates a DualSense Edge exposing only the audio interfaces
+// and no HID gamepad interface.
+func NewEdgeAudioOnly(o *device.CreateOptions) (*DualSense, error) {
+	d, err := new(o, true)
+	if err != nil {
+		return nil, err
+	}
+	d.descriptor = makeAudioOnlyDescriptor(true)
+	d.deviceType = DeviceTypeEdgeAudioOnlyDuplexV5
+	return d, nil
+}
+
+// NewGamepadOnly creates a DualSense exposing only the HID gamepad interface.
+func NewGamepadOnly(o *device.CreateOptions) (*DualSense, error) {
+	d, err := new(o, false)
+	if err != nil {
+		return nil, err
+	}
+	d.descriptor = makeGamepadOnlyDescriptor(false)
+	d.deviceType = DeviceTypeGamepadOnlyV5
+	return d, nil
+}
+
+// NewEdgeGamepadOnly creates a DualSense Edge exposing only the HID gamepad interface.
+func NewEdgeGamepadOnly(o *device.CreateOptions) (*DualSense, error) {
+	d, err := new(o, true)
+	if err != nil {
+		return nil, err
+	}
+	d.descriptor = makeGamepadOnlyDescriptor(true)
+	d.deviceType = DeviceTypeEdgeGamepadOnlyV5
+	return d, nil
+}
+
 func new(o *device.CreateOptions, edge bool) (*DualSense, error) {
 	metaState := &MetaState{
 		SerialNumber:       DefaultSerialNumberDS,
@@ -115,6 +163,7 @@ func new(o *device.CreateOptions, edge bool) (*DualSense, error) {
 		BatteryStatus:      DefaultBatteryStatus,
 		TemperatureCelsius: DefaultTemperature,
 		BatteryVoltage:     DefaultVoltage,
+		ConnectionStatus:   DefaultConnectionStatus,
 		ShellColor:         DefaultShellColor,
 	}
 	if edge {
@@ -148,6 +197,9 @@ func new(o *device.CreateOptions, edge bool) (*DualSense, error) {
 		}
 		if newMeta.BatteryVoltage != 0 {
 			metaState.BatteryVoltage = newMeta.BatteryVoltage
+		}
+		if newMeta.ConnectionStatus != 0 {
+			metaState.ConnectionStatus = newMeta.ConnectionStatus
 		}
 		metaState.ShellColor = newMeta.ShellColor
 	}
@@ -207,9 +259,57 @@ func (d *DualSense) SetMetaState(meta MetaState) {
 	d.metaState = &meta
 }
 
+// UpdateMetaState merges non-zero/non-empty fields of meta into the current
+// device meta state, preserving any field left at its zero value. This mirrors
+// the update semantics of the wire UpdateMetaState handlers.
+func (d *DualSense) UpdateMetaState(meta MetaState) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+
+	current := *d.metaState
+	if meta.SerialNumber != "" {
+		current.SerialNumber = meta.SerialNumber
+	}
+	if meta.MACAddress != "" {
+		current.MACAddress = meta.MACAddress
+	}
+	if meta.Board != "" {
+		current.Board = meta.Board
+	}
+	if !meta.BuildTime.IsZero() {
+		current.BuildTime = meta.BuildTime
+	}
+	if meta.BatteryStatus != 0 {
+		current.BatteryStatus = meta.BatteryStatus
+	}
+	if meta.TemperatureCelsius != 0 {
+		current.TemperatureCelsius = meta.TemperatureCelsius
+	}
+	if meta.BatteryVoltage != 0 {
+		current.BatteryVoltage = meta.BatteryVoltage
+	}
+	if meta.ConnectionStatus != 0 {
+		current.ConnectionStatus = meta.ConnectionStatus
+	}
+	if meta.ShellColor != "" {
+		current.ShellColor = meta.ShellColor
+	}
+	d.metaState = &current
+}
+
 func (d *DualSense) SetOutputCallback(f func(OutputState)) {
 	d.mtx.Lock()
 	d.outputFunc = f
+	d.mtx.Unlock()
+}
+
+// SetAudioOutCallback installs a raw haptics/speaker PCM consumer. The
+// callback receives the exact bytes the host wrote to the haptics audio-out
+// endpoint, which carry two front stereo channels and two rear haptics
+// channels at 48 kHz. It is invoked outside the device lock.
+func (d *DualSense) SetAudioOutCallback(f func([]byte)) {
+	d.mtx.Lock()
+	d.audioOutFunc = f
 	d.mtx.Unlock()
 }
 
@@ -520,6 +620,7 @@ func (d *DualSense) handleHapticsAudioOut(out []byte) {
 		d.mtx.Unlock()
 		return
 	}
+	audioOutFunc := d.audioOutFunc
 
 	processed, release := d.speakerAudioFeature.applyPCM(out, USBHapticsAudioChannels)
 	reports := d.consumeDualSenseV5AudioLocked(processed, receivedAt)
@@ -530,6 +631,10 @@ func (d *DualSense) handleHapticsAudioOut(out []byte) {
 	d.mtx.Unlock()
 	if release != nil {
 		release()
+	}
+
+	if audioOutFunc != nil {
+		audioOutFunc(out)
 	}
 
 	for _, pending := range reports {
@@ -1152,10 +1257,13 @@ func (d *DualSense) buildUSBInputReport(s *InputState, m *MetaState) []byte {
 	b[41] = d.seqCounter
 	binary.LittleEndian.PutUint32(b[49:53], ts)
 	battery := byte(0)
+	connection := byte(0)
 	if m != nil {
 		battery = m.BatteryStatus
+		connection = m.ConnectionStatus
 	}
 	b[53] = battery
+	b[54] = connection
 
 	corruptReason := ""
 	if inputStateControlsInvalid(s) {
@@ -1170,7 +1278,7 @@ func (d *DualSense) buildUSBInputReport(s *InputState, m *MetaState) []byte {
 				"count", count,
 				"reason", corruptReason)
 		}
-		resetUSBInputReportToNeutral(b, d.seqCounter, ts, battery)
+		resetUSBInputReportToNeutral(b, d.seqCounter, ts, battery, connection)
 	}
 
 	return b
@@ -1184,7 +1292,7 @@ func inputStateControlsInvalid(s *InputState) bool {
 		s.DPad&^validDualSenseInputDPad != 0
 }
 
-func resetUSBInputReportToNeutral(b []byte, seq uint8, timestamp uint32, battery byte) {
+func resetUSBInputReportToNeutral(b []byte, seq uint8, timestamp uint32, battery byte, connection byte) {
 	for i := range b {
 		b[i] = 0
 	}
@@ -1208,6 +1316,7 @@ func resetUSBInputReportToNeutral(b []byte, seq uint8, timestamp uint32, battery
 	b[41] = seq
 	binary.LittleEndian.PutUint32(b[49:53], timestamp)
 	b[53] = battery
+	b[54] = connection
 }
 
 func normalizeTouchTracking(active bool, tracking uint8) uint8 {

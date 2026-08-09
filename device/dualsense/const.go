@@ -13,6 +13,7 @@ const (
 	DeviceTypeAudioOnlyDuplexV5         = "dualsenseaudioonlyduplexv5"
 	DeviceTypeGamepadOnlyV5             = "dualsensegamepadv5"
 	DeviceTypeEdgeCombinedAudioDuplexV5 = "dualsenseedgecombinedaudioduplexv5"
+	DeviceTypeEdgeAudioOnlyDuplexV5     = "dualsenseedgeaudioonlyduplexv5"
 	DeviceTypeEdgeGamepadOnlyV5         = "dualsenseedgegamepadv5"
 )
 
@@ -32,6 +33,8 @@ const (
 	DefaultTemperature   = 28.0
 	DefaultVoltage       = 3.8
 	DefaultShellColor    = ShellColorBlack
+	// The virtual controller is always attached via USB.
+	DefaultConnectionStatus = ConnectionUSBData | ConnectionUSBPower
 )
 
 var DefaultBuildTime = time.Date(2025, time.July, 4, 10, 10, 32, 0, time.UTC)
@@ -196,6 +199,17 @@ const DeltaTimeNS = 333
 
 const (
 	BatteryFullyCharged = 0x2A // Status=0x2 (Full), Level=0xA (100%)
+)
+
+// Input-report connection status byte (b[54]) flag bits, matching the layout
+// the app-facing parsers expect: headphone/mic attachment, mic mute state,
+// and USB data/power presence.
+const (
+	ConnectionHeadphone uint8 = 0x01
+	ConnectionMic       uint8 = 0x02
+	ConnectionMicMuted  uint8 = 0x04
+	ConnectionUSBData   uint8 = 0x08
+	ConnectionUSBPower  uint8 = 0x10
 )
 
 const (

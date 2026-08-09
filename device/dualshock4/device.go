@@ -130,6 +130,35 @@ func (d *DualShock4) SetMetaState(meta MetaState) {
 	d.metaState = &meta
 }
 
+// UpdateMetaState merges non-zero/non-empty fields of meta into the current
+// device meta state, preserving any field left at its zero value. This mirrors
+// the update semantics of the wire UpdateMetaState handlers.
+func (d *DualShock4) UpdateMetaState(meta MetaState) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+
+	current := *d.metaState
+	if meta.SerialNumber != "" {
+		current.SerialNumber = meta.SerialNumber
+	}
+	if meta.Board != "" {
+		current.Board = meta.Board
+	}
+	if !meta.BuildTime.IsZero() {
+		current.BuildTime = meta.BuildTime
+	}
+	if meta.BatteryStatus != 0 {
+		current.BatteryStatus = meta.BatteryStatus
+	}
+	if meta.TemperatureCelsius != 0 {
+		current.TemperatureCelsius = meta.TemperatureCelsius
+	}
+	if meta.BatteryVoltage != 0 {
+		current.BatteryVoltage = meta.BatteryVoltage
+	}
+	d.metaState = &current
+}
+
 func (d *DualShock4) SetOutputCallback(f func(OutputState)) {
 	var latest OutputState
 	var replay bool

@@ -62,12 +62,25 @@ typedef struct {
 	uint8_t     BatteryStatus;      // 0 = use default
 	double      TemperatureCelsius; // 0 = use default
 	double      BatteryVoltage;     // 0 = use default
+	const char* BuildTime;          // NULL = use default (RFC3339 or "YYYY-MM-DD HH:MM:SS")
 } DS4MetaState;
 
 typedef void (*DS4OutputCallback)(DS4DeviceHandle handle, uint8_t rumbleSmall, uint8_t rumbleLarge, uint8_t ledRed, uint8_t ledGreen, uint8_t ledBlue, uint8_t flashOn, uint8_t flashOff);
 
 static void viiper_call_ds4_output(DS4OutputCallback fn, DS4DeviceHandle handle, uint8_t rumbleSmall, uint8_t rumbleLarge, uint8_t ledRed, uint8_t ledGreen, uint8_t ledBlue, uint8_t flashOn, uint8_t flashOff) {
 	fn(handle, rumbleSmall, rumbleLarge, ledRed, ledGreen, ledBlue, flashOn, flashOff);
+}
+
+typedef void (*DS4SpeakerCallback)(DS4DeviceHandle handle, const uint8_t* pcm, size_t length);
+
+static void viiper_call_ds4_speaker(DS4SpeakerCallback fn, DS4DeviceHandle handle, const uint8_t* pcm, size_t length) {
+	fn(handle, pcm, length);
+}
+
+typedef void (*DS4SpeakerResetCallback)(DS4DeviceHandle handle);
+
+static void viiper_call_ds4_speaker_reset(DS4SpeakerResetCallback fn, DS4DeviceHandle handle) {
+	fn(handle);
 }
 
 */
@@ -79,6 +92,7 @@ import (
 	"log/slog"
 	"runtime/cgo"
 	"slices"
+	"unsafe"
 
 	"github.com/DualSenseClient/VIIPER/device"
 	"github.com/DualSenseClient/VIIPER/device/dualshock4"
@@ -128,6 +142,9 @@ func CreateDS4Device(
 			BatteryStatus:      uint8(meta.BatteryStatus),
 			TemperatureCelsius: float64(meta.TemperatureCelsius),
 			BatteryVoltage:     float64(meta.BatteryVoltage),
+		}
+		if bt, ok := parseDSBuildTime(goStringOrEmpty(meta.BuildTime)); ok {
+			goMeta.BuildTime = bt
 		}
 		b, err := json.Marshal(goMeta)
 		if err != nil {
@@ -247,6 +264,123 @@ func SetDS4OutputCallback(handle C.DS4DeviceHandle, cb C.DS4OutputCallback) bool
 			C.uint8_t(out.FlashOff),
 		)
 	})
+	return true
+}
+
+// SetDS4SpeakerCallback sets a callback to be invoked when the host sends speaker PCM to the device.
+// The callback receives the raw bytes written to the speaker audio-out endpoint: two S16LE
+// channels at 32 kHz. Pass NULL to clear.
+// @param handle Handle to the DS4 device.
+// @param callback Callback receiving a PCM buffer. The buffer is only valid during the call.
+//
+//export SetDS4SpeakerCallback
+func SetDS4SpeakerCallback(handle C.DS4DeviceHandle, cb C.DS4SpeakerCallback) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	ds4device, ok := dhw.device.(*dualshock4.DualShock4)
+	if !ok {
+		return false
+	}
+	if cb == nil {
+		ds4device.SetSpeakerCallback(nil)
+		return true
+	}
+	ds4device.SetSpeakerCallback(func(pcm []byte) {
+		if len(pcm) == 0 {
+			return
+		}
+		C.viiper_call_ds4_speaker(cb, handle, (*C.uint8_t)(unsafe.Pointer(&pcm[0])), C.size_t(len(pcm)))
+	})
+	return true
+}
+
+// SetDS4SpeakerResetCallback sets a callback invoked when the speaker audio
+// interface alternate setting changes or the endpoint is reset. This marks a
+// speaker-stream generation barrier, so transport queues should be flushed.
+// Pass NULL to clear.
+// @param handle Handle to the DS4 device.
+// @param callback Callback with no arguments.
+//
+//export SetDS4SpeakerResetCallback
+func SetDS4SpeakerResetCallback(handle C.DS4DeviceHandle, cb C.DS4SpeakerResetCallback) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	ds4device, ok := dhw.device.(*dualshock4.DualShock4)
+	if !ok {
+		return false
+	}
+	if cb == nil {
+		ds4device.SetSpeakerResetCallback(nil)
+		return true
+	}
+	ds4device.SetSpeakerResetCallback(func() {
+		C.viiper_call_ds4_speaker_reset(cb, handle)
+	})
+	return true
+}
+
+// SetDS4MicrophonePCM queues a microphone PCM frame captured from the host-facing mic stream.
+// The frame must be exactly 320 bytes (160 frames of one S16LE channel at 16 kHz).
+// @param handle Handle to the DS4 device.
+// @param data Pointer to the PCM frame.
+// @param length Length of the PCM frame.
+//
+//export SetDS4MicrophonePCM
+func SetDS4MicrophonePCM(handle C.DS4DeviceHandle, data *C.uint8_t, length C.size_t) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	ds4device, ok := dhw.device.(*dualshock4.DualShock4)
+	if !ok {
+		return false
+	}
+	if data == nil || length != dualshock4.USBMicrophoneClientFrameSize {
+		return false
+	}
+	frame := C.GoBytes(unsafe.Pointer(data), C.int(length))
+	ds4device.QueueMicrophonePCMFrame(frame)
+	return true
+}
+
+// SetDS4MetaState updates the meta (identity/battery) state of the device at runtime.
+// Fields left at their zero value (NULL/0) keep the current value, so a partial
+// update only changes what the caller supplies.
+// @param handle Handle to the DS4 device.
+// @param meta Updated metadata. Pass NULL or a zeroed struct to change nothing.
+//
+//export SetDS4MetaState
+func SetDS4MetaState(handle C.DS4DeviceHandle, meta *C.DS4MetaState) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	ds4device, ok := dhw.device.(*dualshock4.DualShock4)
+	if !ok {
+		return false
+	}
+	if meta == nil {
+		return true
+	}
+	goMeta := dualshock4.MetaState{
+		SerialNumber:       goStringOrEmpty(meta.SerialNumber),
+		Board:              goStringOrEmpty(meta.Board),
+		BatteryStatus:      uint8(meta.BatteryStatus),
+		TemperatureCelsius: float64(meta.TemperatureCelsius),
+		BatteryVoltage:     float64(meta.BatteryVoltage),
+	}
+	if bt, ok := parseDSBuildTime(goStringOrEmpty(meta.BuildTime)); ok {
+		goMeta.BuildTime = bt
+	}
+	ds4device.UpdateMetaState(goMeta)
 	return true
 }
 

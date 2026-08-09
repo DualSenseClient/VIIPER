@@ -227,7 +227,8 @@ type MetaState struct {
 	TemperatureCelsius float64 `json:"temperature_celsius"`
 	BatteryVoltage     float64 `json:"battery_voltage"`
 
-	ShellColor string `json:"shell_color"` // hardware variant / controller color code, e.g. "00", "Z1"
+	ConnectionStatus uint8  `json:"connection_status"` // headphone/mic/USB flags, see Connection* constants
+	ShellColor       string `json:"shell_color"`       // hardware variant / controller color code, e.g. "00", "Z1"
 }
 
 func (m *MetaState) ToMap() map[string]any {
@@ -277,6 +278,9 @@ func (m *MetaState) UpdateFromMap(data map[string]any) {
 	}
 	if newMeta.BatteryVoltage != 0 {
 		m.BatteryVoltage = newMeta.BatteryVoltage
+	}
+	if newMeta.ConnectionStatus != 0 {
+		m.ConnectionStatus = newMeta.ConnectionStatus
 	}
 	m.ShellColor = newMeta.ShellColor
 }
