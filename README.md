@@ -26,7 +26,7 @@ instead of running it as a separate app.
 ## ✨ Features
 
 - Runs on Linux and Windows.
-- _(Optional)_ network support built in: control devices over a network with lower overhead than raw USBIP alone.
+- Pure C API callable from any language with C FFI support.
 - VIIPER abstracts away all USB / USBIP details.
 - VIIPER is portable and runs entirely in userspace.
     - Utilizes a generic USBIP kernel mode driver
@@ -34,20 +34,22 @@ instead of running it as a separate app.
       New device types never require touching kernel code.
 - After installing USBIP once, VIIPER can run without additional dependencies or system-wide installation.
 
-## 🍦 Two flavors
+## 🍦 libVIIPER
 
-VIIPER comes in two distinct flavors:
+libVIIPER is a single shared library (`libVIIPER.dll` on Windows, `libVIIPER.so` on Linux) that embeds the full
+VIIPER USB/USBIP stack directly into your application.
 
-- **VIIPER server** — a self-contained, dependency-free, statically linked, portable standalone executable
-    - exposes a lightweight TCP API
-    - control devices from any language or machine on the network
-- **libVIIPER** — a single shared library to embed device emulation directly into your application
-    - see examples for C and C# in [`examples/libVIIPER`](examples/libVIIPER)
-    - see the [libVIIPER documentation](docs/libviiper/overview.md) for details
-
-For help deciding between the two, see the [FAQ](#why-choose-the-standalone-executable-and-interfacing-via-tcp-over-the-shared-object-libviiper-library).
-
-Beyond device emulation, VIIPER can proxy real USB devices for traffic inspection and reverse engineering.
+- Pure C API callable from any language with C FFI support
+- In-process and threadsafe: the USBIP server runs in a background thread inside your application
+- Optional auto-attach to the local USBIP client on the same machine
+- No separate server process or network protocol to implement
+- See examples for C and C# in [`examples/libVIIPER`](examples/libVIIPER)
+- See the [libVIIPER documentation](docs/libviiper/overview.md) for details
+- C# developers: the complete [C# Bindings](docs/libviiper/csharp.md) reference covers
+  every function, struct, enum and callback with P/Invoke declarations
+- Prefer a managed TCP client over P/Invoke? See
+  [Client Libraries](docs/libviiper/client-libraries.md) for the generated C#, C++,
+  Rust, TypeScript and Go clients
 
 ## 🔀 What the DualSenseClient fork adds
 
@@ -72,7 +74,7 @@ Physical controller
         v
 Feeder application
         |
-        | local framed TCP API
+        | libVIIPER C API (in-process)
         v
 VIIPER userspace USB device
         |
@@ -91,9 +93,9 @@ controller.
 
 ## 💻 Installation
 
-You can download the packaged release (a zip containing `viiper.exe`) from the
-[latest DualSenseClient release](https://github.com/DualSenseClient/VIIPER/releases/latest).
-VIIPER itself is portable, but virtual devices on Windows still require the
+Download the latest `libVIIPER` release artifact (containing `libVIIPER.dll`/`libVIIPER.so`, `libVIIPER.h` and the
+Windows import definition) from the [latest DualSenseClient release](https://github.com/DualSenseClient/VIIPER/releases/latest).
+libVIIPER itself is portable, but virtual devices on Windows still require the
 [`usbip-win2`](https://github.com/vadimgrn/usbip-win2) kernel driver.
 
 ## 🔌 Requirements
@@ -115,34 +117,29 @@ VIIPER itself is portable, but virtual devices on Windows still require the
 
 ## 🥫 Feeder application development
 
-You have two options for developing feeder applications that control the virtual devices created by VIIPER:
-
-- Use the standalone VIIPER server and interface via the exposed TCP API, preferably using one of the client libraries
-  included in this repository (see the [`clients/`](clients/) directory)
-- Integrate libVIIPER directly into your application — see [Examples](examples/libVIIPER) for examples in either C or C#
+Integrate libVIIPER directly into your application — embed the full USBIP stack in-process and drive virtual
+devices through the pure C API. See [Examples](examples/libVIIPER) for examples in either C or C#.
 
 ### 🔌 API
 
-VIIPER includes a lightweight TCP based API for device and bus management, as well as streaming device control.
-It's designed to be trivial to drive from any language that can open a TCP socket and send null-byte-terminated commands.
+The libVIIPER C API is declared in `libVIIPER.h` (generated at build time) and covers:
 
-> Most of the time you don't need to implement the raw protocol yourself, as client libraries are available.
-> See the [API overview](docs/api/overview.md) and the [client library documentation](docs/clients/).
+- **Server lifecycle** — `NewUSBServer`, `CloseUSBServer`
+- **Bus management** — `CreateUSBBus`, `RemoveUSBBus`
+- **Device creation** — one `Create<Device>Device` per emulatable device type, with a `meta` parameter to control
+  identity (serial number, battery, colors, …)
+- **Input feeding** — `Set<Device>DeviceState` to push input (buttons, sticks, touch, IMU, …)
+- **Host feedback** — output callbacks for rumble, LEDs, adaptive triggers, and speaker/haptics PCM, plus microphone
+  PCM input for the DualSense and DualShock 4
 
-- The TCP API uses a string-based request/response protocol terminated by null bytes (`\0`) for device and bus management.
-    - Requests have a _path_ and an optional payload (sometimes JSON),
-      e.g. `bus/{id}/add {"type": "keyboard", "idVendor": "0x6969"}\0`
-    - Responses are often JSON as well!
-    - Errors are reported using JSON objects similar to [RFC 7807 Problem Details](https://datatracker.ietf.org/doc/html/rfc7807)
-      (the use of JSON allows for future extensibility without breaking compatibility)
-- For controlling, or feeding, a device, a long-lived TCP stream is used, with a wire protocol specific to each device type.
-  After an initial _handshake_ (`bus/{busId}/{deviceId}\0`), a device-specific **binary protocol** is used to send input
-  reports and receive output reports (e.g., rumble commands).
+All functions return `bool` and are callable from any language with C FFI support. VIIPER takes care of all USBIP
+protocol details, so you can focus on implementing the device logic only. On `localhost`, libVIIPER also automatically
+attaches the USBIP client, so you don't have to worry about USBIP details at all.
 
-VIIPER takes care of all USBIP protocol details, so you can focus on implementing the device logic only.
-On `localhost`, VIIPER also automatically attaches the USBIP client, so you don't have to worry about USBIP details at all.
-
-See the [API documentation](docs/api/overview.md) for details.
+See the [libVIIPER documentation](docs/libviiper/overview.md) for the complete API reference, the
+[C# Bindings](docs/libviiper/csharp.md) for the full C# P/Invoke reference, and
+[Client Libraries](docs/libviiper/client-libraries.md) if you prefer driving a standalone
+`viiper server` over TCP.
 
 ## 🛠️ VIIPER development
 
@@ -161,11 +158,11 @@ See the [API documentation](docs/api/overview.md) for details.
 ```bash
 git clone https://github.com/DualSenseClient/VIIPER.git
 cd VIIPER
-just build Release
+just build-libVIIPER
 ```
 
-By default the binary is written to `dist/viiper` (`dist/viiper.exe` on Windows); the CI builds are named
-`dist/viiper-<goos>-<goarch>` (for example `dist/viiper-windows-amd64.exe`).
+The output is written to `dist/libVIIPER/` (`libVIIPER.dll`/`libVIIPER.so` plus the generated `libVIIPER.h` header).
+Building libVIIPER requires CGO (`CGO_ENABLED=1`) and a C compiler (GCC / MSVC / Clang) in `PATH`.
 
 For more build options:
 
@@ -174,9 +171,6 @@ just --list            # Show all available targets
 just test              # Run tests
 go test ./...          # Run tests directly
 ```
-
-Client bindings are generated for TypeScript, C#, C++, and Rust. Run `go run ./cmd/viiper codegen` whenever a public
-device-state or feedback contract changes.
 
 ## 🤝 Contributing
 
@@ -192,13 +186,10 @@ USBIP is a protocol that allows USB devices to be shared over a network.
 VIIPER uses it because it's already built into Linux and available for Windows, making virtual device emulation
 possible without writing custom kernel drivers yourself.
 
-### Why choose the standalone executable and interfacing via TCP over the (shared-object) libVIIPER library?
+### Why should my application be GPL-3.0 compatible?
 
-- **Flexibility**
-    - allows one to use VIIPER as a service on the same host as the USBIP client and use the feeder on a different, remote machine
-    - allows software written using VIIPER to **not** be licensed under the terms of the GPLv3
-    - allows users to independently update VIIPER to receive updates and bugfixes without affecting other components
-      or having to recompile applications themselves — this also removes maintenance burdens for feeder-application developers (likely you)
+libVIIPER is licensed under **GPL-3.0**. Linking against it (as a shared library) requires your application to be
+GPL-3.0 compatible.
 
 ### Can I use VIIPER for gaming?
 
@@ -222,17 +213,10 @@ requires touching kernel code.
 Yes! VIIPER's architecture is designed to be extensible.
 Check the [xbox360 device implementation](./device/xbox360/) as a reference for creating new device types.
 
-### Does VIIPER proxy USB devices?
-
-Yes — VIIPER has a proxy mode that sits between a USBIP client and a USBIP server (like a Linux machine sharing real
-USB devices). It intercepts and logs all URBs passing through, without handling the devices directly. Useful for
-reverse engineering USB protocols and understanding how devices communicate.
-
-### What about TCP overhead or input latency?
+### What about input latency?
 
 End-to-end input latency for virtual devices created with VIIPER is typically well below 1 millisecond on a modern
-desktop. Detailed methodology and sample runs can be found in the [E2E Latency Benchmarks](docs/testing/e2e_latency.md).
-However, to not stress the CPU excessively, reports get batched and sent every millisecond, so the best you will achieve
+desktop. To not stress the CPU excessively, reports get batched and sent every millisecond, so the best you will achieve
 is a 1000 Hz update rate — more than enough, and more than what most real hardware devices provide.
 _Note_: Actual device polling rates may be lower depending on the device type and configuration.
 
@@ -262,9 +246,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ```
 
-The VIIPER server and core are licensed under GPL-3.0-or-later; see [`LICENSE.txt`](LICENSE.txt) for the full text.
-Generated client libraries retain their documented MIT licensing; see
-[`internal/codegen/common/license.go`](internal/codegen/common/license.go).
+libVIIPER and the VIIPER core are licensed under GPL-3.0-or-later; see [`LICENSE.txt`](LICENSE.txt) for the full text.
 
 ## Credits
 

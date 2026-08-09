@@ -47,5 +47,5 @@ mkdocs gh-deploy
 - `docs/` - Documentation source files (Markdown)
     - `index.md` - Home page
     - `getting-started/` - Installation and quick start
-    - `cli/` - CLI reference
-    - `api/` - API reference
+    - `libviiper/` - libVIIPER API overview and integration guides
+    - `devices/` - Device-specific documentation

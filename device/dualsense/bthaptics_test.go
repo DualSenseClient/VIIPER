@@ -103,3 +103,49 @@ func TestBuildBluetoothOutputReportFromUSBOutputRejectsInvalidReport(t *testing.
 		t.Fatal("expected wrong report ID to fail")
 	}
 }
+
+// TestBluetoothCombinedHapticsDocumentedLayout pins the exact constant values
+// that the documentation (docs/devices/dualsense.md and docs/libviiper/csharp.md)
+// relies on when decoding the V5 combined Bluetooth carrier. The layout tests
+// above use the constants themselves; this test keeps a refactor from changing
+// an offset without invalidating the published byte offsets.
+func TestBluetoothCombinedHapticsDocumentedLayout(t *testing.T) {
+	const (
+		wantReportID      = 0x36
+		wantReportSize    = 398
+		wantStateSize     = 63
+		wantHapticsOffset = 78
+		wantSpeakerOffset = 142
+		wantSampleSize    = 64
+		wantBufferLength  = 16
+	)
+	if BluetoothCombinedHapticsReportID != wantReportID {
+		t.Fatalf("BluetoothCombinedHapticsReportID = %#x, docs say %#x", BluetoothCombinedHapticsReportID, wantReportID)
+	}
+	if BluetoothCombinedHapticsReportSize != wantReportSize {
+		t.Fatalf("BluetoothCombinedHapticsReportSize = %d, docs say %d", BluetoothCombinedHapticsReportSize, wantReportSize)
+	}
+	if BluetoothCombinedStateSize != wantStateSize {
+		t.Fatalf("BluetoothCombinedStateSize = %d, docs say %d", BluetoothCombinedStateSize, wantStateSize)
+	}
+	if BluetoothCombinedHapticsOffset != wantHapticsOffset {
+		t.Fatalf("BluetoothCombinedHapticsOffset = %d, docs say %d", BluetoothCombinedHapticsOffset, wantHapticsOffset)
+	}
+	if BluetoothCombinedSpeakerOffset != wantSpeakerOffset {
+		t.Fatalf("BluetoothCombinedSpeakerOffset = %d, docs say %d", BluetoothCombinedSpeakerOffset, wantSpeakerOffset)
+	}
+	if BluetoothHapticsSampleSize != wantSampleSize {
+		t.Fatalf("BluetoothHapticsSampleSize = %d, docs say %d", BluetoothHapticsSampleSize, wantSampleSize)
+	}
+	if BluetoothCombinedLowLatencyBufferLength != wantBufferLength {
+		t.Fatalf("BluetoothCombinedLowLatencyBufferLength = %d, docs say %d", BluetoothCombinedLowLatencyBufferLength, wantBufferLength)
+	}
+}
+
+// TestBuildBluetoothCombinedHapticsReportRejectsInvalidSample pins the strict
+// 64-byte contract behind the documented 64-byte sample at offset 78.
+func TestBuildBluetoothCombinedHapticsReportRejectsInvalidSample(t *testing.T) {
+	if _, err := BuildBluetoothCombinedHapticsReport(0, 0, make([]byte, BluetoothHapticsSampleSize-1), nil); err != ErrInvalidBluetoothHapticsSample {
+		t.Fatalf("got err = %v, want ErrInvalidBluetoothHapticsSample", err)
+	}
+}

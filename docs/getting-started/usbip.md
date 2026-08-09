@@ -2,11 +2,9 @@
 
 === "Windows"
 
-    VIIPER for DS4Windows requires the signed
-    [usbip-win2 0.9.7.7 x64 release](https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.7.7).
-    Prefer the DS4Windows **Install / Repair VIIPER** action because it bundles
-    and verifies this exact package. Do not install 0.9.7.8 or substitute a
-    different userspace/driver build; VIIPER rejects an incompatible ABI.
+    VIIPER requires signed
+    [usbip-win2 ](https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.7.7).
+    Do not install 0.9.7.8 or substitute a different userspace/driver build; VIIPER rejects an incompatible ABI.
 
     !!! warning "USBIP-Win2 signing certificate"
         The 0.9.7.7 installer may add the publicly available USBIP test-signing
