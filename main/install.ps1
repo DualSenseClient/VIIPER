@@ -1,11 +1,27 @@
 param(
-    [switch]$Yes
+    [switch]$Yes,
+    [switch]$DeveloperStandalone
 )
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
-$viiperVersion = "v0.0.9"
+# The DS4Windows package has one offline, hash-pinned infrastructure owner.
+# This legacy network installer remains available only for VIIPER developers;
+# it must never silently create a second LocalAppData/HKCU authority beside a
+# managed DS4Windows installation.
+if (-not $DeveloperStandalone -or
+        $env:VIIPER_DEVELOPER_STANDALONE -ne "1") {
+    throw (
+        "Standalone VIIPER setup on Windows is developer-only. Use the " +
+        "signed DS4Windows standard installer or Settings > VIIPER Virtual " +
+        "Controller Support so VIIPER and USB-IP are installed from the " +
+        "same verified offline package. Developers must explicitly pass " +
+        "-DeveloperStandalone and set VIIPER_DEVELOPER_STANDALONE=1."
+    )
+}
+
+$viiperVersion = "v0.1.0"
 $usbipTargetVersion = [Version]"0.9.7.7"
 $installDir = Join-Path $env:LOCALAPPDATA "VIIPER"
 $usbipReplacementStatePath = Join-Path $installDir `
@@ -73,7 +89,7 @@ $tempDir = New-TemporaryFile | ForEach-Object {
     Remove-Item $_
     New-Item -ItemType Directory -Path $_
 }
-$setupMutex = [Threading.Mutex]::new($false, "Local\DS4Windows-VIIPER-Setup")
+$setupMutex = [Threading.Mutex]::new($false, "Global\DS4Windows-VIIPER-Setup")
 $setupMutexAcquired = $false
 try {
     try {
@@ -861,6 +877,36 @@ exit 32
         return $true
     }
 
+    function Get-OptionalRegistryValue(
+            [Microsoft.Win32.RegistryKey]$root,
+            [string]$subKeyPath, [string]$valueName) {
+        # Get-ItemPropertyValue emits a PSArgumentException when the Run key
+        # exists but a clean machine has never created the VIIPER value. Read
+        # through Microsoft.Win32.Registry instead so both a missing key and a
+        # missing value are the expected `$null` first-run state.
+        $key = $null
+        try {
+            if ($null -eq $root -or
+                    [string]::IsNullOrWhiteSpace($subKeyPath) -or
+                    [string]::IsNullOrWhiteSpace($valueName)) {
+                return $null
+            }
+            $key = $root.OpenSubKey($subKeyPath, $false)
+            if ($null -eq $key) { return $null }
+            return $key.GetValue($valueName, $null,
+                [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+        }
+        finally {
+            if ($null -ne $key) { $key.Dispose() }
+        }
+    }
+
+    function Get-ViiperRunValue {
+        return Get-OptionalRegistryValue `
+            ([Microsoft.Win32.Registry]::CurrentUser) `
+            "Software\Microsoft\Windows\CurrentVersion\Run" "VIIPER"
+    }
+
     function Disable-ViiperStartup {
         $task = Get-ScheduledTask -TaskName "RunVIIPER" `
             -ErrorAction SilentlyContinue
@@ -892,9 +938,7 @@ exit 32
             throw "RunVIIPER startup remains enabled. No USBIP driver " +
                 "transition was started."
         }
-        $runValue = Get-ItemPropertyValue `
-            -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" `
-            -Name "VIIPER" -ErrorAction SilentlyContinue
+        $runValue = Get-ViiperRunValue
         if ($null -ne $runValue) {
             throw "The VIIPER Run entry remains enabled. No USBIP driver " +
                 "transition was started."
@@ -926,9 +970,7 @@ exit 32
                 -ErrorAction SilentlyContinue) {
             throw "RunVIIPER was recreated alongside the VIIPER Run entry. Refusing duplicate startup ownership."
         }
-        $runValue = Get-ItemPropertyValue `
-            -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" `
-            -Name "VIIPER" -ErrorAction SilentlyContinue
+        $runValue = Get-ViiperRunValue
         $expectedPrefix = '"' + [IO.Path]::GetFullPath($path) + '" server '
         if ([string]::IsNullOrWhiteSpace($runValue) -or
                 -not ([string]$runValue).StartsWith($expectedPrefix,
