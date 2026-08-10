@@ -628,6 +628,62 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../../libviiper/csharp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C# Bindings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../libviiper/client-libraries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Client Libraries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -649,10 +705,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" checked>
         
           
-          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="">
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="">
             
   
   
@@ -670,8 +726,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_3_2">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_4">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1337,7 +1393,10 @@ units should convert them according to their target host or driver conventions.<
 </tbody>
 </table>
 <h2 id="feature-flags">Feature flags</h2>
-<p>Passed to <code>CreateNS2ProDevice</code> to declare which features the device exposes.</p>
+<p><code>NS2PRO_FEATURE_*</code> constants describe which report features the device
+implements. They are <strong>internal to the emulation</strong> — the C API does not take a
+feature-flag parameter on <code>CreateNS2ProDevice</code>; every feature listed here is
+available on every created device.</p>
 <table>
 <thead>
 <tr>
