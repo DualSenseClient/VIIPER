@@ -191,6 +191,15 @@ const (
 
 	// Error codes
 	errConnReset = -104 // -ECONNRESET
+
+	// Longest the server waits for the next URB from an attached client before
+	// re-checking the device lifecycle. A Windows client with nothing actively
+	// using the device (for example an Xbox 360 while no application polls
+	// XInput) stops submitting URBs entirely, which used to leave the stream
+	// handler stuck in a blocking read so removals were never observed and the
+	// virtual device never detached. The bounded read lets the loop see
+	// ctx.Done() and close the URB stream promptly even when the client is idle.
+	urbFrameReadIdleTimeout = 1 * time.Second
 )
 
 type Server struct {
@@ -812,7 +821,13 @@ func (s *Server) handleUrbStream(conn net.Conn, dev usb.Device) error {
 		}
 
 		var hdr [urbHdrSize]byte
+		if err := conn.SetReadDeadline(time.Now().Add(urbFrameReadIdleTimeout)); err != nil {
+			s.logger.Warn("failed to arm URB read deadline", "error", err)
+		}
 		if err := usbip.ReadExactly(conn, hdr[:]); err != nil {
+			if isIdleTimeout(err) {
+				continue
+			}
 			return fmt.Errorf("read URB header: %w", err)
 		}
 		cmd := binary.BigEndian.Uint32(hdr[urbHdrOffsetCommand : urbHdrOffsetCommand+4])
@@ -1424,6 +1439,17 @@ func isoPacketInterval(desc *usb.Descriptor, ep uint32) time.Duration {
 	}
 
 	return usbServiceInterval(desc.Device.Speed, bInterval)
+}
+
+// isIdleTimeout reports whether err is a read/write deadline expiry rather than
+// a real connection failure. The caller loops back and re-checks the device
+// context instead of treating the idle timeout as a client disconnect.
+func isIdleTimeout(err error) bool {
+	if err == nil {
+		return false
+	}
+	var netErr net.Error
+	return errors.As(err, &netErr) && netErr.Timeout()
 }
 
 // isClientDisconnect tests whether an error represents a normal client
