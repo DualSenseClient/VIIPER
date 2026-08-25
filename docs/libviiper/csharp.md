@@ -612,6 +612,23 @@ static class LibVIIPER
     public static extern bool RemoveUSBBus(nuint serverHandle, uint busID);
 ```
 
+### Device telemetry
+
+```csharp
+    // Works with any device handle from any family. Call once with a null
+    // buffer to get the required size (including the terminator), then again
+    // with an adequately sized buffer. Returns 0 for an invalid handle.
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    public static extern nuint GetDeviceTelemetry(nuint deviceHandle, byte[]? buffer, nuint bufferSize);
+```
+
+```csharp
+nuint size = LibVIIPER.GetDeviceTelemetry(dsHandle, null, 0);
+var json = new byte[size];
+LibVIIPER.GetDeviceTelemetry(dsHandle, json, size);
+string telemetry = System.Text.Encoding.UTF8.GetString(json, 0, (int)size - 1);
+```
+
 ### Xbox 360
 
 ```csharp

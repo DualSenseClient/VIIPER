@@ -92,6 +92,16 @@ Each device family has its own create/state/callback functions documented on its
 - [Keyboard](../devices/keyboard.md)
 - [Mouse](../devices/mouse.md)
 
+### Device telemetry
+
+| Function | Description |
+| --- | --- |
+| `GetDeviceTelemetry(handle, buffer, bufferSize)` | Read live device telemetry (stream health, buffers) as JSON |
+
+Works with any device handle from any family. Call it once with `buffer = NULL`
+to obtain the required size in bytes (including the null terminator), then
+again with an adequately sized buffer. Returns `0` for an invalid handle.
+
 ### Common device API
 
 #### Xbox 360
