@@ -775,6 +775,10 @@ static class LibVIIPER
 
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool SetNS2ProMetaState(nuint deviceHandle, ref NS2ProMetaState meta);
+
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool SetNS2ProOutputCallback(nuint deviceHandle, NS2ProOutputCallbackDelegate? callback);
 
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]

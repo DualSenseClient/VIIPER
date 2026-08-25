@@ -144,6 +144,7 @@ Each device family has its own create/state/callback functions documented on its
 | --- | --- |
 | `CreateNS2ProDevice(...)` | Create a virtual Switch 2 Pro Controller |
 | `SetNS2ProDeviceState(handle, state)` | Push input state |
+| `SetNS2ProMetaState(handle, meta)` | Merge-update identity/battery state at runtime |
 | `SetNS2ProOutputCallback(handle, cb)` | Register output (rumble/LED) callback |
 | `RemoveNS2ProDevice(handle)` | Remove the device |
 

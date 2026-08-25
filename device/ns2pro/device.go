@@ -120,13 +120,45 @@ func (d *NS2Pro) SetMetaState(meta MetaState) {
 	d.stateMu.Lock()
 	defer d.stateMu.Unlock()
 	d.metaState = &meta
-	if d.descriptor.Strings != nil {
-		serialEnding := DefaultSerialEnding
-		if len(meta.SerialNumber) >= 2 {
-			serialEnding = meta.SerialNumber[len(meta.SerialNumber)-2:]
-		}
-		d.descriptor.Strings[3] = serialEnding
+	d.refreshSerialEnding()
+}
+
+// UpdateMetaState merges non-zero/non-empty fields of meta into the current
+// device meta state, preserving any field left at its zero value. This mirrors
+// the update semantics of the wire UpdateMetaState handlers.
+func (d *NS2Pro) UpdateMetaState(meta MetaState) {
+	d.stateMu.Lock()
+	defer d.stateMu.Unlock()
+
+	current := *d.metaState
+	if meta.SerialNumber != "" {
+		current.SerialNumber = meta.SerialNumber
 	}
+	if meta.BatteryLevel != 0 {
+		current.BatteryLevel = meta.BatteryLevel
+	}
+	if meta.Charging {
+		current.Charging = true
+	}
+	if meta.ExternalPower {
+		current.ExternalPower = true
+	}
+	if meta.BatteryVolts != 0 {
+		current.BatteryVolts = meta.BatteryVolts
+	}
+	d.metaState = &current
+	d.refreshSerialEnding()
+}
+
+func (d *NS2Pro) refreshSerialEnding() {
+	if d.descriptor.Strings == nil {
+		return
+	}
+	serialEnding := DefaultSerialEnding
+	if len(d.metaState.SerialNumber) >= 2 {
+		serialEnding = d.metaState.SerialNumber[len(d.metaState.SerialNumber)-2:]
+	}
+	d.descriptor.Strings[3] = serialEnding
 }
 
 func (d *NS2Pro) HandleTransfer(ctx context.Context, ep uint32, dir uint32, out []byte) []byte {

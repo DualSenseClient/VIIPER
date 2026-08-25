@@ -479,6 +479,29 @@ func TestStreamInputAndRumble(t *testing.T) {
 	assert.Equal(t, byte(0x90), out.RightRumble[0])
 }
 
+func TestUpdateMetaStateMergesPartialFields(t *testing.T) {
+	dev, err := New(nil)
+	require.NoError(t, err)
+
+	dev.UpdateMetaState(MetaState{
+		SerialNumber: "TESTSERIAL01",
+		BatteryLevel: 3,
+		Charging:     true,
+	})
+
+	dev.stateMu.Lock()
+	meta := *dev.metaState
+	serialEnding := dev.descriptor.Strings[3]
+	dev.stateMu.Unlock()
+
+	assert.Equal(t, "TESTSERIAL01", meta.SerialNumber)
+	assert.Equal(t, uint8(3), meta.BatteryLevel)
+	assert.True(t, meta.Charging)
+	assert.True(t, meta.ExternalPower)                      // default preserved
+	assert.Equal(t, DefaultBatteryVolts, meta.BatteryVolts) // default preserved
+	assert.Equal(t, "01", serialEnding)                     // ending tracks serial
+}
+
 func featureCommand(sub, flags uint8) []byte {
 	return []byte{0x0C, 0x91, 0x00, sub, 0x00, 0x04, 0x00, 0x00, flags, 0x00, 0x00, 0x00}
 }

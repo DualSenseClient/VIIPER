@@ -214,6 +214,38 @@ func SetNS2ProDeviceState(handle C.NS2ProDeviceHandle, state C.NS2ProDeviceState
 	return true
 }
 
+// SetNS2ProMetaState updates the meta (identity/battery) state of the device at runtime.
+// Fields left at their zero value (NULL/0) keep the current value, so a partial
+// update only changes what the caller supplies. Charging and ExternalPower can
+// only be enabled at runtime; 0 leaves them unchanged.
+// @param handle Handle to the NS2Pro device.
+// @param meta Updated metadata. Pass NULL or a zeroed struct to change nothing.
+//
+//export SetNS2ProMetaState
+func SetNS2ProMetaState(handle C.NS2ProDeviceHandle, meta *C.NS2ProMetaState) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	ns2device, ok := dhw.device.(*ns2pro.NS2Pro)
+	if !ok {
+		return false
+	}
+	if meta == nil {
+		return true
+	}
+	goMeta := ns2pro.MetaState{
+		SerialNumber:  goStringOrEmpty(meta.SerialNumber),
+		BatteryLevel:  uint8(meta.BatteryLevel),
+		Charging:      meta.Charging != 0,
+		ExternalPower: meta.ExternalPower != 0,
+		BatteryVolts:  uint16(meta.BatteryVolts),
+	}
+	ns2device.UpdateMetaState(goMeta)
+	return true
+}
+
 // SetNS2ProOutputCallback sets a callback to be invoked when the host sends output (rumble/LED) commands to the device.
 // @param handle Handle to the NS2Pro device.
 // @param callback Callback receiving the full output state (HD rumble data, flags, player LED mask). Pass NULL to clear.
