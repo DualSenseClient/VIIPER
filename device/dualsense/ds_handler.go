@@ -8,7 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"net"
-	"strings"
 
 	"github.com/DualSenseClient/VIIPER/device"
 	"github.com/DualSenseClient/VIIPER/internal/server/api"
@@ -30,75 +29,14 @@ func (h *dshandler) CreateDevice(o *device.CreateOptions) (usb.Device, error) {
 	if o == nil {
 		o = &device.CreateOptions{}
 	}
-
-	metaState := MetaState{
-		ShellColor: DefaultShellColor,
-	}
-	if o.DeviceSpecific != "" {
-		if err := json.Unmarshal([]byte(o.DeviceSpecific), &metaState); err != nil {
-			return nil, fmt.Errorf("invalid device specific JSON: %w", err)
-		}
-	}
-
-	serial := metaState.SerialNumber
-	if serial == "" {
-		serial = DefaultSerialNumberDS
-	}
-	if metaState.ShellColor != "" && len(serial) >= 6 {
-		code := strings.ToUpper(metaState.ShellColor)
-		if len(code) >= 2 {
-			serial = serial[:4] + code[:2] + serial[6:]
-		}
-	}
-	identityMu.Lock()
-	if _, ok := serials[serial]; ok {
-		if len(serial) < 2 {
-			serial = DefaultSerialNumberDS
-		}
-		for i := 1; i < 16; i++ {
-			newSerial := fmt.Sprintf("%s%02X", serial[:len(serial)-2], i)
-			if _, exists := serials[newSerial]; !exists {
-				serial = newSerial
-				break
-			}
-		}
-	}
-	metaState.SerialNumber = serial
-	serials[serial] = struct{}{}
-
-	mac := metaState.MACAddress
-	if mac == "" {
-		mac = DefaultMACAddressDS
-	}
-	if _, ok := macs[mac]; ok {
-		if len(mac) < 2 {
-			mac = DefaultMACAddressDS
-		}
-		prefix := mac[:len(mac)-2]
-		for i := 1; i <= 16; i++ {
-			candidate := fmt.Sprintf("%s%02X", prefix, i)
-			if _, exists := macs[candidate]; !exists {
-				mac = candidate
-				break
-			}
-		}
-	}
-	metaState.MACAddress = mac
-	macs[mac] = struct{}{}
-	identityMu.Unlock()
-
-	b, err := json.Marshal(metaState)
+	lease, err := AcquireIdentity(o, false)
 	if err != nil {
-		return nil, fmt.Errorf("marshal meta state: %w", err)
+		return nil, err
 	}
-	o.DeviceSpecific = string(b)
 
 	dse, err := new(o, false)
 	if err != nil {
-		identityMu.Lock()
-		delete(serials, serial)
-		delete(macs, mac)
-		identityMu.Unlock()
+		lease.Release()
 		return nil, err
 	}
 	if h.audioOnly {

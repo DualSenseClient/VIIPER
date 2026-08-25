@@ -45,41 +45,14 @@ func (h *handler) CreateDevice(o *device.CreateOptions) (usb.Device, error) {
 	if o == nil {
 		o = &device.CreateOptions{}
 	}
-
-	metaState := MetaState{}
-	if o.DeviceSpecific != "" {
-		if err := json.Unmarshal([]byte(o.DeviceSpecific), &metaState); err != nil {
-			return nil, fmt.Errorf("invalid device specific JSON: %w", err)
-		}
-	}
-	serial := DefaultSerialString
-	if metaState.SerialNumber != "" {
-		serial = metaState.SerialNumber
-	}
-	serial = fmt.Sprintf("%016s", serial)
-	serialsMu.Lock()
-	if _, ok := serials[serial]; ok {
-		for i := 1; i < 16; i++ {
-			newSerial := fmt.Sprintf("%s%02X", serial[:len(serial)-2], i)
-			if _, ok := serials[newSerial]; !ok {
-				serial = newSerial
-				break
-			}
-		}
-	}
-	metaState.SerialNumber = serial
-	serials[serial] = struct{}{}
-	serialsMu.Unlock()
-	b, err := json.Marshal(metaState)
+	lease, err := AcquireIdentity(o)
 	if err != nil {
-		return nil, fmt.Errorf("marshal meta state: %w", err)
+		return nil, err
 	}
-	o.DeviceSpecific = string(b)
+
 	ds4, err := New(o)
 	if err != nil {
-		serialsMu.Lock()
-		delete(serials, serial)
-		serialsMu.Unlock()
+		lease.Release()
 		return nil, err
 	}
 	ds4.microphoneInput = h.microphoneInput

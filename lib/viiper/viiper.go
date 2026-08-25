@@ -99,6 +99,9 @@ type deviceHandleWrapper struct {
 	device     any
 	exportMeta *usbip.ExportMeta
 	usbServer  *usbServerHandleWrapper
+	// releaseIdentity frees the serial/MAC registration reserved at creation
+	// time; nil for devices created without identity registration.
+	releaseIdentity func()
 }
 
 // ---

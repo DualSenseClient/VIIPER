@@ -212,7 +212,7 @@ func CreateDualSenseDevice(
 	idProduct uint16,
 	meta *C.DSMetaState,
 ) bool {
-	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, dualsense.New)
+	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, dualsense.New, false)
 }
 
 // CreateDualSenseEdgeDevice creates a new DualSense Edge device on the bus with the given ID on the server associated with the given handle.
@@ -234,7 +234,7 @@ func CreateDualSenseEdgeDevice(
 	idProduct uint16,
 	meta *C.DSMetaState,
 ) bool {
-	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, dualsense.NewEdge)
+	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, dualsense.NewEdge, true)
 }
 
 // CreateDualSenseAudioOnlyDevice creates a DualSense exposing only the audio
@@ -257,7 +257,7 @@ func CreateDualSenseAudioOnlyDevice(
 	idProduct uint16,
 	meta *C.DSMetaState,
 ) bool {
-	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, dualsense.NewAudioOnly)
+	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, dualsense.NewAudioOnly, false)
 }
 
 // CreateDualSenseEdgeAudioOnlyDevice creates a DualSense Edge exposing only the audio
@@ -280,7 +280,7 @@ func CreateDualSenseEdgeAudioOnlyDevice(
 	idProduct uint16,
 	meta *C.DSMetaState,
 ) bool {
-	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, dualsense.NewEdgeAudioOnly)
+	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, dualsense.NewEdgeAudioOnly, true)
 }
 
 // CreateDualSenseGamepadOnlyDevice creates a DualSense exposing only the HID gamepad interface.
@@ -302,7 +302,7 @@ func CreateDualSenseGamepadOnlyDevice(
 	idProduct uint16,
 	meta *C.DSMetaState,
 ) bool {
-	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, dualsense.NewGamepadOnly)
+	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, dualsense.NewGamepadOnly, false)
 }
 
 // CreateDualSenseEdgeGamepadOnlyDevice creates a DualSense Edge exposing only the HID gamepad interface.
@@ -324,7 +324,7 @@ func CreateDualSenseEdgeGamepadOnlyDevice(
 	idProduct uint16,
 	meta *C.DSMetaState,
 ) bool {
-	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, dualsense.NewEdgeGamepadOnly)
+	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, dualsense.NewEdgeGamepadOnly, true)
 }
 
 func createDualSenseDevice(
@@ -336,6 +336,7 @@ func createDualSenseDevice(
 	idProduct uint16,
 	meta *C.DSMetaState,
 	ctor func(*device.CreateOptions) (*dualsense.DualSense, error),
+	edge bool,
 ) bool {
 	sh := cgo.Handle(serverHandle)
 	shw, ok := sh.Value().(*usbServerHandleWrapper)
@@ -375,16 +376,24 @@ func createDualSenseDevice(
 		opts.DeviceSpecific = string(b)
 	}
 
+	lease, err := dualsense.AcquireIdentity(opts, edge)
+	if err != nil {
+		return false
+	}
+
 	d, err := ctor(opts)
 	if err != nil {
+		lease.Release()
 		return false
 	}
 	devCtx, err := bus.Add(d)
 	if err != nil {
+		lease.Release()
 		return false
 	}
 	exportMeta := device.GetDeviceMeta(devCtx)
 	if exportMeta == nil {
+		lease.Release()
 		return false
 	}
 
@@ -398,14 +407,16 @@ func createDualSenseDevice(
 		)
 		if err != nil {
 			slog.Error("failed to auto-attach localhost client", "error", err)
+			lease.Release()
 			return false
 		}
 	}
 
 	handleWrapper := &deviceHandleWrapper{
-		device:     d,
-		exportMeta: exportMeta,
-		usbServer:  shw,
+		device:          d,
+		exportMeta:      exportMeta,
+		usbServer:       shw,
+		releaseIdentity: lease.Release,
 	}
 	*outDeviceHandle = C.DSDeviceHandle(cgo.NewHandle(handleWrapper))
 
@@ -765,6 +776,9 @@ func RemoveDualSenseDevice(handle C.DSDeviceHandle) bool {
 	}
 	if err := dhw.usbServer.s.RemoveDeviceByID(dhw.exportMeta.BusID, fmt.Sprintf("%d", dhw.exportMeta.DevID)); err != nil {
 		return false
+	}
+	if dhw.releaseIdentity != nil {
+		dhw.releaseIdentity()
 	}
 
 	shw := dhw.usbServer

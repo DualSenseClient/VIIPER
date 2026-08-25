@@ -142,16 +142,23 @@ func CreateNS2ProDevice(
 		opts.DeviceSpecific = string(b)
 	}
 
+	lease, err := ns2pro.AcquireIdentity(opts)
+	if err != nil {
+		return false
+	}
 	d, err := ns2pro.New(opts)
 	if err != nil {
+		lease.Release()
 		return false
 	}
 	devCtx, err := bus.Add(d)
 	if err != nil {
+		lease.Release()
 		return false
 	}
 	exportMeta := device.GetDeviceMeta(devCtx)
 	if exportMeta == nil {
+		lease.Release()
 		return false
 	}
 
@@ -165,14 +172,16 @@ func CreateNS2ProDevice(
 		)
 		if err != nil {
 			slog.Error("failed to auto-attach localhost client", "error", err)
+			lease.Release()
 			return false
 		}
 	}
 
 	handleWrapper := &deviceHandleWrapper{
-		device:     d,
-		exportMeta: exportMeta,
-		usbServer:  shw,
+		device:          d,
+		exportMeta:      exportMeta,
+		usbServer:       shw,
+		releaseIdentity: lease.Release,
 	}
 	*outDeviceHandle = C.NS2ProDeviceHandle(cgo.NewHandle(handleWrapper))
 
@@ -290,6 +299,9 @@ func RemoveNS2ProDevice(handle C.NS2ProDeviceHandle) bool {
 	}
 	if err := dhw.usbServer.s.RemoveDeviceByID(dhw.exportMeta.BusID, fmt.Sprintf("%d", dhw.exportMeta.DevID)); err != nil {
 		return false
+	}
+	if dhw.releaseIdentity != nil {
+		dhw.releaseIdentity()
 	}
 
 	shw := dhw.usbServer
