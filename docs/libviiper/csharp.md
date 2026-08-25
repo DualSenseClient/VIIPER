@@ -645,6 +645,12 @@ static class LibVIIPER
 
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool CreateDS4AudioOnlyDevice(nuint serverHandle, out nuint outDeviceHandle,
+        uint busID, [MarshalAs(UnmanagedType.I1)] bool autoAttachLocalhost,
+        ushort idVendor, ushort idProduct, ref DS4MetaState meta);
+
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool SetDS4DeviceState(nuint deviceHandle, DS4DeviceState state);
 
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]

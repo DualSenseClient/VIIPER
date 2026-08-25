@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DualSenseClient/VIIPER/device"
 	"github.com/DualSenseClient/VIIPER/usbip"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -86,6 +87,21 @@ func TestAudioOnlyDescriptorKeepsAudioAndRemovesHID(t *testing.T) {
 
 	assert.True(t, speakerEndpointFound)
 	assert.True(t, microphoneEndpointFound)
+}
+
+func TestNewAudioOnlyDropsHIDAndKeepsVIDPIDOverrides(t *testing.T) {
+	vid := uint16(0x1234)
+	pid := uint16(0x5678)
+	dev, err := NewAudioOnly(&device.CreateOptions{IDVendor: &vid, IDProduct: &pid})
+	require.NoError(t, err)
+
+	desc := dev.GetDescriptor()
+	assert.Equal(t, vid, desc.Device.IDVendor)
+	assert.Equal(t, pid, desc.Device.IDProduct)
+	for _, iface := range desc.Interfaces {
+		assert.Nil(t, iface.HID)
+		assert.NotEqual(t, uint8(0x03), iface.Descriptor.BInterfaceClass)
+	}
 }
 
 func TestAudioSamplingFrequencyControlsMatchDS4Hardware(t *testing.T) {

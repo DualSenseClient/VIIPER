@@ -53,6 +53,17 @@ type DualShock4 struct {
 }
 
 func New(o *device.CreateOptions) (*DualShock4, error) {
+	return newDS4(o, defaultDescriptor)
+}
+
+// NewAudioOnly creates a DualShock 4 exposing only the audio interfaces and
+// no HID gamepad interface. Windows can then expose speaker/microphone
+// endpoints without enumerating a second game controller.
+func NewAudioOnly(o *device.CreateOptions) (*DualShock4, error) {
+	return newDS4(o, makeAudioOnlyDescriptor())
+}
+
+func newDS4(o *device.CreateOptions, descriptor usb.Descriptor) (*DualShock4, error) {
 	metaState := &MetaState{
 		SerialNumber:       DefaultSerialString,
 		Board:              DefaultBoardString,
@@ -88,7 +99,7 @@ func New(o *device.CreateOptions) (*DualShock4, error) {
 	}
 
 	d := &DualShock4{
-		descriptor: defaultDescriptor,
+		descriptor: descriptor,
 		metaState:  metaState,
 		microphoneBuffer: microphonebuffer.New(
 			USBMicrophonePacketSize,

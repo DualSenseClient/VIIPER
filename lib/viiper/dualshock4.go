@@ -118,6 +118,42 @@ func CreateDS4Device(
 	idProduct uint16,
 	meta *C.DS4MetaState,
 ) bool {
+	return createDS4Device(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, dualshock4.New)
+}
+
+// CreateDS4AudioOnlyDevice creates a DualShock 4 exposing only the audio
+// interfaces and no HID gamepad interface.
+// @param serverHandle Handle to the USB server.
+// @param outDeviceHandle Output parameter for the created device handle.
+// @param busID ID of the bus to add the device to.
+// @param autoAttachLocalhost If true, the device will be automatically attached to a USBIP-Client/Driver running on THIS machine.
+// @param idVendor Optional USB vendor ID (0 = default).
+// @param idProduct Optional USB product ID (0 = default).
+// @param meta Optional pointer to initial device metadata. Pass NULL to use defaults.
+//
+//export CreateDS4AudioOnlyDevice
+func CreateDS4AudioOnlyDevice(
+	serverHandle C.USBServerHandle,
+	outDeviceHandle *C.DS4DeviceHandle,
+	busID uint32,
+	autoAttachLocalhost bool,
+	idVendor uint16,
+	idProduct uint16,
+	meta *C.DS4MetaState,
+) bool {
+	return createDS4Device(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, dualshock4.NewAudioOnly)
+}
+
+func createDS4Device(
+	serverHandle C.USBServerHandle,
+	outDeviceHandle *C.DS4DeviceHandle,
+	busID uint32,
+	autoAttachLocalhost bool,
+	idVendor uint16,
+	idProduct uint16,
+	meta *C.DS4MetaState,
+	ctor func(*device.CreateOptions) (*dualshock4.DualShock4, error),
+) bool {
 	sh := cgo.Handle(serverHandle)
 	shw, ok := sh.Value().(*usbServerHandleWrapper)
 	if !ok {
@@ -153,7 +189,7 @@ func CreateDS4Device(
 		opts.DeviceSpecific = string(b)
 	}
 
-	d, err := dualshock4.New(opts)
+	d, err := ctor(opts)
 	if err != nil {
 		return false
 	}

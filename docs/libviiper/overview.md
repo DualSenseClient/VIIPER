@@ -108,6 +108,7 @@ Each device family has its own create/state/callback functions documented on its
 | Function | Description |
 | --- | --- |
 | `CreateDS4Device(serverHandle, &handle, busID, autoAttach, vid, pid, meta)` | Create a virtual DualShock 4 |
+| `CreateDS4AudioOnlyDevice(...)` | Create an audio-only DualShock 4 sidecar (no HID gamepad) |
 | `SetDS4DeviceState(handle, state)` | Push an input state to the device |
 | `SetDS4MetaState(handle, meta)` | Merge-update identity/battery state at runtime |
 | `SetDS4OutputCallback(handle, cb)` | Register a callback for rumble and LED output |
