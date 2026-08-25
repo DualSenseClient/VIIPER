@@ -131,6 +131,7 @@ Each device family has its own create/state/callback functions documented on its
 | `SetDualSenseOutputCallback(handle, cb)` | Register a callback for rumble, LEDs and player LEDs |
 | `SetDualSenseOutputStateCallback(handle, cb)` | Register a callback for the full output state (incl. adaptive triggers) |
 | `SetDualSenseRealtimeHapticsCallback(handle, cb)` | Register a callback for low-latency rear haptics |
+| `SetDualSenseAtomicAudioHapticsCallback(handle, cb)` | Register a callback pairing each V5 output state with its speaker PCM |
 | `SetDualSenseSpeakerResetCallback(handle, cb)` | Register a callback for speaker-stream resets |
 | `SetDualSenseAudioOutCallback(handle, cb)` | Register a callback for haptics/speaker PCM from the host |
 | `SetDualSenseMicrophonePCM(handle, data, length)` | Queue a microphone PCM frame (1920 bytes) |

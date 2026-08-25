@@ -34,6 +34,7 @@ should only see the speaker/microphone endpoints.
 | `SetDualSenseOutputCallback(handle, cb)` | Register a callback for rumble, LEDs and player LEDs |
 | `SetDualSenseOutputStateCallback(handle, cb)` | Register a callback for the full output state |
 | `SetDualSenseRealtimeHapticsCallback(handle, cb)` | Register a callback for low-latency rear haptics |
+| `SetDualSenseAtomicAudioHapticsCallback(handle, cb)` | Register a callback pairing each V5 output state with its speaker PCM |
 | `SetDualSenseSpeakerResetCallback(handle, cb)` | Register a callback for speaker-stream resets |
 | `SetDualSenseAudioOutCallback(handle, cb)` | Register a callback for haptics/speaker PCM from the host |
 | `SetDualSenseMicrophonePCM(handle, data, length)` | Queue a microphone PCM frame (1920 bytes) |
@@ -245,6 +246,20 @@ same decode in C#.
 `SetDualSenseAudioOutCallback` receives the raw bytes the host wrote to the
 haptics audio-out endpoint: **four S16LE channels at 48 kHz** (front stereo +
 rear haptics). The buffer is only valid during the call.
+
+### Atomic audio+haptics callback
+
+`SetDualSenseAtomicAudioHapticsCallback` is invoked once per 480-frame (10 ms)
+speaker generation of the V5 transport. Each invocation pairs the native
+feedback output state with exactly that generation's speaker PCM: **two S16LE
+channels (front stereo) at 48 kHz, 1920 bytes**. The buffer is only valid
+during the call.
+
+While installed it supersedes `SetDualSenseOutputStateCallback` and
+`SetDualSenseOutputCallback` for audio generations; the realtime haptics lane
+(`SetDualSenseRealtimeHapticsCallback`) continues independently.
+`SetDualSenseSpeakerResetCallback` remains the generation barrier for this
+stream: flush queued PCM when it fires.
 
 `SetDualSenseSpeakerResetCallback` is invoked when the haptics audio interface
 alternate setting changes or the endpoint is reset. Treat it as a stream

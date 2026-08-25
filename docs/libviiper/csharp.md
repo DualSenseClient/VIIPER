@@ -560,6 +560,9 @@ delegate void DSOutputStateCallbackDelegate(nuint handle, DSOutputState output);
 delegate void DSRealtimeHapticsCallbackDelegate(nuint handle, DSOutputState output);
 
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+delegate void DSAtomicAudioHapticsCallbackDelegate(nuint handle, DSOutputState output, IntPtr pcm, nuint length);
+
+[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 delegate void DSSpeakerResetCallbackDelegate(nuint handle);
 
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -569,7 +572,8 @@ delegate void DSAudioCallbackDelegate(nuint handle, IntPtr pcm, nuint length);
 delegate void NS2ProOutputCallbackDelegate(nuint handle, NS2ProOutputState output);
 ```
 
-PCM callbacks (`DS4SpeakerCallbackDelegate`, `DSAudioCallbackDelegate`) receive a raw
+PCM callbacks (`DS4SpeakerCallbackDelegate`, `DSAudioCallbackDelegate`,
+`DSAtomicAudioHapticsCallbackDelegate`) receive a raw
 pointer that is **only valid during the call**. Copy it with `Marshal.Copy`:
 
 ```csharp
@@ -728,6 +732,10 @@ static class LibVIIPER
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool SetDualSenseRealtimeHapticsCallback(nuint deviceHandle, DSRealtimeHapticsCallbackDelegate? callback);
+
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool SetDualSenseAtomicAudioHapticsCallback(nuint deviceHandle, DSAtomicAudioHapticsCallbackDelegate? callback);
 
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.I1)]
@@ -965,11 +973,10 @@ DSRealtimeHapticsCallbackDelegate realtimeHapticsCb = (handle, output) =>
 
 LibVIIPER.SetDualSenseRealtimeHapticsCallback(dsHandle, realtimeHapticsCb);
 
-// Also available: SetDualSenseOutputCallback (simple rumble/LED/player LEDs)
-// and the audio-only / gamepad-only / Edge create variants. The Go-only
-// atomic speaker+haptics carrier (SetAtomicAudioHapticsCallback) is not
-// exposed by the C API — C# gets haptics via the audio-out callback above
-// and this realtime lane.
+// Also available: SetDualSenseOutputCallback (simple rumble/LED/player LEDs),
+// SetDualSenseAtomicAudioHapticsCallback (pairs each 10 ms V5 output state
+// generation with its 1920-byte front-stereo speaker PCM), and the audio-only /
+// gamepad-only / Edge create variants.
 ```
 
 ## DualShock 4 audio example

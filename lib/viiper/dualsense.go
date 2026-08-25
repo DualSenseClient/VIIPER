@@ -158,6 +158,12 @@ static void viiper_call_ds_realtime_haptics(DSRealtimeHapticsCallback fn, DSDevi
 	fn(handle, output);
 }
 
+typedef void (*DSAtomicAudioHapticsCallback)(DSDeviceHandle handle, DSOutputState output, const uint8_t* speakerPCM, size_t length);
+
+static void viiper_call_ds_atomic_audio_haptics(DSAtomicAudioHapticsCallback fn, DSDeviceHandle handle, DSOutputState output, const uint8_t* speakerPCM, size_t length) {
+	fn(handle, output, speakerPCM, length);
+}
+
 typedef void (*DSSpeakerResetCallback)(DSDeviceHandle handle);
 
 static void viiper_call_ds_speaker_reset(DSSpeakerResetCallback fn, DSDeviceHandle handle) {
@@ -625,6 +631,41 @@ func SetDualSenseRealtimeHapticsCallback(handle C.DSDeviceHandle, cb C.DSRealtim
 	}
 	dsDevice.SetRealtimeHapticsCallback(func(out dualsense.OutputState) {
 		C.viiper_call_ds_realtime_haptics(cb, handle, toCDSOutputState(out))
+	})
+	return true
+}
+
+// SetDualSenseAtomicAudioHapticsCallback sets a callback invoked once per
+// 480-frame (10 ms) speaker generation of the V5 transport. Each invocation
+// pairs the native feedback output state with exactly that generation's
+// speaker PCM: two S16LE channels (front stereo) at 48 kHz, 1920 bytes.
+// While installed it supersedes SetDualSenseOutputStateCallback and
+// SetDualSenseOutputCallback for audio generations; realtime haptics
+// callbacks continue independently. Pass NULL to clear.
+// @param handle Handle to the DualSense device.
+// @param callback Callback receiving the full output state and its paired PCM buffer. The buffer is only valid during the call.
+//
+//export SetDualSenseAtomicAudioHapticsCallback
+func SetDualSenseAtomicAudioHapticsCallback(handle C.DSDeviceHandle, cb C.DSAtomicAudioHapticsCallback) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	dsDevice, ok := dhw.device.(*dualsense.DualSense)
+	if !ok {
+		return false
+	}
+	if cb == nil {
+		dsDevice.SetAtomicAudioHapticsCallback(nil)
+		return true
+	}
+	dsDevice.SetAtomicAudioHapticsCallback(func(out dualsense.OutputState, pcm []byte) {
+		if len(pcm) == 0 {
+			return
+		}
+		C.viiper_call_ds_atomic_audio_haptics(cb, handle, toCDSOutputState(out),
+			(*C.uint8_t)(unsafe.Pointer(&pcm[0])), C.size_t(len(pcm)))
 	})
 	return true
 }
