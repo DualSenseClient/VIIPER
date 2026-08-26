@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"math"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Alia5/VIIPER/device"
@@ -19,9 +19,16 @@ import (
 )
 
 const (
-	microphoneTargetClientFrames  = 6  // 60 ms absorbs independent radio/client and virtual USB scheduling jitter.
-	microphoneMaximumClientFrames = 20 // 200 ms emergency ceiling for full-duplex BT bursts; steady state remains about 55 ms.
+	microphoneTargetClientFrames     = 6  // 60 ms absorbs independent radio/client and virtual USB scheduling jitter.
+	microphoneMaximumClientFrames    = 20 // 200 ms emergency ceiling for full-duplex BT bursts; steady state remains about 55 ms.
+	microphoneInterfaceEventCapacity = 64
 )
+
+type microphoneInterfaceEvent struct {
+	callback   func(bool, uint64)
+	active     bool
+	generation uint64
+}
 
 // A DualSense output report is a set of field updates, not a complete state
 // replacement. Games commonly send trigger, LED, rumble, and audio changes in
@@ -59,44 +66,71 @@ const (
 )
 
 type DualSense struct {
-	deviceType     string
-	inputCh        chan InputState
-	inputState     InputState
-	inputPublishMu sync.Mutex
-	metaState      *MetaState
+	deviceType              string
+	input                   *dualSenseInputScheduler
+	inputBattery            atomic.Uint32
+	inputTelemetryEnabled   atomic.Bool
+	inputTransportTelemetry dualSenseInputTransportTelemetry
+	metaState               *MetaState
 
-	atomicAudioHapticsFunc func(OutputState, []byte)
-	realtimeHapticsFunc    func(OutputState)
-	speakerResetFunc       func()
-	outputFunc             func(OutputState)
-	outputState            OutputState
-	descriptor             usb.Descriptor
+	atomicAudioHapticsFunc       func(OutputState, []byte)
+	realtimeHapticsFunc          func(OutputState)
+	speakerResetFunc             func()
+	transportOutputFunc          func(OutputState)
+	transportAtomicAudioFunc     func(OutputState, []byte, uint64)
+	transportRealtimeHapticsFunc func(OutputState, uint64)
+	transportSpeakerResetFunc    func(uint64)
+	outputCallbackGeneration     uint64
+	microphoneInterfaceStateFunc func(bool, uint64)
+	microphoneCallbackGeneration uint64
+	outputFunc                   func(OutputState)
+	outputState                  OutputState
+	mediaOutputState             OutputState
+	descriptor                   usb.Descriptor
 
 	subcommand [2]byte
 
-	seqCounter                uint8
-	hapticsSeq                uint8
-	hapticsInterval           uint8
-	realtimeHapticsSeq        uint8
-	realtimeHapticsInterval   uint8
-	hapticsPCM                []byte
-	v5SpeakerPCM              []byte
-	v5HapticsQueue            []dualSenseV5HapticsGeneration
-	microphoneBuffer          microphonebuffer.Buffer
-	microphoneSignal          chan struct{}
-	speakerAudioFeature       audioFeatureState
-	microphoneAudioFeature    audioFeatureState
-	speakerStreamTelemetry    *dualSenseSpeakerStreamTelemetry
-	speakerInterfaceActive    bool
-	microphoneInterfaceActive bool
-	corruptUSBInputReports    int
+	hapticsSeq                          uint8
+	hapticsInterval                     uint8
+	realtimeHapticsSeq                  uint8
+	realtimeHapticsInterval             uint8
+	hapticsPCM                          [BluetoothHapticsSampleSize / 2 * USBHapticsAudioDownsample * USBHapticsAudioFrameSize]byte
+	hapticsPCMLength                    int
+	v5SpeakerPCM                        [dualSenseV5SpeakerPayloadSize]byte
+	v5SpeakerPCMLength                  int
+	v5HapticsQueue                      [8]dualSenseV5HapticsGeneration
+	v5HapticsQueueHead                  int
+	v5HapticsQueueCount                 int
+	mediaReportSlots                    [4]pendingBluetoothHapticsReport
+	mediaReportFree                     chan *pendingBluetoothHapticsReport
+	mediaReportDrops                    atomic.Uint64
+	mediaReportBuildFailures            atomic.Uint64
+	microphoneBuffer                    microphonebuffer.Buffer
+	microphoneSignal                    chan struct{}
+	speakerAudioFeature                 audioFeatureState
+	microphoneAudioFeature              audioFeatureState
+	speakerStreamTelemetry              *dualSenseSpeakerStreamTelemetry
+	speakerInterfaceActive              bool
+	speakerMediaGeneration              uint64
+	microphoneInterfaceActive           bool
+	microphoneInterfaceState            atomic.Bool
+	microphoneInterfaceEvents           [microphoneInterfaceEventCapacity]microphoneInterfaceEvent
+	microphoneInterfaceEventHead        int
+	microphoneInterfaceEventCount       int
+	microphoneInterfaceEventDispatching bool
+	microphoneInterfaceRecoveryEvent    microphoneInterfaceEvent
+	microphoneInterfaceRecoveryPending  bool
+	microphoneInterfaceEventOverflows   atomic.Uint64
 	// hapticsPCMStartedAt identifies the oldest PCM frame waiting to make a
 	// complete 10.667 ms Bluetooth haptics sample. It feeds ordinary stream
 	// health telemetry without affecting presentation timing.
 	hapticsPCMStartedAt time.Time
-	timestampBase       time.Time
 
-	mtx sync.Mutex
+	metaMu       sync.Mutex
+	outputMu     sync.Mutex
+	mediaMu      sync.Mutex
+	microphoneMu sync.Mutex
+	callbackMu   sync.RWMutex
 }
 
 func New(o *device.CreateOptions) (*DualSense, error) {
@@ -165,8 +199,15 @@ func new(o *device.CreateOptions, edge bool) (*DualSense, error) {
 			microphoneTargetClientFrames,
 			microphoneMaximumClientFrames,
 		),
-		microphoneSignal: make(chan struct{}, 1),
+		microphoneSignal:       make(chan struct{}, 1),
+		mediaReportFree:        make(chan *pendingBluetoothHapticsReport, 4),
+		speakerMediaGeneration: 1,
 	}
+	for index := range d.mediaReportSlots {
+		d.mediaReportFree <- &d.mediaReportSlots[index]
+	}
+	d.inputBattery.Store(uint32(metaState.BatteryStatus))
+	d.input = newDualSenseInputScheduler(metaState.BatteryStatus)
 	if edge {
 		d.deviceType = DeviceTypeEdgeCombinedAudioDuplexV5
 	}
@@ -186,11 +227,6 @@ func new(o *device.CreateOptions, edge bool) (*DualSense, error) {
 		"pid", d.descriptor.Device.IDProduct,
 		"interfaces", len(d.descriptor.Interfaces))
 
-	d.inputState = *NewInputState()
-	d.inputCh = make(chan InputState, 1)
-	d.inputCh <- d.inputState
-	d.timestampBase = time.Now()
-
 	return d, nil
 }
 
@@ -202,15 +238,16 @@ func (d *DualSense) VIIPERDeviceType() string {
 }
 
 func (d *DualSense) SetMetaState(meta MetaState) {
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
+	d.metaMu.Lock()
 	d.metaState = &meta
+	d.metaMu.Unlock()
+	d.inputBattery.Store(uint32(meta.BatteryStatus))
 }
 
 func (d *DualSense) SetOutputCallback(f func(OutputState)) {
-	d.mtx.Lock()
+	d.callbackMu.Lock()
 	d.outputFunc = f
-	d.mtx.Unlock()
+	d.callbackMu.Unlock()
 }
 
 // SetAtomicAudioHapticsCallback installs the V5 transport consumer. Each
@@ -219,27 +256,63 @@ func (d *DualSense) SetOutputCallback(f func(OutputState)) {
 // raw 48 kHz speaker frames and consumes one independently completed rear
 // haptics sample, or silence when that 512-frame lane has not completed yet.
 func (d *DualSense) SetAtomicAudioHapticsCallback(f func(OutputState, []byte)) {
-	d.mtx.Lock()
+	d.callbackMu.Lock()
 	d.atomicAudioHapticsFunc = f
-	d.mtx.Unlock()
+	d.callbackMu.Unlock()
 }
 
 // SetRealtimeHapticsCallback installs the V5 rear-channel consumer. A
 // callback is issued as soon as one complete 512-frame haptics interval is
 // available, independently of the 480-frame speaker clock.
 func (d *DualSense) SetRealtimeHapticsCallback(f func(OutputState)) {
-	d.mtx.Lock()
+	d.callbackMu.Lock()
 	d.realtimeHapticsFunc = f
-	d.mtx.Unlock()
+	d.callbackMu.Unlock()
 }
 
 // SetSpeakerResetCallback installs the transport-side queue reset paired with
 // SetAtomicAudioHapticsCallback. USB interface close/reopen and endpoint reset
 // must discard queued speaker PCM from the previous presentation generation.
 func (d *DualSense) SetSpeakerResetCallback(f func()) {
-	d.mtx.Lock()
+	d.callbackMu.Lock()
 	d.speakerResetFunc = f
-	d.mtx.Unlock()
+	d.callbackMu.Unlock()
+}
+
+// setV5OutputCallbacks replaces the stream-owned output sinks as one logical
+// registration. The generation guard means a displaced stream can finish its
+// deferred cleanup without clearing the replacement stream's callbacks.
+func (d *DualSense) setV5OutputCallbacks(streamGeneration uint64,
+	output func(OutputState),
+	atomicAudio func(OutputState, []byte, uint64),
+	realtimeHaptics func(OutputState, uint64),
+	resetSpeaker func(uint64)) {
+	d.callbackMu.Lock()
+	if output == nil && atomicAudio == nil && realtimeHaptics == nil &&
+		resetSpeaker == nil {
+		if d.outputCallbackGeneration == streamGeneration {
+			d.transportOutputFunc = nil
+			d.transportAtomicAudioFunc = nil
+			d.transportRealtimeHapticsFunc = nil
+			d.transportSpeakerResetFunc = nil
+			d.outputCallbackGeneration = 0
+		}
+		d.callbackMu.Unlock()
+		return
+	}
+	d.transportOutputFunc = output
+	d.transportAtomicAudioFunc = atomicAudio
+	d.transportRealtimeHapticsFunc = realtimeHaptics
+	d.transportSpeakerResetFunc = resetSpeaker
+	d.outputCallbackGeneration = streamGeneration
+	d.callbackMu.Unlock()
+}
+
+func (d *DualSense) currentSpeakerMediaGeneration() uint64 {
+	d.mediaMu.Lock()
+	generation := d.speakerMediaGeneration
+	d.mediaMu.Unlock()
+	return generation
 }
 
 // beginSpeakerStream gives each stream generation independent telemetry. An
@@ -247,33 +320,120 @@ func (d *DualSense) SetSpeakerResetCallback(f func()) {
 // exposed for a replacement connection.
 func (d *DualSense) beginSpeakerStream() *dualSenseSpeakerStreamTelemetry {
 	telemetry := &dualSenseSpeakerStreamTelemetry{}
-	d.mtx.Lock()
+	d.mediaMu.Lock()
 	d.speakerStreamTelemetry = telemetry
-	d.mtx.Unlock()
+	d.mediaMu.Unlock()
 	return telemetry
 }
 
 func (d *DualSense) UpdateInputState(state *InputState) {
-	d.inputPublishMu.Lock()
-	defer d.inputPublishMu.Unlock()
+	d.input.update(state, 0)
+}
 
-	next := *NewInputState()
-	if state != nil {
-		next = *state
+// setMicrophoneInterfaceStateCallback installs the lifecycle-event sink for
+// one V5 stream generation. Clearing an older stream cannot detach the
+// replacement stream's callback. The microphone mutex owns callback
+// registration and event admission together, so the attach snapshot has one
+// deterministic position relative to alternate-setting transitions. Callback
+// execution is drained after releasing the mutex.
+func (d *DualSense) setMicrophoneInterfaceStateCallback(generation uint64,
+	f func(bool, uint64)) {
+	startDispatch := false
+	d.microphoneMu.Lock()
+	if f == nil {
+		if d.microphoneCallbackGeneration == generation {
+			d.microphoneInterfaceStateFunc = nil
+			d.microphoneCallbackGeneration = 0
+		}
+		d.microphoneMu.Unlock()
+		return
 	}
+	d.microphoneCallbackGeneration = generation
+	d.microphoneInterfaceStateFunc = f
+	startDispatch = d.enqueueMicrophoneInterfaceEventLocked(
+		microphoneInterfaceEvent{
+			callback: f, active: d.microphoneInterfaceActive,
+			generation: generation,
+		},
+	)
+	d.microphoneMu.Unlock()
+	if startDispatch {
+		d.dispatchMicrophoneInterfaceEvents()
+	}
+}
 
-	d.mtx.Lock()
-	d.inputState = next
-	d.mtx.Unlock()
+// enqueueMicrophoneInterfaceEventLocked preserves every ordinary lifecycle
+// transition in a fixed ring. If an arbitrary callback stalls long enough to
+// exhaust the ring, later events replace one recovery snapshot. That bounded
+// fallback may coalesce pathological churn, but the final authoritative state
+// can never remain stale. microphoneMu must be held.
+func (d *DualSense) enqueueMicrophoneInterfaceEventLocked(
+	event microphoneInterfaceEvent,
+) bool {
+	if event.callback == nil {
+		return false
+	}
+	if d.microphoneInterfaceRecoveryPending {
+		d.microphoneInterfaceRecoveryEvent = event
+		d.microphoneInterfaceEventOverflows.Add(1)
+	} else if d.microphoneInterfaceEventCount < len(d.microphoneInterfaceEvents) {
+		index := (d.microphoneInterfaceEventHead +
+			d.microphoneInterfaceEventCount) % len(d.microphoneInterfaceEvents)
+		d.microphoneInterfaceEvents[index] = event
+		d.microphoneInterfaceEventCount++
+	} else {
+		d.microphoneInterfaceRecoveryEvent = event
+		d.microphoneInterfaceRecoveryPending = true
+		d.microphoneInterfaceEventOverflows.Add(1)
+	}
+	if d.microphoneInterfaceEventDispatching {
+		return false
+	}
+	d.microphoneInterfaceEventDispatching = true
+	return true
+}
 
-	select {
-	case <-d.inputCh:
-	default:
+func (d *DualSense) dispatchMicrophoneInterfaceEvents() {
+	for {
+		var event microphoneInterfaceEvent
+		d.microphoneMu.Lock()
+		if d.microphoneInterfaceEventCount > 0 {
+			event = d.microphoneInterfaceEvents[d.microphoneInterfaceEventHead]
+			d.microphoneInterfaceEvents[d.microphoneInterfaceEventHead] = microphoneInterfaceEvent{}
+			d.microphoneInterfaceEventHead =
+				(d.microphoneInterfaceEventHead + 1) %
+					len(d.microphoneInterfaceEvents)
+			d.microphoneInterfaceEventCount--
+		} else if d.microphoneInterfaceRecoveryPending {
+			event = d.microphoneInterfaceRecoveryEvent
+			d.microphoneInterfaceRecoveryEvent = microphoneInterfaceEvent{}
+			d.microphoneInterfaceRecoveryPending = false
+		} else {
+			d.microphoneInterfaceEventDispatching = false
+			d.microphoneMu.Unlock()
+			return
+		}
+		d.microphoneMu.Unlock()
+
+		// The callback is a transport publication boundary. It must never run
+		// while the microphone buffer/state lock is held.
+		event.callback(event.active, event.generation)
 	}
-	select {
-	case d.inputCh <- next:
-	default:
-	}
+}
+
+func (d *DualSense) updateInputStateForGeneration(generation uint64,
+	state *InputState) bool {
+	return d.input.update(state, generation)
+}
+
+func (d *DualSense) beginInputStreamGeneration() uint64 {
+	return d.input.beginReceiveGeneration()
+}
+
+// InputSchedulerState returns an aggregate snapshot without exposing queue
+// ownership or holding the input lock during JSON/map construction.
+func (d *DualSense) InputSchedulerState() InputSchedulerSnapshot {
+	return d.input.snapshot()
 }
 
 func (d *DualSense) GetDescriptor() *usb.Descriptor {
@@ -282,10 +442,19 @@ func (d *DualSense) GetDescriptor() *usb.Descriptor {
 
 func (d *DualSense) GetDeviceSpecificArgs() map[string]any {
 	var res map[string]any
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
+	d.metaMu.Lock()
+	meta := *d.metaState
+	d.metaMu.Unlock()
+	d.mediaMu.Lock()
+	speakerInterfaceActive := d.speakerInterfaceActive
+	speakerTelemetry := d.speakerStreamTelemetry
+	d.mediaMu.Unlock()
+	d.microphoneMu.Lock()
+	microphoneInterfaceActive := d.microphoneInterfaceActive
+	microphoneState := d.microphoneBuffer.State()
+	d.microphoneMu.Unlock()
 
-	bytes, err := json.Marshal(d.metaState)
+	bytes, err := json.Marshal(meta)
 	if err != nil {
 		return map[string]any{}
 	}
@@ -293,8 +462,8 @@ func (d *DualSense) GetDeviceSpecificArgs() map[string]any {
 	if err != nil {
 		return map[string]any{}
 	}
-	res["speakerInterfaceActive"] = d.speakerInterfaceActive
-	speakerState := d.speakerStreamTelemetry.snapshot()
+	res["speakerInterfaceActive"] = speakerInterfaceActive
+	speakerState := speakerTelemetry.snapshot()
 	res["speakerStreamActive"] = speakerState.Active
 	res["speakerPayloadsReceived"] = speakerState.ReceivedPayloads
 	res["speakerBytesReceived"] = speakerState.ReceivedBytes
@@ -309,8 +478,9 @@ func (d *DualSense) GetDeviceSpecificArgs() map[string]any {
 	res["speakerQueueHighWater"] = speakerState.QueueHighWater
 	res["speakerMaxEnqueueGapUS"] = speakerState.MaxEnqueueGapUS
 	res["speakerMaxWriteGapUS"] = speakerState.MaxWriteGapUS
-	res["microphoneInterfaceActive"] = d.microphoneInterfaceActive
-	microphoneState := d.microphoneBuffer.State()
+	res["microphoneInterfaceTransportOverflows"] =
+		speakerState.MicrophoneInterfaceOverflows
+	res["microphoneInterfaceActive"] = microphoneInterfaceActive
 	res["queuedMicrophoneBytes"] = microphoneState.QueuedBytes
 	res["microphoneQueueTargetBytes"] = microphoneState.TargetBytes
 	res["microphoneQueueMaximumBytes"] = microphoneState.MaximumBytes
@@ -336,23 +506,101 @@ func (d *DualSense) GetDeviceSpecificArgs() map[string]any {
 	res["microphoneReadLateGaps"] = microphoneState.ReadLateGaps
 	res["microphoneReadMinGapUS"] = microphoneState.ReadMinGapUS
 	res["microphoneReadMaxGapUS"] = microphoneState.ReadMaxGapUS
+	res["microphoneInterfaceEventOverflows"] =
+		d.microphoneInterfaceEventOverflows.Load()
+	inputState := d.input.snapshot()
+	res["inputGeneration"] = inputState.Generation
+	res["inputStatesReceived"] = inputState.Received
+	res["inputStatesSelected"] = inputState.Selected
+	res["inputTransitionDepth"] = inputState.TransitionDepth
+	res["inputTransitionHighWater"] = inputState.TransitionHighWater
+	res["inputContinuousPending"] = inputState.ContinuousPending
+	res["inputContinuousReplacements"] = inputState.ContinuousReplaced
+	res["inputPeakUpgrades"] = inputState.PeakUpgrades
+	res["inputTransitionOverflows"] = inputState.Overflows
+	res["inputMaximumQueueAgeUS"] = inputState.MaximumQueueAge.Microseconds()
+	res["inputQueueAgeBuckets"] = inputState.QueueAgeBuckets
+	res["inputMaximumSelectionAgeUS"] =
+		inputState.MaximumSelectionAge.Microseconds()
+	res["inputSelectionAgeBuckets"] = inputState.SelectionAgeBuckets
+	res["inputLatencyDistributions"] = d.InputTelemetryState()
+	res["mediaReportDrops"] = d.mediaReportDrops.Load()
+	res["mediaReportBuildFailures"] = d.mediaReportBuildFailures.Load()
 	return res
 }
 
+// GetMicrophoneInterfaceStatus is the narrow compatibility API snapshot used
+// only when a client could not attach through a V5 events alias. It never
+// touches the input scheduler or serializes broad device diagnostics.
+func (d *DualSense) GetMicrophoneInterfaceStatus() map[string]any {
+	d.microphoneMu.Lock()
+	active := d.microphoneInterfaceActive
+	state := d.microphoneBuffer.State()
+	d.microphoneMu.Unlock()
+
+	return map[string]any{
+		"active":                  active,
+		"queuedBytes":             state.QueuedBytes,
+		"targetBytes":             state.TargetBytes,
+		"maximumBytes":            state.MaximumBytes,
+		"primed":                  state.Primed,
+		"underruns":               state.Underruns,
+		"droppedBytes":            state.DroppedBytes,
+		"overflowEvents":          state.OverflowEvents,
+		"packetsRead":             state.PacketsRead,
+		"zeroPackets":             state.ZeroPackets,
+		"servoRatePPM":            state.ServoRatePPM,
+		"interfaceEventOverflows": d.microphoneInterfaceEventOverflows.Load(),
+	}
+}
+
 func (d *DualSense) SetInterfaceAltSetting(iface, alt uint8) {
-	d.mtx.Lock()
-	var resetSpeaker func()
+	if iface == InterfaceMicrophone {
+		microphoneActive := alt != 0
+		d.microphoneMu.Lock()
+		microphoneChanged := d.microphoneInterfaceActive != microphoneActive
+		d.microphoneInterfaceActive = microphoneActive
+		d.resetMicrophoneAudioLocked()
+		d.microphoneInterfaceState.Store(microphoneActive)
+		microphoneStateChanged := d.microphoneInterfaceStateFunc
+		microphoneGeneration := d.microphoneCallbackGeneration
+		startDispatch := false
+		if microphoneChanged && microphoneStateChanged != nil {
+			startDispatch = d.enqueueMicrophoneInterfaceEventLocked(
+				microphoneInterfaceEvent{
+					callback:   microphoneStateChanged,
+					active:     microphoneActive,
+					generation: microphoneGeneration,
+				},
+			)
+		}
+		d.microphoneMu.Unlock()
+		if startDispatch {
+			d.dispatchMicrophoneInterfaceEvents()
+		}
+		return
+	}
+
+	d.mediaMu.Lock()
+	var speakerGeneration uint64
 	switch iface {
 	case InterfaceHapticsAudio:
 		d.speakerInterfaceActive = alt != 0
-		d.resetSpeakerAudioLocked()
-		resetSpeaker = d.speakerResetFunc
-	case InterfaceMicrophone:
-		d.microphoneInterfaceActive = alt != 0
-		d.resetMicrophoneAudioLocked()
+		speakerGeneration = d.resetSpeakerAudioLocked()
 	}
-	d.mtx.Unlock()
+	d.mediaMu.Unlock()
+	var resetSpeaker func()
+	var resetTransportSpeaker func(uint64)
+	if iface == InterfaceHapticsAudio {
+		d.callbackMu.RLock()
+		resetSpeaker = d.speakerResetFunc
+		resetTransportSpeaker = d.transportSpeakerResetFunc
+		d.callbackMu.RUnlock()
+	}
 
+	if resetTransportSpeaker != nil {
+		resetTransportSpeaker(speakerGeneration)
+	}
 	if resetSpeaker != nil {
 		resetSpeaker()
 	}
@@ -362,28 +610,49 @@ func (d *DualSense) SetInterfaceAltSetting(iface, alt uint8) {
 // reset preserves the selected alternate setting and feature controls while
 // discarding all transport data from the previous endpoint generation.
 func (d *DualSense) ResetEndpoint(endpoint uint8) {
-	d.mtx.Lock()
-	var resetSpeaker func()
-	switch endpoint {
-	case EndpointHapticsAudioOut:
-		d.resetSpeakerAudioLocked()
-		resetSpeaker = d.speakerResetFunc
-	case EndpointMicrophoneIn:
+	if endpoint == EndpointMicrophoneIn {
+		d.microphoneMu.Lock()
 		d.resetMicrophoneAudioLocked()
+		d.microphoneMu.Unlock()
+		return
 	}
-	d.mtx.Unlock()
+	if endpoint != EndpointHapticsAudioOut {
+		return
+	}
+	d.mediaMu.Lock()
+	var speakerGeneration uint64
+	speakerGeneration = d.resetSpeakerAudioLocked()
+	d.mediaMu.Unlock()
+	var resetSpeaker func()
+	var resetTransportSpeaker func(uint64)
+	d.callbackMu.RLock()
+	resetSpeaker = d.speakerResetFunc
+	resetTransportSpeaker = d.transportSpeakerResetFunc
+	d.callbackMu.RUnlock()
 
+	if resetTransportSpeaker != nil {
+		resetTransportSpeaker(speakerGeneration)
+	}
 	if resetSpeaker != nil {
 		resetSpeaker()
 	}
 }
 
-func (d *DualSense) resetSpeakerAudioLocked() {
-	d.hapticsPCM = nil
-	d.v5SpeakerPCM = nil
-	d.v5HapticsQueue = nil
+func (d *DualSense) resetSpeakerAudioLocked() uint64 {
+	d.speakerMediaGeneration++
+	if d.speakerMediaGeneration == 0 {
+		d.speakerMediaGeneration = 1
+	}
+	d.hapticsPCMLength = 0
+	d.v5SpeakerPCMLength = 0
+	for index := range d.v5HapticsQueue {
+		d.v5HapticsQueue[index] = dualSenseV5HapticsGeneration{}
+	}
+	d.v5HapticsQueueHead = 0
+	d.v5HapticsQueueCount = 0
 	d.hapticsPCMStartedAt = time.Time{}
 	d.speakerAudioFeature.resetStreamGain()
+	return d.speakerMediaGeneration
 }
 
 func (d *DualSense) resetMicrophoneAudioLocked() {
@@ -399,22 +668,11 @@ func (d *DualSense) HandleTransfer(ctx context.Context, ep uint32, dir uint32, o
 	if dir == usbip.DirIn {
 		switch epNumber {
 		case EndpointIn & 0x0F:
-			select {
-			case <-ctx.Done():
-				if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-					d.mtx.Lock()
-					is := d.inputState
-					ms := *d.metaState
-					d.mtx.Unlock()
-					return d.buildUSBInputReport(&is, &ms)
-				}
+			report := make([]byte, InputReportSize)
+			if d.BuildInputReportInto(report) == 0 {
 				return nil
-			case is := <-d.inputCh:
-				d.mtx.Lock()
-				ms := *d.metaState
-				d.mtx.Unlock()
-				return d.buildUSBInputReport(&is, &ms)
 			}
+			return report
 		case EndpointMicrophoneIn & 0x0F:
 			return d.handleMicrophoneIn(ctx)
 		default:
@@ -435,19 +693,82 @@ func (d *DualSense) HandleTransfer(ctx context.Context, ep uint32, dir uint32, o
 	return nil
 }
 
+// BuildInputReportInto is the interrupt-IN hot path. The USB endpoint worker
+// owns pacing; this method performs no wait and selects exactly one complete
+// state immediately at the service opportunity.
+func (d *DualSense) BuildInputReportInto(destination []byte) int {
+	n, token := d.ClaimInputReport(destination)
+	if token != 0 {
+		d.CompleteInputReport(token, true)
+	}
+	return n
+}
+
+// ClaimInputReport selects and encodes one immutable state without committing
+// it as presented. The endpoint worker owns the returned token until USB/IP
+// send ownership is won or cancellation returns the claim for recovery.
+func (d *DualSense) ClaimInputReport(destination []byte) (int, uint64) {
+	battery := byte(d.inputBattery.Load())
+	d.input.mu.Lock()
+	// Selection happens only after endpoint service owns the input scheduler.
+	// Timestamp here so any input-lock contention remains visible rather than
+	// being omitted from receive-to-selection telemetry.
+	now := time.Now()
+	n, token := d.input.beginClaim(now, battery, destination)
+	d.input.mu.Unlock()
+	return n, token
+}
+
+// CompleteInputReport commits encoder sequence, last report, and trigger peak
+// presentation only after the USB/IP response owns serialization. A failed
+// ordered claim is retried ahead of every later transition.
+func (d *DualSense) CompleteInputReport(token uint64, presented bool) {
+	// USB/IP invokes this immediately after the complete response write while
+	// it still owns response serialization. Capture that boundary before input
+	// lock acquisition so unrelated input publication contention is not charged
+	// to socket presentation latency.
+	completedAt := time.Now()
+	d.input.mu.Lock()
+	d.input.completeClaimAt(token, presented, completedAt)
+	d.input.mu.Unlock()
+}
+
+// SnapshotInputReportInto copies the last successfully presented interrupt
+// report without selecting input or advancing the encoder. The accompanying
+// version lets USB/IP serialize EP0 GET_REPORT against interrupt completion
+// without holding the input lock during socket I/O.
+func (d *DualSense) SnapshotInputReportInto(destination []byte) (int, uint64) {
+	d.input.mu.Lock()
+	n := min(len(destination), len(d.input.lastReport))
+	copy(destination[:n], d.input.lastReport[:n])
+	version := d.input.presentationVersion
+	d.input.mu.Unlock()
+	return n, version
+}
+
+// InputReportSnapshotCurrent validates a snapshot under the input-only lock.
+// Callers hold response send ownership, so a true result remains current until
+// that response is emitted.
+func (d *DualSense) InputReportSnapshotCurrent(version uint64) bool {
+	d.input.mu.Lock()
+	current := version != 0 && version == d.input.presentationVersion
+	d.input.mu.Unlock()
+	return current
+}
+
 func (d *DualSense) QueueMicrophonePCMFrame(frame []byte) {
 	if len(frame) != USBMicrophoneClientFrameSize {
 		return
 	}
 
-	d.mtx.Lock()
+	d.microphoneMu.Lock()
 	if !d.microphoneInterfaceActive {
-		d.mtx.Unlock()
+		d.microphoneMu.Unlock()
 		return
 	}
 
 	d.microphoneBuffer.QueueFrame(frame)
-	d.mtx.Unlock()
+	d.microphoneMu.Unlock()
 
 	select {
 	case d.microphoneSignal <- struct{}{}:
@@ -459,44 +780,46 @@ func (d *DualSense) QueueMicrophonePCMFrame(frame []byte) {
 // stream ends. The API generation coordinator suppresses this reset when that
 // stream was displaced by a same-device replacement.
 func (d *DualSense) ResetMicrophonePCM() {
-	d.mtx.Lock()
+	d.microphoneMu.Lock()
 	d.resetMicrophoneAudioLocked()
-	d.mtx.Unlock()
+	d.microphoneMu.Unlock()
 }
 
-func (d *DualSense) handleMicrophoneIn(ctx context.Context) []byte {
-	packet := make([]byte, USBMicrophoneMaxPacketSize)
-	for {
-		d.mtx.Lock()
-		if !d.microphoneInterfaceActive {
-			d.microphoneBuffer.RecordZeroPacket()
-			d.mtx.Unlock()
-			return packet[:USBMicrophonePacketSize]
-		}
-
-		if actualLength, ok := d.microphoneBuffer.ReadPacket(packet); ok {
-			d.microphoneAudioFeature.applyPCMInPlace(
-				packet[:actualLength], USBMicrophoneChannels,
-			)
-			d.mtx.Unlock()
-			return packet[:actualLength]
-		}
-		d.mtx.Unlock()
-
-		select {
-		case <-ctx.Done():
-			d.mtx.Lock()
-			d.microphoneBuffer.RecordZeroPacket()
-			d.mtx.Unlock()
-			return packet[:USBMicrophonePacketSize]
-		case <-d.microphoneSignal:
-		case <-time.After(time.Millisecond):
-			d.mtx.Lock()
-			d.microphoneBuffer.RecordZeroPacket()
-			d.mtx.Unlock()
-			return packet[:USBMicrophonePacketSize]
-		}
+// TryReadMicrophonePacket is the nonblocking ISO-IN source used by the
+// persistent endpoint worker. n is the nominal packet length even on
+// underrun; destination is zero-filled in that case so USB presents silence.
+func (d *DualSense) TryReadMicrophonePacket(destination []byte) (n int, ok bool) {
+	if len(destination) < USBMicrophoneMaxPacketSize {
+		return 0, false
 	}
+	d.microphoneMu.Lock()
+	if !d.microphoneInterfaceActive {
+		d.microphoneBuffer.RecordZeroPacket()
+		d.microphoneMu.Unlock()
+		clear(destination[:USBMicrophonePacketSize])
+		return USBMicrophonePacketSize, false
+	}
+	actualLength, available := d.microphoneBuffer.ReadPacket(destination)
+	if available {
+		d.microphoneAudioFeature.applyPCMInPlace(
+			destination[:actualLength], USBMicrophoneChannels,
+		)
+		d.microphoneMu.Unlock()
+		return actualLength, true
+	}
+	d.microphoneBuffer.RecordZeroPacket()
+	d.microphoneMu.Unlock()
+	clear(destination[:USBMicrophonePacketSize])
+	return USBMicrophonePacketSize, false
+}
+
+func (d *DualSense) handleMicrophoneIn(_ context.Context) []byte {
+	packet := make([]byte, USBMicrophoneMaxPacketSize)
+	actualLength, _ := d.TryReadMicrophonePacket(packet)
+	if actualLength == 0 {
+		actualLength = USBMicrophonePacketSize
+	}
+	return packet[:actualLength]
 }
 
 func (d *DualSense) drainMicrophoneSignal() {
@@ -509,66 +832,140 @@ func (d *DualSense) drainMicrophoneSignal() {
 	}
 }
 
+// IsoOutGeneration captures the device-side media generation when the USB/IP
+// reader admits an owned ISO-OUT job. The persistent endpoint worker passes
+// the token back at service time so a reset cannot let old scratch data enter
+// a replacement stream.
+func (d *DualSense) IsoOutGeneration(endpoint uint8) uint64 {
+	if endpoint != EndpointHapticsAudioOut {
+		return 0
+	}
+	d.mediaMu.Lock()
+	generation := d.speakerMediaGeneration
+	d.mediaMu.Unlock()
+	return generation
+}
+
+// HandleIsoOutTransfer accepts only work captured in the current media
+// generation. Generation comparison and PCM consumption share the same media
+// lock as reset, closing the scheduler-check-to-device-callback race.
+func (d *DualSense) HandleIsoOutTransfer(endpoint uint8, generation uint64,
+	out []byte) bool {
+	if endpoint != EndpointHapticsAudioOut {
+		return false
+	}
+	return d.handleHapticsAudioOutGeneration(out, generation)
+}
+
 func (d *DualSense) handleHapticsAudioOut(out []byte) {
+	generation := d.IsoOutGeneration(EndpointHapticsAudioOut)
+	_ = d.handleHapticsAudioOutGeneration(out, generation)
+}
+
+func (d *DualSense) handleHapticsAudioOutGeneration(out []byte,
+	generation uint64) bool {
 	if len(out) == 0 {
-		return
+		return true
 	}
 	receivedAt := time.Now()
 
-	d.mtx.Lock()
-	if !d.speakerInterfaceActive {
-		d.mtx.Unlock()
-		return
+	d.mediaMu.Lock()
+	if !d.speakerInterfaceActive || generation == 0 ||
+		generation != d.speakerMediaGeneration {
+		d.mediaMu.Unlock()
+		return false
 	}
+	processed, lease := d.speakerAudioFeature.applyPCM(out, USBHapticsAudioChannels)
+	d.mediaMu.Unlock()
+	defer lease.release()
 
-	processed, release := d.speakerAudioFeature.applyPCM(out, USBHapticsAudioChannels)
-	reports := d.consumeDualSenseV5AudioLocked(processed, receivedAt)
-	// The callback is deliberately completed under the device lock. This makes
-	// an alternate-setting or endpoint reset a hard generation barrier: once the
-	// reset acquires the lock, no pre-reset callback can enqueue stale PCM after
-	// the transport queue has been flushed.
-	d.mtx.Unlock()
-	if release != nil {
-		release()
-	}
-
-	for _, pending := range reports {
-		report := pending.feedback.BluetoothCombinedOutputReport[:]
-		if len(report) == 0 {
-			continue
+	for len(processed) >= USBHapticsAudioFrameSize {
+		var reports [2]*pendingBluetoothHapticsReport
+		d.mediaMu.Lock()
+		if generation != d.speakerMediaGeneration || !d.speakerInterfaceActive {
+			d.mediaMu.Unlock()
+			return false
 		}
-
-		d.mtx.Lock()
-		outputFunc := d.outputFunc
-		atomicAudioHapticsFunc := d.atomicAudioHapticsFunc
-		realtimeHapticsFunc := d.realtimeHapticsFunc
-		if pending.hapticsOnly {
-			feedback := pending.feedback
-			d.mtx.Unlock()
-			if realtimeHapticsFunc != nil {
-				realtimeHapticsFunc(feedback)
-			}
-			continue
+		consumed, reportCount := d.consumeDualSenseV5AudioLocked(
+			processed, receivedAt, &reports,
+		)
+		d.mediaMu.Unlock()
+		if consumed == 0 {
+			break
 		}
-		if outputFunc != nil || atomicAudioHapticsFunc != nil {
-			feedback := pending.feedback
-			d.mtx.Unlock()
-			if atomicAudioHapticsFunc != nil {
-				atomicAudioHapticsFunc(feedback, pending.speakerPCM)
-			} else {
-				outputFunc(feedback)
-			}
-		} else {
-			d.mtx.Unlock()
+		processed = processed[consumed:]
+		for index := 0; index < reportCount; index++ {
+			d.publishPendingMediaReport(reports[index])
 		}
 	}
+	return true
 }
 
 type pendingBluetoothHapticsReport struct {
-	speakerPCM    []byte
+	speakerPCM    [dualSenseV5SpeakerPayloadSize]byte
+	speakerLength int
 	assemblyDelay time.Duration
 	feedback      OutputState
 	hapticsOnly   bool
+	generation    uint64
+}
+
+func (d *DualSense) acquirePendingMediaReportLocked() *pendingBluetoothHapticsReport {
+	select {
+	case report := <-d.mediaReportFree:
+		report.speakerLength = 0
+		report.assemblyDelay = 0
+		report.feedback = OutputState{}
+		report.hapticsOnly = false
+		report.generation = d.speakerMediaGeneration
+		return report
+	default:
+		d.mediaReportDrops.Add(1)
+		return nil
+	}
+}
+
+func (d *DualSense) releasePendingMediaReport(report *pendingBluetoothHapticsReport) {
+	if report == nil {
+		return
+	}
+	report.speakerLength = 0
+	report.feedback = OutputState{}
+	report.hapticsOnly = false
+	d.mediaReportFree <- report
+}
+
+func (d *DualSense) publishPendingMediaReport(pending *pendingBluetoothHapticsReport) {
+	if pending == nil {
+		return
+	}
+	d.callbackMu.RLock()
+	outputFunc := d.outputFunc
+	transportOutputFunc := d.transportOutputFunc
+	atomicAudioHapticsFunc := d.atomicAudioHapticsFunc
+	transportAtomicAudioFunc := d.transportAtomicAudioFunc
+	realtimeHapticsFunc := d.realtimeHapticsFunc
+	transportRealtimeHapticsFunc := d.transportRealtimeHapticsFunc
+	d.callbackMu.RUnlock()
+	feedback := pending.feedback
+	if pending.hapticsOnly {
+		if transportRealtimeHapticsFunc != nil {
+			transportRealtimeHapticsFunc(feedback, pending.generation)
+		} else if realtimeHapticsFunc != nil {
+			realtimeHapticsFunc(feedback)
+		}
+	} else if transportAtomicAudioFunc != nil {
+		transportAtomicAudioFunc(feedback,
+			pending.speakerPCM[:pending.speakerLength], pending.generation)
+	} else if atomicAudioHapticsFunc != nil {
+		atomicAudioHapticsFunc(feedback,
+			pending.speakerPCM[:pending.speakerLength])
+	} else if transportOutputFunc != nil {
+		transportOutputFunc(feedback)
+	} else if outputFunc != nil {
+		outputFunc(feedback)
+	}
+	d.releasePendingMediaReport(pending)
 }
 
 type dualSenseV5HapticsGeneration struct {
@@ -583,67 +980,68 @@ type dualSenseV5HapticsGeneration struct {
 // sample is consumed; if none is ready, V5 sends silence rather than
 // replaying the previous sample. State and report counters are rebuilt at that
 // same 480-frame boundary so every emitted report is current and sequential.
-func (d *DualSense) consumeDualSenseV5AudioLocked(src []byte,
-	now time.Time) []pendingBluetoothHapticsReport {
+func (d *DualSense) consumeDualSenseV5AudioLocked(src []byte, now time.Time,
+	reports *[2]*pendingBluetoothHapticsReport) (int, int) {
 	const hapticsFrames = (BluetoothHapticsSampleSize / 2) *
 		USBHapticsAudioDownsample
 
 	framesRemaining := len(src) / USBHapticsAudioFrameSize
 	if framesRemaining == 0 {
-		return nil
+		return 0, 0
 	}
+	speakerFramesNeeded := dualSenseV5SpeakerFrames -
+		d.v5SpeakerPCMLength/dualSenseV5SpeakerFrameSize
+	hapticsFramesNeeded := hapticsFrames -
+		d.hapticsPCMLength/USBHapticsAudioFrameSize
+	frames := min(framesRemaining, speakerFramesNeeded, hapticsFramesNeeded)
+	segmentBytes := frames * USBHapticsAudioFrameSize
+	segment := src[:segmentBytes]
 
-	reports := make([]pendingBluetoothHapticsReport, 0,
-		(framesRemaining+len(d.v5SpeakerPCM)/dualSenseV5SpeakerFrameSize)/
-			dualSenseV5SpeakerFrames)
-	sourceOffset := 0
-	for framesRemaining > 0 {
-		speakerFramesNeeded := dualSenseV5SpeakerFrames -
-			len(d.v5SpeakerPCM)/dualSenseV5SpeakerFrameSize
-		hapticsFramesNeeded := hapticsFrames -
-			len(d.hapticsPCM)/USBHapticsAudioFrameSize
-		frames := min(framesRemaining, speakerFramesNeeded, hapticsFramesNeeded)
-		segmentBytes := frames * USBHapticsAudioFrameSize
-		segment := src[sourceOffset : sourceOffset+segmentBytes]
+	if d.hapticsPCMLength == 0 {
+		d.hapticsPCMStartedAt = now
+	}
+	copy(d.hapticsPCM[d.hapticsPCMLength:], segment)
+	d.hapticsPCMLength += segmentBytes
+	speakerBytes := frames * dualSenseV5SpeakerFrameSize
+	copyDualSenseV5SpeakerChannels(
+		d.v5SpeakerPCM[d.v5SpeakerPCMLength:d.v5SpeakerPCMLength+speakerBytes],
+		segment,
+	)
+	d.v5SpeakerPCMLength += speakerBytes
 
-		if len(d.hapticsPCM) == 0 {
-			d.hapticsPCMStartedAt = now
-		}
-		d.hapticsPCM = append(d.hapticsPCM, segment...)
-		d.v5SpeakerPCM = appendDualSenseV5Speaker(d.v5SpeakerPCM, segment)
-
-		framesRemaining -= frames
-		sourceOffset += segmentBytes
-
-		// At the 7,680-frame common boundary, complete rear feedback first so
-		// the simultaneous speaker generation carries that exact update.
-		if len(d.hapticsPCM) == hapticsFrames*USBHapticsAudioFrameSize {
-			d.completeDualSenseV5HapticsLocked(now)
-			generation := d.v5HapticsQueue[len(d.v5HapticsQueue)-1]
-			if feedback, ok := d.buildDualSenseV5RealtimeHapticsLocked(
-				generation.sample[:]); ok {
-				reports = append(reports, pendingBluetoothHapticsReport{
-					assemblyDelay: generation.assemblyDelay,
-					feedback:      feedback,
-					hapticsOnly:   true,
-				})
+	reportCount := 0
+	// At the 7,680-frame common boundary, complete rear feedback first so the
+	// simultaneous speaker generation carries that exact update.
+	if d.hapticsPCMLength == len(d.hapticsPCM) {
+		generation := d.completeDualSenseV5HapticsLocked(now)
+		if feedback, ok := d.buildDualSenseV5RealtimeHapticsLocked(
+			generation.sample[:]); ok {
+			pending := d.acquirePendingMediaReportLocked()
+			if pending != nil {
+				pending.assemblyDelay = generation.assemblyDelay
+				pending.feedback = feedback
+				pending.hapticsOnly = true
+				reports[reportCount] = pending
+				reportCount++
 			}
 		}
-		if len(d.v5SpeakerPCM) == dualSenseV5SpeakerPayloadSize {
-			feedback, assemblyDelay, ok :=
-				d.buildDualSenseV5FeedbackLocked()
-			if ok {
-				reports = append(reports, pendingBluetoothHapticsReport{
-					speakerPCM:    d.v5SpeakerPCM,
-					assemblyDelay: assemblyDelay,
-					feedback:      feedback,
-				})
-			}
-			d.v5SpeakerPCM = nil
-		}
 	}
-
-	return reports
+	if d.v5SpeakerPCMLength == len(d.v5SpeakerPCM) {
+		feedback, assemblyDelay, ok := d.buildDualSenseV5FeedbackLocked()
+		if ok {
+			pending := d.acquirePendingMediaReportLocked()
+			if pending != nil {
+				copy(pending.speakerPCM[:], d.v5SpeakerPCM[:])
+				pending.speakerLength = d.v5SpeakerPCMLength
+				pending.assemblyDelay = assemblyDelay
+				pending.feedback = feedback
+				reports[reportCount] = pending
+				reportCount++
+			}
+		}
+		d.v5SpeakerPCMLength = 0
+	}
+	return segmentBytes, reportCount
 }
 
 func (d *DualSense) buildDualSenseV5RealtimeHapticsLocked(
@@ -652,43 +1050,57 @@ func (d *DualSense) buildDualSenseV5RealtimeHapticsLocked(
 	interval := d.realtimeHapticsInterval
 	d.realtimeHapticsSeq++
 	d.realtimeHapticsInterval++
-	report, err := BuildBluetoothCombinedHapticsReport(
-		sequence, interval, sample,
-		d.outputState.RawOutputReport[:])
+	feedback := d.mediaOutputState
+	err := BuildBluetoothCombinedHapticsReportInto(
+		sequence, interval, sample, feedback.RawOutputReport[:],
+		feedback.BluetoothCombinedOutputReport[:])
 	if err != nil {
-		slog.Warn("failed to build realtime DualSense V5 haptics report",
-			"error", err)
+		// The caller owns mediaMu. Keep failure handling fixed-cost and expose
+		// the aggregate through diagnostics rather than invoking a logger while
+		// media scheduling state is locked.
+		d.mediaReportBuildFailures.Add(1)
 		return OutputState{}, false
 	}
-	feedback := d.outputState
-	copy(feedback.BluetoothCombinedOutputReport[:], report)
 	return feedback, true
 }
 
-func (d *DualSense) completeDualSenseV5HapticsLocked(now time.Time) {
+func (d *DualSense) completeDualSenseV5HapticsLocked(
+	now time.Time) dualSenseV5HapticsGeneration {
 	generation := dualSenseV5HapticsGeneration{}
-	copyUSBHapticsChannelsToBluetoothSample(generation.sample[:], d.hapticsPCM)
+	copyUSBHapticsChannelsToBluetoothSample(generation.sample[:],
+		d.hapticsPCM[:d.hapticsPCMLength])
 	generation.assemblyDelay = now.Sub(d.hapticsPCMStartedAt)
 	if d.hapticsPCMStartedAt.IsZero() || generation.assemblyDelay < 0 {
 		generation.assemblyDelay = 0
 	}
-	d.v5HapticsQueue = append(d.v5HapticsQueue, generation)
-	d.hapticsPCM = d.hapticsPCM[:0]
+	if d.v5HapticsQueueCount == len(d.v5HapticsQueue) {
+		// Media is time-indexed: if an impossible producer burst outruns the
+		// speaker clock, discard the oldest completed rear generation rather
+		// than replaying a stale backlog later.
+		d.v5HapticsQueue[d.v5HapticsQueueHead] = dualSenseV5HapticsGeneration{}
+		d.v5HapticsQueueHead = (d.v5HapticsQueueHead + 1) % len(d.v5HapticsQueue)
+		d.v5HapticsQueueCount--
+		d.mediaReportDrops.Add(1)
+	}
+	tail := (d.v5HapticsQueueHead + d.v5HapticsQueueCount) % len(d.v5HapticsQueue)
+	d.v5HapticsQueue[tail] = generation
+	d.v5HapticsQueueCount++
+	d.hapticsPCMLength = 0
 	d.hapticsPCMStartedAt = time.Time{}
+	return generation
 }
 
 func (d *DualSense) buildDualSenseV5FeedbackLocked() (OutputState,
 	time.Duration, bool) {
 	var sample [BluetoothHapticsSampleSize]byte
 	var assemblyDelay time.Duration
-	if len(d.v5HapticsQueue) != 0 {
-		generation := d.v5HapticsQueue[0]
+	if d.v5HapticsQueueCount != 0 {
+		generation := d.v5HapticsQueue[d.v5HapticsQueueHead]
 		sample = generation.sample
 		assemblyDelay = generation.assemblyDelay
-		copy(d.v5HapticsQueue, d.v5HapticsQueue[1:])
-		last := len(d.v5HapticsQueue) - 1
-		d.v5HapticsQueue[last] = dualSenseV5HapticsGeneration{}
-		d.v5HapticsQueue = d.v5HapticsQueue[:last]
+		d.v5HapticsQueue[d.v5HapticsQueueHead] = dualSenseV5HapticsGeneration{}
+		d.v5HapticsQueueHead = (d.v5HapticsQueueHead + 1) % len(d.v5HapticsQueue)
+		d.v5HapticsQueueCount--
 	}
 
 	sequence := d.hapticsSeq
@@ -696,14 +1108,14 @@ func (d *DualSense) buildDualSenseV5FeedbackLocked() (OutputState,
 	d.hapticsSeq++
 	d.hapticsInterval++
 
-	report, err := BuildBluetoothCombinedHapticsReport(
-		sequence, interval, sample[:], d.outputState.RawOutputReport[:])
+	feedback := d.mediaOutputState
+	err := BuildBluetoothCombinedHapticsReportInto(
+		sequence, interval, sample[:], feedback.RawOutputReport[:],
+		feedback.BluetoothCombinedOutputReport[:])
 	if err != nil {
-		slog.Warn("failed to build DualSense V5 Bluetooth haptics report", "error", err)
+		d.mediaReportBuildFailures.Add(1)
 		return OutputState{}, 0, false
 	}
-	feedback := d.outputState
-	copy(feedback.BluetoothCombinedOutputReport[:], report)
 	return feedback, assemblyDelay, true
 }
 
@@ -743,14 +1155,12 @@ func (d *DualSense) HandleControl(bmRequestType, bRequest uint8, wValue, wIndex,
 		switch bRequest {
 		case hidGetReport:
 			if reportType == reportTypeInput && reportID == ReportIDInput {
-				d.mtx.Lock()
-				is := d.inputState
-				ms := *d.metaState
-				d.mtx.Unlock()
-				b := d.buildUSBInputReport(&is, &ms)
-				if wLength > 0 && int(wLength) < len(b) {
-					b = b[:wLength]
+				length := InputReportSize
+				if wLength > 0 && int(wLength) < length {
+					length = int(wLength)
 				}
+				b := make([]byte, length)
+				d.SnapshotInputReportInto(b)
 				return b, true
 			}
 			if reportType == reportTypeFeature {
@@ -771,8 +1181,10 @@ func (d *DualSense) HandleControl(bmRequestType, bRequest uint8, wValue, wIndex,
 		if bRequest == hidSetReport {
 			switch {
 			case reportType == reportTypeFeature && reportID == featureIDCommand && len(data) >= 3:
+				d.outputMu.Lock()
 				d.subcommand[0] = data[1]
 				d.subcommand[1] = data[2]
+				d.outputMu.Unlock()
 				return nil, true
 			case reportType == reportTypeFeature:
 				return nil, true
@@ -796,23 +1208,32 @@ func (d *DualSense) HandleControl(bmRequestType, bRequest uint8, wValue, wIndex,
 }
 
 func (d *DualSense) handleOutputReport(out []byte) bool {
-	report, ok := normalizeOutputReport(out)
+	var normalized [OutputReportSize]byte
+	report, ok := normalizeOutputReportInto(out, &normalized)
 	if !ok {
 		return false
 	}
-	d.mtx.Lock()
+	d.outputMu.Lock()
+	feedback := d.mergeOutputReport(report)
+	mediaState := d.outputState
+	d.outputMu.Unlock()
+	d.mediaMu.Lock()
+	d.mediaOutputState = mediaState
+	d.mediaMu.Unlock()
+	d.callbackMu.RLock()
+	transportOutputFunc := d.transportOutputFunc
 	outputFunc := d.outputFunc
-	if outputFunc != nil {
-		feedback := d.mergeOutputReport(report)
-		d.mtx.Unlock()
+	d.callbackMu.RUnlock()
+	if transportOutputFunc != nil {
+		transportOutputFunc(feedback)
+	} else if outputFunc != nil {
 		outputFunc(feedback)
-	} else {
-		d.mtx.Unlock()
 	}
 	return true
 }
 
-func normalizeOutputReport(out []byte) ([]byte, bool) {
+func normalizeOutputReportInto(out []byte,
+	destination *[OutputReportSize]byte) ([]byte, bool) {
 	if len(out) == 0 {
 		return nil, false
 	}
@@ -825,10 +1246,10 @@ func normalizeOutputReport(out []byte) ([]byte, bool) {
 	// Some HID SET_REPORT paths deliver the payload without the report ID byte.
 	// Add it back so the parser can use the same USB report offsets.
 	if len(out) >= 4 {
-		report := make([]byte, len(out)+1)
-		report[0] = ReportIDOutput
-		copy(report[1:], out)
-		return report, true
+		length := min(len(out)+1, len(destination))
+		destination[0] = ReportIDOutput
+		copy(destination[1:length], out)
+		return destination[:length], true
 	}
 	return nil, false
 }
@@ -1007,9 +1428,9 @@ func (d *DualSense) featureReportPairing() []byte {
 	report := make([]byte, 20)
 	report[0] = featureIDPairing
 
-	d.mtx.Lock()
+	d.metaMu.Lock()
 	mac := d.metaState.MACAddress
-	d.mtx.Unlock()
+	d.metaMu.Unlock()
 
 	if hw, err := net.ParseMAC(mac); err == nil && len(hw) == 6 {
 		for i := range 6 {
@@ -1032,9 +1453,9 @@ func (d *DualSense) featureReportFirmware() []byte {
 	report := make([]byte, 64)
 	report[0] = featureIDFirmware
 
-	d.mtx.Lock()
+	d.metaMu.Lock()
 	bt := d.metaState.BuildTime
-	d.mtx.Unlock()
+	d.metaMu.Unlock()
 
 	copy(report[1:12], bt.Format("Jan 02 2006"))
 	copy(report[12:20], bt.Format("15:04:05"))
@@ -1065,12 +1486,14 @@ func (d *DualSense) featureReportCommandResponse() []byte {
 	report := make([]byte, 64)
 	report[0] = featureIDCommandResponse
 
-	d.mtx.Lock()
+	d.outputMu.Lock()
 	sub := d.subcommand
+	d.outputMu.Unlock()
+	d.metaMu.Lock()
 	serial := d.metaState.SerialNumber
 	voltage := d.metaState.BatteryVoltage
 	temp := d.metaState.TemperatureCelsius
-	d.mtx.Unlock()
+	d.metaMu.Unlock()
 
 	switch sub[0] {
 	case subcmdSerial:
@@ -1096,83 +1519,29 @@ func (d *DualSense) featureReportCommandResponse() []byte {
 
 func (d *DualSense) buildUSBInputReport(s *InputState, m *MetaState) []byte {
 	b := make([]byte, InputReportSize)
-	b[0] = ReportIDInput
-
-	b[1] = uint8(int16(s.LX) + 128)
-	b[2] = uint8(int16(s.LY) + 128)
-	b[3] = uint8(int16(s.RX) + 128)
-	b[4] = uint8(int16(s.RY) + 128)
-
-	b[5] = s.L2
-	b[6] = s.R2
-
-	d.seqCounter++
-	b[7] = d.seqCounter
-
-	usbDPad := uint8(DPadUSBNeutral)
-	switch {
-	case s.DPad&DPadUp != 0 && s.DPad&DPadRight != 0:
-		usbDPad = DPadUSBUpRight
-	case s.DPad&DPadUp != 0 && s.DPad&DPadLeft != 0:
-		usbDPad = DPadUSBUpLeft
-	case s.DPad&DPadDown != 0 && s.DPad&DPadRight != 0:
-		usbDPad = DPadUSBDownRight
-	case s.DPad&DPadDown != 0 && s.DPad&DPadLeft != 0:
-		usbDPad = DPadUSBDownLeft
-	case s.DPad&DPadUp != 0:
-		usbDPad = DPadUSBUp
-	case s.DPad&DPadDown != 0:
-		usbDPad = DPadUSBDown
-	case s.DPad&DPadLeft != 0:
-		usbDPad = DPadUSBLeft
-	case s.DPad&DPadRight != 0:
-		usbDPad = DPadUSBRight
-	}
-	b[8] = (usbDPad & DPadMask) | (uint8(s.Buttons) & 0xF0)
-	b[9] = uint8(s.Buttons >> 8)
-	b[10] = uint8(s.Buttons >> 16)
-
-	binary.LittleEndian.PutUint16(b[16:18], uint16(s.GyroX))
-	binary.LittleEndian.PutUint16(b[18:20], uint16(s.GyroY))
-	binary.LittleEndian.PutUint16(b[20:22], uint16(s.GyroZ))
-
-	binary.LittleEndian.PutUint16(b[22:24], uint16(s.AccelX))
-	binary.LittleEndian.PutUint16(b[24:26], uint16(s.AccelY))
-	binary.LittleEndian.PutUint16(b[26:28], uint16(s.AccelZ))
-
-	ts := uint32(time.Since(d.timestampBase).Microseconds() * 3)
-	binary.LittleEndian.PutUint32(b[28:32], ts)
-
-	b[33] = normalizeTouchTracking(s.Touch1Active, s.Touch1Tracking)
-	encodeTouchCoords(b[34:37], s.Touch1X, s.Touch1Y)
-
-	b[37] = normalizeTouchTracking(s.Touch2Active, s.Touch2Tracking)
-	encodeTouchCoords(b[38:41], s.Touch2X, s.Touch2Y)
-
-	b[41] = d.seqCounter
-	binary.LittleEndian.PutUint32(b[49:53], ts)
 	battery := byte(0)
 	if m != nil {
 		battery = m.BatteryStatus
 	}
-	b[53] = battery
-
-	corruptReason := ""
-	if inputStateControlsInvalid(s) {
-		corruptReason = "invalid input control bits"
+	now := time.Now()
+	d.input.mu.Lock()
+	elapsed := now.Sub(d.input.timestampBase).Microseconds() * 3
+	d.input.mu.Unlock()
+	if elapsed < 0 {
+		elapsed = 0
 	}
-
-	if corruptReason != "" {
-		d.corruptUSBInputReports++
-		count := d.corruptUSBInputReports
-		if count <= 128 || isPowerOfTwo(count) {
-			slog.Warn("DualSense USB input report was corrupt; report reset to neutral",
-				"count", count,
-				"reason", corruptReason)
-		}
-		resetUSBInputReportToNeutral(b, d.seqCounter, ts, battery)
+	if elapsed > math.MaxUint32 {
+		elapsed = math.MaxUint32
 	}
-
+	// Compatibility helper for non-hot tests and callers. The persistent
+	// interrupt encoder is the only owner of the streaming sequence and last
+	// presented report, so this isolated build deliberately uses sequence one
+	// and never mutates those fields.
+	if !encodeUSBInputReportInto(s, battery, 1, uint32(elapsed), b) {
+		d.input.mu.Lock()
+		d.input.corruptReports++
+		d.input.mu.Unlock()
+	}
 	return b
 }
 

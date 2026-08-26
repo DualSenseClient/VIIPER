@@ -72,10 +72,12 @@ func TestReadDualSenseV5InputStreamAcceptsInterleavedStateAndMicrophone(t *testi
 		t.Fatalf("reader: %v", err)
 	}
 
-	dev.mtx.Lock()
-	got := dev.inputState
+	dev.input.mu.Lock()
+	got := dev.input.previous
+	dev.input.mu.Unlock()
+	dev.microphoneMu.Lock()
 	queued := dev.microphoneBuffer.State().QueuedBytes
-	dev.mtx.Unlock()
+	dev.microphoneMu.Unlock()
 	if got.LX != state.LX || got.Buttons != state.Buttons ||
 		got.GyroX != state.GyroX || got.GyroY != state.GyroY ||
 		got.AccelZ != state.AccelZ {
@@ -83,6 +85,12 @@ func TestReadDualSenseV5InputStreamAcceptsInterleavedStateAndMicrophone(t *testi
 	}
 	if queued != USBMicrophoneClientFrameSize*microphoneTargetClientFrames {
 		t.Fatalf("queued microphone bytes=%d", queued)
+	}
+	telemetry := dev.InputTelemetryState()
+	if telemetry.FramesValidated != microphoneTargetClientFrames+1 ||
+		telemetry.InputFrames != 1 ||
+		telemetry.LastFrameSequence != microphoneTargetClientFrames {
+		t.Fatalf("V5 sequence correlation telemetry=%+v", telemetry)
 	}
 }
 
@@ -188,9 +196,9 @@ func TestDualSenseUpdateInputStateCopiesState(t *testing.T) {
 	state.Buttons = ButtonTriangle
 	dev.UpdateInputState(state)
 	state.Buttons = ButtonCircle
-	dev.mtx.Lock()
-	got := dev.inputState.Buttons
-	dev.mtx.Unlock()
+	dev.input.mu.Lock()
+	got := dev.input.previous.Buttons
+	dev.input.mu.Unlock()
 	if got != ButtonTriangle {
 		t.Fatalf("device retained caller-owned state: got=%#x", got)
 	}

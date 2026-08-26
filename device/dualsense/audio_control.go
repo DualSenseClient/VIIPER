@@ -47,6 +47,27 @@ type audioGainBuffer struct {
 	data []byte
 }
 
+// audioGainBufferLease gives the synchronous media consumer explicit ownership
+// of one pooled scratch buffer. The zero value represents borrowed input and
+// needs no release. Keeping the token as data, rather than returning a
+// capturing release closure, avoids one heap object for every active volume or
+// mute block.
+type audioGainBufferLease struct {
+	buffer *audioGainBuffer
+}
+
+func (l *audioGainBufferLease) active() bool {
+	return l != nil && l.buffer != nil
+}
+
+func (l *audioGainBufferLease) release() {
+	if l == nil || l.buffer == nil {
+		return
+	}
+	releaseAudioGainBuffer(l.buffer)
+	l.buffer = nil
+}
+
 type audioFeatureState struct {
 	mute          bool
 	volume        int16
@@ -152,11 +173,13 @@ func (s *audioFeatureState) needsPCMProcessing() bool {
 
 // applyPCM applies one master feature-unit gain to interleaved signed S16LE
 // PCM. The caller must serialize access to the feature state. The returned
-// release function must be called once the synchronous consumer has copied the
-// returned bytes.
-func (s *audioFeatureState) applyPCM(src []byte, channels int) ([]byte, func()) {
+// lease must be released once the synchronous consumer has copied the returned
+// bytes. A zero lease means the returned bytes still alias src.
+func (s *audioFeatureState) applyPCM(src []byte, channels int) (
+	[]byte, audioGainBufferLease,
+) {
 	if len(src) == 0 || channels <= 0 || !s.needsPCMProcessing() {
-		return src, nil
+		return src, audioGainBufferLease{}
 	}
 
 	buffer := acquireAudioGainBuffer(len(src))
@@ -164,7 +187,7 @@ func (s *audioFeatureState) applyPCM(src []byte, channels int) ([]byte, func()) 
 	copy(dst, src)
 	s.applyPCMInPlace(dst, channels)
 
-	return dst, func() { releaseAudioGainBuffer(buffer) }
+	return dst, audioGainBufferLease{buffer: buffer}
 }
 
 // applyPCMInPlace is used for freshly allocated USB capture packets. Applying
@@ -252,14 +275,15 @@ func (d *DualSense) handleAudioFeatureControlRequest(
 	entity := uint8(wIndex >> 8)
 	selector := uint8(wValue >> 8)
 
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
-
 	var state *audioFeatureState
 	switch entity {
 	case audioEntitySpeakerFeatureUnit:
+		d.mediaMu.Lock()
+		defer d.mediaMu.Unlock()
 		state = &d.speakerAudioFeature
 	case audioEntityMicrophoneFeature:
+		d.microphoneMu.Lock()
+		defer d.microphoneMu.Unlock()
 		state = &d.microphoneAudioFeature
 	default:
 		return nil, false

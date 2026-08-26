@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"testing"
+	"time"
 
 	"github.com/Alia5/VIIPER/usbip"
 )
@@ -177,17 +178,17 @@ func TestDualSenseAudioGainDefaultsAreNeutralAndChangesRamp(t *testing.T) {
 	}
 
 	speaker := newSpeakerAudioFeatureState()
-	processed, release := speaker.applyPCM(frame, USBHapticsAudioChannels)
-	if release != nil || !bytes.Equal(processed, frame) {
+	processed, lease := speaker.applyPCM(frame, USBHapticsAudioChannels)
+	if lease.active() || !bytes.Equal(processed, frame) {
 		t.Fatal("default speaker feature changed the established PCM level")
 	}
 
 	speaker.setMute(true)
-	processed, release = speaker.applyPCM(frame, USBHapticsAudioChannels)
-	if release == nil {
+	processed, lease = speaker.applyPCM(frame, USBHapticsAudioChannels)
+	if !lease.active() {
 		t.Fatal("muted speaker PCM was not processed")
 	}
-	defer release()
+	defer lease.release()
 	first := int16(binary.LittleEndian.Uint16(processed[:2]))
 	lastOffset := (audioGainRampFrames - 1) * USBHapticsAudioFrameSize
 	last := int16(binary.LittleEndian.Uint16(processed[lastOffset : lastOffset+2]))
@@ -201,17 +202,17 @@ func TestDualSenseAudioGainDefaultsAreNeutralAndChangesRamp(t *testing.T) {
 	for offset := 0; offset < len(micFrame); offset += 2 {
 		binary.LittleEndian.PutUint16(micFrame[offset:offset+2], uint16(int16(10000)))
 	}
-	micProcessed, micRelease := microphone.applyPCM(micFrame, USBMicrophoneChannels)
-	if micRelease != nil || !bytes.Equal(micProcessed, micFrame) {
+	micProcessed, micLease := microphone.applyPCM(micFrame, USBMicrophoneChannels)
+	if micLease.active() || !bytes.Equal(micProcessed, micFrame) {
 		t.Fatal("physical-style microphone gain control attenuated client capture PCM")
 	}
 
 	microphone.setMute(true)
-	micProcessed, micRelease = microphone.applyPCM(micFrame, USBMicrophoneChannels)
-	if micRelease == nil {
+	micProcessed, micLease = microphone.applyPCM(micFrame, USBMicrophoneChannels)
+	if !micLease.active() {
 		t.Fatal("microphone mute did not process PCM")
 	}
-	defer micRelease()
+	defer micLease.release()
 	micFirst := int16(binary.LittleEndian.Uint16(micProcessed[:2]))
 	micLastOffset := (audioGainRampFrames - 1) * USBMicrophoneChannels * 2
 	micLast := int16(binary.LittleEndian.Uint16(micProcessed[micLastOffset : micLastOffset+2]))
@@ -229,16 +230,82 @@ func TestDualSenseAudioGainSaturatesS16(t *testing.T) {
 	negative := int16(-20000)
 	binary.LittleEndian.PutUint16(pcm[2:4], uint16(negative))
 
-	processed, release := state.applyPCM(pcm, USBHapticsAudioChannels)
-	if release == nil {
+	processed, lease := state.applyPCM(pcm, USBHapticsAudioChannels)
+	if !lease.active() {
 		t.Fatal("amplified PCM was not processed")
 	}
-	defer release()
+	defer lease.release()
 	if got := int16(binary.LittleEndian.Uint16(processed[0:2])); got != 32767 {
 		t.Fatalf("positive sample did not saturate: %d", got)
 	}
 	if got := int16(binary.LittleEndian.Uint16(processed[2:4])); got != -32768 {
 		t.Fatalf("negative sample did not saturate: %d", got)
+	}
+}
+
+func TestDualSenseAudioGainLeaseDoesNotBlockStreamReset(t *testing.T) {
+	dev, err := New(nil)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	dev.SetInterfaceAltSetting(InterfaceHapticsAudio, 1)
+	generation := dev.IsoOutGeneration(EndpointHapticsAudioOut)
+	dev.mediaMu.Lock()
+	dev.speakerAudioFeature.setMute(true)
+	dev.speakerAudioFeature.resetStreamGain()
+	dev.mediaMu.Unlock()
+
+	callbackStarted := make(chan struct{})
+	releaseCallback := make(chan struct{})
+	dev.SetAtomicAudioHapticsCallback(func(OutputState, []byte) {
+		close(callbackStarted)
+		<-releaseCallback
+	})
+	pcm := makeV5USBPCM(0, dualSenseV5SpeakerFrames, 12000)
+	transferDone := make(chan bool, 1)
+	go func() {
+		transferDone <- dev.HandleIsoOutTransfer(
+			EndpointHapticsAudioOut, generation, pcm,
+		)
+	}()
+
+	select {
+	case <-callbackStarted:
+	case <-time.After(time.Second):
+		t.Fatal("active-gain transfer did not reach its synchronous consumer")
+	}
+
+	resetDone := make(chan struct{})
+	go func() {
+		dev.SetInterfaceAltSetting(InterfaceHapticsAudio, 0)
+		close(resetDone)
+	}()
+	select {
+	case <-resetDone:
+	case <-time.After(time.Second):
+		t.Fatal("stream reset waited for an in-flight gain-buffer consumer")
+	}
+
+	close(releaseCallback)
+	select {
+	case accepted := <-transferDone:
+		if !accepted {
+			t.Fatal("generation-valid transfer was rejected after consumption began")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("gain-buffer lease was not released after consumer completion")
+	}
+
+	// Reopening owns a new media generation and can immediately reuse the gain
+	// scratch path after the old callback and lease have completed.
+	dev.SetAtomicAudioHapticsCallback(func(OutputState, []byte) {})
+	dev.SetInterfaceAltSetting(InterfaceHapticsAudio, 1)
+	newGeneration := dev.IsoOutGeneration(EndpointHapticsAudioOut)
+	if newGeneration == generation {
+		t.Fatal("stream lifecycle did not advance the media generation")
+	}
+	if !dev.HandleIsoOutTransfer(EndpointHapticsAudioOut, newGeneration, pcm) {
+		t.Fatal("replacement media generation could not reuse gain scratch")
 	}
 }
 
@@ -298,29 +365,29 @@ func TestDualSenseAudioLifecycleDropsInactiveAndStalePCM(t *testing.T) {
 	dev.SetOutputCallback(func(OutputState) { feedbackCallbacks++ })
 
 	dev.HandleTransfer(context.Background(), EndpointHapticsAudioOut, usbip.DirOut, half)
-	if len(dev.hapticsPCM) != 0 || len(dev.v5SpeakerPCM) != 0 {
+	if dev.hapticsPCMLength != 0 || dev.v5SpeakerPCMLength != 0 {
 		t.Fatal("inactive render endpoint accepted PCM")
 	}
 
 	dev.SetInterfaceAltSetting(InterfaceHapticsAudio, 1)
 	dev.HandleTransfer(context.Background(), EndpointHapticsAudioOut, usbip.DirOut, half)
-	if len(dev.hapticsPCM) != len(half) ||
-		len(dev.v5SpeakerPCM) != len(half)/USBHapticsAudioFrameSize*dualSenseV5SpeakerFrameSize {
+	if dev.hapticsPCMLength != len(half) ||
+		dev.v5SpeakerPCMLength != len(half)/USBHapticsAudioFrameSize*dualSenseV5SpeakerFrameSize {
 		t.Fatal("active render endpoint did not retain its partial current generation")
 	}
 
 	dev.SetInterfaceAltSetting(InterfaceHapticsAudio, 0)
 	dev.SetInterfaceAltSetting(InterfaceHapticsAudio, 1)
 	dev.HandleTransfer(context.Background(), EndpointHapticsAudioOut, usbip.DirOut, half)
-	if feedbackCallbacks != 0 || len(dev.hapticsPCM) != len(half) ||
-		len(dev.v5SpeakerPCM) != len(half)/USBHapticsAudioFrameSize*dualSenseV5SpeakerFrameSize {
+	if feedbackCallbacks != 0 || dev.hapticsPCMLength != len(half) ||
+		dev.v5SpeakerPCMLength != len(half)/USBHapticsAudioFrameSize*dualSenseV5SpeakerFrameSize {
 		t.Fatal("stale haptics PCM crossed an interface close/reopen boundary")
 	}
 
 	dev.ResetEndpoint(EndpointHapticsAudioOut)
-	if len(dev.hapticsPCM) != 0 || len(dev.v5SpeakerPCM) != 0 || speakerResets != 4 {
+	if dev.hapticsPCMLength != 0 || dev.v5SpeakerPCMLength != 0 || speakerResets != 4 {
 		t.Fatalf("speaker endpoint reset did not clear transport state: haptics=%d speaker=%d resets=%d",
-			len(dev.hapticsPCM), len(dev.v5SpeakerPCM), speakerResets)
+			dev.hapticsPCMLength, dev.v5SpeakerPCMLength, speakerResets)
 	}
 
 	dev.SetInterfaceAltSetting(InterfaceMicrophone, 1)

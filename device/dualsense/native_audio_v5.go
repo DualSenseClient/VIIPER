@@ -18,7 +18,12 @@ func appendDualSenseV5Speaker(dst, src []byte) []byte {
 	}
 
 	start := len(dst)
-	dst = append(dst, make([]byte, frames*dualSenseV5SpeakerFrameSize)...)
+	length := start + frames*dualSenseV5SpeakerFrameSize
+	if cap(dst) < length {
+		dst = append(dst, make([]byte, length-len(dst))...)
+	} else {
+		dst = dst[:length]
+	}
 	copyDualSenseV5SpeakerChannels(dst[start:],
 		src[:frames*USBHapticsAudioFrameSize])
 	return dst

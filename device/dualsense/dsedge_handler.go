@@ -14,10 +14,13 @@ func init() {
 	api.RegisterDevice(DeviceTypeEdgeCombinedAudioDuplexV5, &dsedgehandler{})
 	api.RegisterDevice(DeviceTypeEdgeGamepadOnlyV5,
 		&dsedgehandler{gamepadOnly: true})
+	api.RegisterDevice(DeviceTypeEdgeCombinedAudioDuplexV5Events,
+		&dsedgehandler{micInterfaceEvents: true})
 }
 
 type dsedgehandler struct {
-	gamepadOnly bool
+	gamepadOnly        bool
+	micInterfaceEvents bool
 }
 
 func (h *dsedgehandler) CreateDevice(o *device.CreateOptions) (usb.Device, error) {
@@ -44,7 +47,11 @@ func (h *dsedgehandler) CreateDevice(o *device.CreateOptions) (usb.Device, error
 			serial = serial[:4] + code[:2] + serial[6:]
 		}
 	}
+	identityMu.Lock()
 	if _, ok := serials[serial]; ok {
+		if len(serial) < 2 {
+			serial = DefaultSerialNumberDSEdge
+		}
 		for i := 1; i < 16; i++ {
 			newSerial := fmt.Sprintf("%s%02X", serial[:len(serial)-2], i)
 			if _, exists := serials[newSerial]; !exists {
@@ -61,6 +68,9 @@ func (h *dsedgehandler) CreateDevice(o *device.CreateOptions) (usb.Device, error
 		mac = DefaultMACAddressDSEdge
 	}
 	if _, ok := macs[mac]; ok {
+		if len(mac) < 2 {
+			mac = DefaultMACAddressDSEdge
+		}
 		prefix := mac[:len(mac)-2]
 		for i := 1; i <= 16; i++ {
 			candidate := fmt.Sprintf("%s%02X", prefix, i)
@@ -72,26 +82,37 @@ func (h *dsedgehandler) CreateDevice(o *device.CreateOptions) (usb.Device, error
 	}
 	metaState.MACAddress = mac
 	macs[mac] = struct{}{}
+	identityMu.Unlock()
 
 	b, err := json.Marshal(metaState)
 	if err != nil {
+		identityMu.Lock()
+		delete(serials, serial)
+		delete(macs, mac)
+		identityMu.Unlock()
 		return nil, fmt.Errorf("marshal meta state: %w", err)
 	}
 	o.DeviceSpecific = string(b)
 
 	dse, err := new(o, true)
 	if err != nil {
+		identityMu.Lock()
+		delete(serials, serial)
+		delete(macs, mac)
+		identityMu.Unlock()
 		return nil, err
 	}
 	if h.gamepadOnly {
 		dse.descriptor = makeGamepadOnlyDescriptor(true)
 		dse.deviceType = DeviceTypeEdgeGamepadOnlyV5
+	} else if h.micInterfaceEvents {
+		dse.deviceType = DeviceTypeEdgeCombinedAudioDuplexV5Events
 	}
 	return dse, nil
 }
 
 func (h *dsedgehandler) StreamHandler() api.StreamHandlerFunc {
-	return dualSenseV5StreamHandler("DualSense Edge")
+	return dualSenseV5StreamHandler("DualSense Edge", h.micInterfaceEvents)
 }
 
 func (h *dsedgehandler) UpdateMetaState(meta string, dev *usb.Device) error {
@@ -99,9 +120,9 @@ func (h *dsedgehandler) UpdateMetaState(meta string, dev *usb.Device) error {
 	if !ok {
 		return fmt.Errorf("%w: expected DualSenseEdge", device.ErrWrongDeviceType)
 	}
-	dse.mtx.Lock()
+	dse.metaMu.Lock()
 	current := *dse.metaState
-	dse.mtx.Unlock()
+	dse.metaMu.Unlock()
 	if err := json.Unmarshal([]byte(meta), &current); err != nil {
 		return fmt.Errorf("unmarshal meta state: %w", err)
 	}

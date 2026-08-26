@@ -14,6 +14,13 @@ const (
 	DeviceTypeGamepadOnlyV5             = "dualsensegamepadv5"
 	DeviceTypeEdgeCombinedAudioDuplexV5 = "dualsenseedgecombinedaudioduplexv5"
 	DeviceTypeEdgeGamepadOnlyV5         = "dualsenseedgegamepadv5"
+
+	// The events aliases are an explicit protocol capability boundary. Legacy
+	// V5 clients never receive frame types they do not understand; clients that
+	// request an alias opt in to ordered microphone-interface state events.
+	DeviceTypeCombinedAudioDuplexV5Events     = "dualsensecombinedaudioduplexv5events"
+	DeviceTypeAudioOnlyDuplexV5Events         = "dualsenseaudioonlyduplexv5events"
+	DeviceTypeEdgeCombinedAudioDuplexV5Events = "dualsenseedgecombinedaudioduplexv5events"
 )
 
 const (
@@ -80,12 +87,16 @@ const (
 	// 0x83 media frame remains unchanged for compatibility, while V5 consumers
 	// that understand this lane can remove up to one speaker interval of host
 	// latency.
-	StreamFrameRealtimeHaptics  = 0x84
-	USBMicrophoneSampleRate     = 48000
-	USBMicrophoneChannels       = 2
-	USBMicrophoneBytesPerSample = 2
-	USBMicrophonePacketFrames   = USBMicrophoneSampleRate / 1000
-	USBMicrophonePacketSize     = USBMicrophonePacketFrames *
+	StreamFrameRealtimeHaptics = 0x84
+	// StreamFrameMicrophoneInterfaceState is an ordered lifecycle event. Its
+	// payload is one active byte followed by the little-endian uint64 stream
+	// generation established when this V5 connection attached.
+	StreamFrameMicrophoneInterfaceState = 0x85
+	USBMicrophoneSampleRate             = 48000
+	USBMicrophoneChannels               = 2
+	USBMicrophoneBytesPerSample         = 2
+	USBMicrophonePacketFrames           = USBMicrophoneSampleRate / 1000
+	USBMicrophonePacketSize             = USBMicrophonePacketFrames *
 		USBMicrophoneChannels * USBMicrophoneBytesPerSample
 	USBMicrophoneMaxPacketSize = USBMicrophonePacketSize +
 		USBMicrophoneChannels*USBMicrophoneBytesPerSample

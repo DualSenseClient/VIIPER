@@ -685,8 +685,11 @@ func TestDualSenseUSBInputReportPreservesArbitraryMotionBytes(t *testing.T) {
 		report[22] != StreamFrameMagic2 || report[23] != StreamFrameMagic3 {
 		t.Fatalf("expected arbitrary motion bytes to survive: % x", report[16:24])
 	}
-	if dev.corruptUSBInputReports != 0 {
-		t.Fatalf("valid motion was incorrectly rejected, resets=%d", dev.corruptUSBInputReports)
+	dev.input.mu.Lock()
+	corruptReports := dev.input.corruptReports
+	dev.input.mu.Unlock()
+	if corruptReports != 0 {
+		t.Fatalf("valid motion was incorrectly rejected, resets=%d", corruptReports)
 	}
 	if report[1] != 145 || report[4] != 86 || report[5] != 0 || report[6] != 200 ||
 		report[8]&byte(ButtonCross) == 0 {
@@ -706,8 +709,11 @@ func TestDualSenseUSBInputReportNeutralizesInvalidControlBits(t *testing.T) {
 	state.Buttons = 1 << 31
 	report := dev.buildUSBInputReport(state, &MetaState{BatteryStatus: BatteryFullyCharged})
 
-	if dev.corruptUSBInputReports != 1 {
-		t.Fatalf("expected one invalid-control reset, got %d", dev.corruptUSBInputReports)
+	dev.input.mu.Lock()
+	corruptReports := dev.input.corruptReports
+	dev.input.mu.Unlock()
+	if corruptReports != 1 {
+		t.Fatalf("expected one invalid-control reset, got %d", corruptReports)
 	}
 	if report[1] != 128 || report[2] != 128 || report[3] != 128 || report[4] != 128 ||
 		report[5] != 0 || report[6] != 0 || report[8] != DPadUSBNeutral ||

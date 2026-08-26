@@ -39,8 +39,14 @@ func NewInputState() *InputState {
 	}
 }
 
-func (s *InputState) MarshalBinary() ([]byte, error) {
-	b := make([]byte, InputStateSize)
+// MarshalInto writes the fixed-width V5 input state into destination without
+// allocating. It returns io.ErrShortBuffer when destination cannot hold the
+// complete state; partial V5 states are never produced.
+func (s *InputState) MarshalInto(destination []byte) error {
+	if len(destination) < InputStateSize {
+		return io.ErrShortBuffer
+	}
+	b := destination[:InputStateSize]
 	b[0] = uint8(s.LX)
 	b[1] = uint8(s.LY)
 	b[2] = uint8(s.RX)
@@ -67,7 +73,12 @@ func (s *InputState) MarshalBinary() ([]byte, error) {
 	binary.LittleEndian.PutUint16(b[27:29], uint16(s.AccelX))
 	binary.LittleEndian.PutUint16(b[29:31], uint16(s.AccelY))
 	binary.LittleEndian.PutUint16(b[31:33], uint16(s.AccelZ))
-	return b, nil
+	return nil
+}
+
+func (s *InputState) MarshalBinary() ([]byte, error) {
+	b := make([]byte, InputStateSize)
+	return b, s.MarshalInto(b)
 }
 
 func (s *InputState) UnmarshalBinary(data []byte) error {
@@ -130,8 +141,12 @@ type OutputState struct {
 
 // MarshalV5Binary emits the single V5 transport feedback contract:
 // compact state, native USB output report, and combined Bluetooth carrier.
-func (f *OutputState) MarshalV5Binary() ([]byte, error) {
-	b := make([]byte, OutputStateV5Size)
+func (f *OutputState) MarshalV5Into(destination []byte) error {
+	if len(destination) < OutputStateV5Size {
+		return io.ErrShortBuffer
+	}
+	b := destination[:OutputStateV5Size]
+	clear(b)
 	b[0] = f.RumbleSmall
 	b[1] = f.RumbleLarge
 	b[2] = f.LedRed
@@ -158,7 +173,14 @@ func (f *OutputState) MarshalV5Binary() ([]byte, error) {
 	b[26] = f.TriggerL2Frequency
 	copy(b[OutputStateRawReportOffset:], f.RawOutputReport[:])
 	copy(b[OutputStateCombinedBluetoothOffset:], f.BluetoothCombinedOutputReport[:])
-	return b, nil
+	return nil
+}
+
+// MarshalV5Binary is retained for compatibility with non-hot callers. Loaded
+// output paths should use MarshalV5Into with writer-owned storage.
+func (f *OutputState) MarshalV5Binary() ([]byte, error) {
+	b := make([]byte, OutputStateV5Size)
+	return b, f.MarshalV5Into(b)
 }
 
 // UnmarshalV5Binary accepts only the production V5 feedback payload.
