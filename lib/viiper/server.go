@@ -141,7 +141,11 @@ func CloseUSBServer(handle C.USBServerHandle) bool {
 
 	for busID, dhs := range hw.deviceHandles {
 		for _, dh := range dhs {
-			cgo.Handle(dh).Delete()
+			h := cgo.Handle(dh)
+			if w, ok := h.Value().(*deviceHandleWrapper); ok && w.releaseIdentity != nil {
+				w.releaseIdentity()
+			}
+			h.Delete()
 		}
 		delete(hw.deviceHandles, busID)
 	}
