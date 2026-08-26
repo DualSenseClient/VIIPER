@@ -1,9 +1,6 @@
 package dualsense
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/DualSenseClient/VIIPER/device"
 	"github.com/DualSenseClient/VIIPER/internal/server/api"
 	"github.com/DualSenseClient/VIIPER/usb"
@@ -48,19 +45,4 @@ func (h *dsedgehandler) CreateDevice(o *device.CreateOptions) (usb.Device, error
 
 func (h *dsedgehandler) StreamHandler() api.StreamHandlerFunc {
 	return dualSenseV5StreamHandler("DualSense Edge")
-}
-
-func (h *dsedgehandler) UpdateMetaState(meta string, dev *usb.Device) error {
-	dse, ok := (*dev).(*DualSense)
-	if !ok {
-		return fmt.Errorf("%w: expected DualSenseEdge", device.ErrWrongDeviceType)
-	}
-	dse.mtx.Lock()
-	current := *dse.metaState
-	dse.mtx.Unlock()
-	if err := json.Unmarshal([]byte(meta), &current); err != nil {
-		return fmt.Errorf("unmarshal meta state: %w", err)
-	}
-	dse.SetMetaState(current)
-	return nil
 }

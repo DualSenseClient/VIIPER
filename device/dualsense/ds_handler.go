@@ -2,7 +2,6 @@ package dualsense
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -235,19 +234,4 @@ func inputStatePayloadCorruptionReason(input []byte) string {
 
 func isPowerOfTwo(value int) bool {
 	return value > 0 && value&(value-1) == 0
-}
-
-func (h *dshandler) UpdateMetaState(meta string, dev *usb.Device) error {
-	dse, ok := (*dev).(*DualSense)
-	if !ok {
-		return fmt.Errorf("%w: expected DualSenseEdge", device.ErrWrongDeviceType)
-	}
-	dse.mtx.Lock()
-	current := *dse.metaState
-	dse.mtx.Unlock()
-	if err := json.Unmarshal([]byte(meta), &current); err != nil {
-		return fmt.Errorf("unmarshal meta state: %w", err)
-	}
-	dse.SetMetaState(current)
-	return nil
 }

@@ -2,7 +2,6 @@ package dualshock4
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -543,19 +542,4 @@ func dualShock4FramedStreamCRC(headerFields, payload []byte) uint32 {
 	_, _ = hash.Write(headerFields)
 	_, _ = hash.Write(payload)
 	return hash.Sum32()
-}
-
-func (h *handler) UpdateMetaState(meta string, dev *usb.Device) error {
-	ds4, ok := (*dev).(*DualShock4)
-	if !ok {
-		return fmt.Errorf("%w: expected DualShock4", device.ErrWrongDeviceType)
-	}
-	var metaState MetaState
-	err := json.Unmarshal([]byte(meta), &metaState)
-	if err != nil {
-		return fmt.Errorf("unmarshal meta state: %w", err)
-	}
-	ds4.SetMetaState(metaState)
-
-	return nil
 }

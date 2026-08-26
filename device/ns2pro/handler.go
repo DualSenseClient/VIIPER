@@ -1,7 +1,6 @@
 package ns2pro
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -98,19 +97,4 @@ func (h *handler) StreamHandler() api.StreamHandlerFunc {
 			ns2.UpdateInputState(state)
 		}
 	}
-}
-
-func (h *handler) UpdateMetaState(meta string, dev *usb.Device) error {
-	ns2, ok := (*dev).(*NS2Pro)
-	if !ok {
-		return fmt.Errorf("%w: expected ns2pro", device.ErrWrongDeviceType)
-	}
-
-	metaState := *defaultMetaState()
-	if err := json.Unmarshal([]byte(meta), &metaState); err != nil {
-		return fmt.Errorf("unmarshal meta state: %w", err)
-	}
-
-	ns2.SetMetaState(metaState)
-	return nil
 }
