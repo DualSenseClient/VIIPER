@@ -93,15 +93,36 @@ func NewUSBServer(config *C.USBServerConfig, outHandle *C.USBServerHandle, logCa
 
 	select {
 	case <-readyChan:
-		*outHandle = C.USBServerHandle(cgo.NewHandle(&usbServerHandleWrapper{
+		wrapper := &usbServerHandleWrapper{
 			s:             s,
 			deviceHandles: make(map[uint32][]deviceHandle),
-		}))
+		}
+		wrapper.useNativeIOCTL.Store(true)
+		*outHandle = C.USBServerHandle(cgo.NewHandle(wrapper))
 		return true
 	case err := <-errChan:
 		logger.Error("NewUSBServer: ListenAndServe failed", "error", err)
 		return false
 	}
+}
+
+// SetUSBAutoAttachWindowsNative controls how devices created with
+// autoAttachLocalhost are attached on this machine on Windows: via the native
+// usbip-win2 IOCTL (true, default) or by shelling out to usbip.exe (false).
+// This mirrors the standalone app's api.auto-attach-windows-native option and
+// has no effect on non-Windows hosts, where the usbip CLI is always used.
+// @param serverHandle Handle to the USB server.
+// @param useNativeIOCTL True to attach via the native IOCTL.
+//
+//export SetUSBAutoAttachWindowsNative
+func SetUSBAutoAttachWindowsNative(serverHandle C.USBServerHandle, useNativeIOCTL bool) bool {
+	sh := cgo.Handle(serverHandle)
+	shw, ok := sh.Value().(*usbServerHandleWrapper)
+	if !ok {
+		return false
+	}
+	shw.useNativeIOCTL.Store(useNativeIOCTL)
+	return true
 }
 
 // CloseUSBServer closes the USB server associated with the given handle.

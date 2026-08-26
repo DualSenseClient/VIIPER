@@ -610,6 +610,11 @@ static class LibVIIPER
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool RemoveUSBBus(nuint serverHandle, uint busID);
+
+    // Windows only: choose the auto-attach transport (native IOCTL by default).
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool SetUSBAutoAttachWindowsNative(nuint serverHandle, [MarshalAs(UnmanagedType.I1)] bool useNativeIOCTL);
 ```
 
 ### Device telemetry

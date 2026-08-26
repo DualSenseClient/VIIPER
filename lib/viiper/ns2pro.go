@@ -167,7 +167,7 @@ func CreateNS2ProDevice(
 			context.Background(),
 			exportMeta,
 			shw.s.GetListenPort(),
-			true,
+			shw.useNativeIOCTL.Load(),
 			slog.Default(),
 		)
 		if err != nil {

@@ -15,6 +15,7 @@ import (
 	"runtime/cgo"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/DualSenseClient/VIIPER/internal/server/usb"
@@ -93,6 +94,10 @@ type usbServerHandleWrapper struct {
 	s             *usb.Server
 	mtx           sync.Mutex
 	deviceHandles map[uint32][]deviceHandle
+	// useNativeIOCTL selects the Windows auto-attach transport for devices
+	// created with autoAttachLocalhost; mirrors the standalone app's
+	// api.auto-attach-windows-native option. Defaults to true.
+	useNativeIOCTL atomic.Bool
 }
 
 type deviceHandleWrapper struct {
