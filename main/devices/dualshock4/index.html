@@ -1298,6 +1298,10 @@ the native DualShock 4 USB speaker and microphone interfaces.</p>
 <td>Create a virtual DualShock 4</td>
 </tr>
 <tr>
+<td><code>CreateDS4AudioOnlyDevice(serverHandle, &amp;handle, busID, autoAttach, vid, pid, meta)</code></td>
+<td>Create an audio-only DualShock 4 sidecar (no HID gamepad)</td>
+</tr>
+<tr>
 <td><code>SetDS4DeviceState(handle, state)</code></td>
 <td>Push an input state to the device</td>
 </tr>
@@ -1468,7 +1472,7 @@ changes what the caller supplies.</p>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="kt">uint8_t</span><span class="w">     </span><span class="n">BatteryStatus</span><span class="p">;</span><span class="w">      </span><span class="c1">// 0 = use default</span>
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="kt">double</span><span class="w">      </span><span class="n">TemperatureCelsius</span><span class="p">;</span><span class="w"> </span><span class="c1">// 0 = use default</span>
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="kt">double</span><span class="w">      </span><span class="n">BatteryVoltage</span><span class="p">;</span><span class="w">     </span><span class="c1">// 0 = use default</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">BuildTime</span><span class="p">;</span><span class="w">          </span><span class="c1">// NULL = use default (RFC3339 or &quot;YYYY-MM-DD HH:MM:SS&quot;)</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">BuildTime</span><span class="p">;</span><span class="w">          </span><span class="c1">// NULL = use default (RFC3339 or "YYYY-MM-DD HH:MM:SS")</span>
 <a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="p">}</span><span class="w"> </span><span class="n">DS4MetaState</span><span class="p">;</span>
 </code></pre></div>
 <h2 id="output-callback">Output callback</h2>

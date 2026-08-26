@@ -736,6 +736,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#device-telemetry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Device telemetry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#common-device-api" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1304,6 +1315,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#device-telemetry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Device telemetry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#common-device-api" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1493,7 +1515,7 @@ See <a href="../../getting-started/installation/#requirements">Installation › 
 </tbody>
 </table>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="kt">char</span><span class="o">*</span><span class="w">    </span><span class="n">addr</span><span class="p">;</span><span class="w">                            </span><span class="c1">// default &quot;0.0.0.0:3241&quot;</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="kt">char</span><span class="o">*</span><span class="w">    </span><span class="n">addr</span><span class="p">;</span><span class="w">                            </span><span class="c1">// default "0.0.0.0:3241"</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="kt">uint64_t</span><span class="w"> </span><span class="n">connection_timeout_ms</span><span class="p">;</span><span class="w">           </span><span class="c1">// default 30000 (30s)</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="kt">uint64_t</span><span class="w"> </span><span class="n">device_handler_connect_timeout_ms</span><span class="p">;</span><span class="w"> </span><span class="c1">// default 5000 (5s)</span>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">write_batch_flush_interval_ms</span><span class="p">;</span><span class="w">   </span><span class="c1">// default 1 (1ms)</span>
@@ -1519,6 +1541,10 @@ your machine without any manual USBIP interaction.</p>
 <td><code>RemoveUSBBus(serverHandle, busID)</code></td>
 <td>Remove a bus and all its devices</td>
 </tr>
+<tr>
+<td><code>SetUSBAutoAttachWindowsNative(serverHandle, useNativeIOCTL)</code></td>
+<td>Windows only: attach via native IOCTL (default) or usbip.exe</td>
+</tr>
 </tbody>
 </table>
 <h3 id="logging">Logging</h3>
@@ -1543,6 +1569,24 @@ Pass <code>NULL</code> to discard all log output.</p>
 <li><a href="../../devices/keyboard/">Keyboard</a></li>
 <li><a href="../../devices/mouse/">Mouse</a></li>
 </ul>
+<h3 id="device-telemetry">Device telemetry</h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GetDeviceTelemetry(handle, buffer, bufferSize)</code></td>
+<td>Read live device telemetry (stream health, buffers) as JSON</td>
+</tr>
+</tbody>
+</table>
+<p>Works with any device handle from any family. Call it once with <code>buffer = NULL</code>
+to obtain the required size in bytes (including the null terminator), then
+again with an adequately sized buffer. Returns <code>0</code> for an invalid handle.</p>
 <h3 id="common-device-api">Common device API</h3>
 <h4 id="xbox-360">Xbox 360</h4>
 <table>
@@ -1583,6 +1627,10 @@ Pass <code>NULL</code> to discard all log output.</p>
 <tr>
 <td><code>CreateDS4Device(serverHandle, &amp;handle, busID, autoAttach, vid, pid, meta)</code></td>
 <td>Create a virtual DualShock 4</td>
+</tr>
+<tr>
+<td><code>CreateDS4AudioOnlyDevice(...)</code></td>
+<td>Create an audio-only DualShock 4 sidecar (no HID gamepad)</td>
 </tr>
 <tr>
 <td><code>SetDS4DeviceState(handle, state)</code></td>
@@ -1668,6 +1716,10 @@ Pass <code>NULL</code> to discard all log output.</p>
 <td>Register a callback for low-latency rear haptics</td>
 </tr>
 <tr>
+<td><code>SetDualSenseAtomicAudioHapticsCallback(handle, cb)</code></td>
+<td>Register a callback pairing each V5 output state with its speaker PCM</td>
+</tr>
+<tr>
 <td><code>SetDualSenseSpeakerResetCallback(handle, cb)</code></td>
 <td>Register a callback for speaker-stream resets</td>
 </tr>
@@ -1701,6 +1753,10 @@ Pass <code>NULL</code> to discard all log output.</p>
 <tr>
 <td><code>SetNS2ProDeviceState(handle, state)</code></td>
 <td>Push input state</td>
+</tr>
+<tr>
+<td><code>SetNS2ProMetaState(handle, meta)</code></td>
+<td>Merge-update identity/battery state at runtime</td>
 </tr>
 <tr>
 <td><code>SetNS2ProOutputCallback(handle, cb)</code></td>
@@ -1767,7 +1823,7 @@ Pass <code>NULL</code> to discard all log output.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">C</label><label for="__tabbed_1_2">C#</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">USBServerConfig</span><span class="w"> </span><span class="n">conf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">.</span><span class="n">addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;localhost:3245&quot;</span><span class="w"> </span><span class="p">};</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">USBServerConfig</span><span class="w"> </span><span class="n">conf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">.</span><span class="n">addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"localhost:3245"</span><span class="w"> </span><span class="p">};</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">USBServerHandle</span><span class="w"> </span><span class="n">serverHandle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">NewUSBServer</span><span class="p">(</span><span class="o">&amp;</span><span class="n">conf</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="n">logCallback</span><span class="p">);</span>
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
@@ -1793,7 +1849,7 @@ Pass <code>NULL</code> to discard all log output.</p>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">USBServerConfig</span><span class="w"> </span><span class="n">conf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;localhost:3245&quot;</span><span class="w"> </span><span class="p">};</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">USBServerConfig</span><span class="w"> </span><span class="n">conf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"localhost:3245"</span><span class="w"> </span><span class="p">};</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">NewUSBServer</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">conf</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="k">nuint</span><span class="w"> </span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="n">logCb</span><span class="p">);</span>
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="kt">uint</span><span class="w"> </span><span class="n">busID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
