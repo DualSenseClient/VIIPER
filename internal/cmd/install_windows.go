@@ -26,7 +26,7 @@ const (
 
 func install(logger *slog.Logger) error {
 	if os.Getenv("VIIPER_DEVELOPER_STANDALONE") != "1" {
-		return errors.New("standalone VIIPER startup registration is developer-only on Windows; use the signed DS4Windows installer or its built-in VIIPER repair so one verified owner manages VIIPER and USB-IP")
+		return errors.New("standalone VIIPER startup registration is developer-only on Windows; applications embed libVIIPER directly, so no separate startup registration is required")
 	}
 	if err := requireUSBIPRuntime(); err != nil {
 		return err

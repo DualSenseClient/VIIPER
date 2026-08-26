@@ -6,17 +6,14 @@ param(
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
-# The DS4Windows package has one offline, hash-pinned infrastructure owner.
-# This legacy network installer remains available only for VIIPER developers;
-# it must never silently create a second LocalAppData/HKCU authority beside a
-# managed DS4Windows installation.
+# End users do not run this script: applications embed libVIIPER directly and
+# manage their own USBIP driver setup. This legacy network installer remains
+# available only for VIIPER developers working on the standalone server.
 if (-not $DeveloperStandalone -or
         $env:VIIPER_DEVELOPER_STANDALONE -ne "1") {
     throw (
-        "Standalone VIIPER setup on Windows is developer-only. Use the " +
-        "signed DS4Windows standard installer or Settings > VIIPER Virtual " +
-        "Controller Support so VIIPER and USB-IP are installed from the " +
-        "same verified offline package. Developers must explicitly pass " +
+        "Standalone VIIPER setup on Windows is developer-only. " +
+        "Developers must explicitly pass " +
         "-DeveloperStandalone and set VIIPER_DEVELOPER_STANDALONE=1."
     )
 }
@@ -89,7 +86,7 @@ $tempDir = New-TemporaryFile | ForEach-Object {
     Remove-Item $_
     New-Item -ItemType Directory -Path $_
 }
-$setupMutex = [Threading.Mutex]::new($false, "Global\DS4Windows-VIIPER-Setup")
+$setupMutex = [Threading.Mutex]::new($false, "Global\VIIPER-Setup")
 $setupMutexAcquired = $false
 try {
     try {
@@ -99,7 +96,7 @@ try {
         $setupMutexAcquired = $true
     }
     if (-not $setupMutexAcquired) {
-        throw "Another DS4Windows/VIIPER setup is already running. Wait for it to finish, then try again."
+        throw "Another VIIPER setup is already running. Wait for it to finish, then try again."
     }
 }
 catch {
@@ -319,11 +316,11 @@ try {
     }
 
     function Stop-ControllerBackends {
-        $targets = @(Get-Process -Name "DS4Windows", "viiper" `
+        $targets = @(Get-Process -Name "viiper" `
             -ErrorAction SilentlyContinue)
         if ($targets.Count -eq 0) { return }
 
-        Write-Host "Stopping DS4Windows and VIIPER before the USBIP driver transition..." -ForegroundColor Yellow
+        Write-Host "Stopping running VIIPER instances before the USBIP driver transition..." -ForegroundColor Yellow
         foreach ($process in $targets) {
             try { [void]$process.CloseMainWindow() } catch { }
         }
@@ -338,7 +335,7 @@ try {
         }
         Start-Sleep -Milliseconds 500
 
-        $remaining = @(Get-Process -Name "DS4Windows", "viiper" `
+        $remaining = @(Get-Process -Name "viiper" `
             -ErrorAction SilentlyContinue)
         if ($remaining.Count -gt 0) {
             $owners = ($remaining | ForEach-Object {

@@ -42,7 +42,7 @@ func canonicalUSBIPExecutable() (string, error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", fmt.Errorf(
-				"USB/IP prerequisite failed: usbip-win2 %s is not installed at %s; run the DS4Windows VIIPER setup",
+				"USB/IP prerequisite failed: usbip-win2 %s is not installed at %s; install the pinned usbip-win2 release from https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.7.7",
 				requiredUSBIPVersion,
 				usbipPath,
 			)
@@ -84,7 +84,7 @@ func probeUSBIPRuntime(usbipPath string, run usbipCommandRunner) error {
 			installedVersion = "unknown"
 		}
 		return fmt.Errorf(
-			"USB/IP prerequisite failed: VIIPER requires usbip-win2 %s at %s (found %s); run the DS4Windows VIIPER setup",
+			"USB/IP prerequisite failed: VIIPER requires usbip-win2 %s at %s (found %s); install the pinned usbip-win2 release from https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.7.7",
 			requiredUSBIPVersion,
 			usbipPath,
 			installedVersion,

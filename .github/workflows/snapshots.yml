@@ -122,12 +122,12 @@ jobs:
                       ## Install / Update
 
                       <details>
-                      <summary><b>Windows (DS4Windows)</b></summary>
+                      <summary><b>Windows</b></summary>
 
-                      Install with the signed DS4Windows all-in-one installer,
-                      or use **Settings > VIIPER Virtual Controller Support >
-                      Install / Repair**. The standalone Windows script is
-                      developer-only so it cannot create a competing backend.
+                      Download `viiper-windows-amd64.zip`, extract it, and run
+                      `viiper.exe`. See the
+                      [installation guide](https://github.com/DualSenseClient/VIIPER/blob/main/docs/getting-started/installation.md)
+                      for usbip-win2 driver prerequisites.
                       </details>
 
                       <details>

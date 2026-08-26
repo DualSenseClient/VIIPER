@@ -69,9 +69,8 @@ jobs:
                       $source -notmatch '\$null -eq \$key\) \{ return \$null \}') {
                       throw "The optional registry helper must treat a missing key as clean first-run state."
                   }
-                  if ($source -notmatch 'VIIPER_DEVELOPER_STANDALONE' -or
-                      $source -notmatch 'Global\\DS4Windows-VIIPER-Setup') {
-                      throw "Windows standalone setup must be explicit and share the managed infrastructure mutex."
+                  if ($source -notmatch 'VIIPER_DEVELOPER_STANDALONE') {
+                      throw "Windows standalone setup must be explicit."
                   }
 
             - name: Lint

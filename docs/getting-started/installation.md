@@ -18,8 +18,8 @@ system to use the virtual devices.
 
     libVIIPER requires the signed
     [usbip-win2 0.9.7.7 x64 release](https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.7.7).
-    Use the DS4Windows **Install / Repair VIIPER** action whenever possible; its
-    package contains this exact verified installer.
+    Install that exact release before starting VIIPER or an application that
+    embeds it.
 
     !!! danger "Do not substitute another USBIP build"
         This release is ABI-pinned to **0.9.7.7**. Version 0.9.7.8 reproduced

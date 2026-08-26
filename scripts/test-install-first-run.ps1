@@ -11,9 +11,8 @@ if ($parseErrors.Count -ne 0) {
 }
 
 $installerSource = Get-Content -LiteralPath $installerPath -Raw
-if ($installerSource -notmatch 'VIIPER_DEVELOPER_STANDALONE' -or
-        $installerSource -notmatch 'Global\\DS4Windows-VIIPER-Setup') {
-    throw "Standalone Windows setup is not fail-closed behind the managed transaction contract."
+if ($installerSource -notmatch 'VIIPER_DEVELOPER_STANDALONE') {
+    throw "Standalone Windows setup is not fail-closed behind an explicit opt-in."
 }
 
 $helper = $ast.Find({
@@ -45,7 +44,7 @@ try {
             throw "A missing registry value did not return null."
         }
 
-        $expected = '"C:\Program Files\DS4Windows\VIIPER\viiper.exe" server --quiet'
+        $expected = '"C:\Program Files\VIIPER\viiper.exe" server --quiet'
         $key.SetValue("VIIPER", $expected,
             [Microsoft.Win32.RegistryValueKind]::String)
         $observed = Get-OptionalRegistryValue $root $testSubKey "VIIPER"
