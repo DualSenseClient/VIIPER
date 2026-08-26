@@ -82,6 +82,7 @@ build type=build_type: generate-versioninfo
 [unix]
 build type=build_type:
 	{{ mkdir_p }} {{ dist_dir }}
+	-{{ rm_f }} cmd/viiper/resource.syso
 	CGO_ENABLED=0 go build {{ if type == "Release" { "-tags release" } else { "" } }} -trimpath -ldflags "{{ if type == "Release" { ldflags_release } else { ldflags_common } }}" -o {{ build_path }} {{ main_pkg }}
 	just licenses
 
@@ -102,6 +103,7 @@ build-libVIIPER type=build_type:
 [unix]
 build-libVIIPER type=build_type:
 	{{ mkdir_p }} dist/libVIIPER
+	-{{ rm_f }} lib/viiper/resource.syso
 	CGO_ENABLED=1 go build -buildmode=c-shared -trimpath {{ if type == "Release" { "-ldflags \"-s -w\"" } else { "" } }} -o dist/libVIIPER/libVIIPER.so ./lib/viiper
 	go run ./lib/viiper/postbuild
 	just licenses-libVIIPER
