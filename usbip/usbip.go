@@ -249,17 +249,31 @@ type IsoPacketDescriptor struct {
 	Status       int32
 }
 
+// IsoPacketDescriptorSize is the fixed USB/IP wire size of one ISO packet
+// descriptor.
+const IsoPacketDescriptorSize = 16
+
+// Decode reads one fixed-layout descriptor from an already-owned wire buffer.
+// Hot USB/IP readers should read all descriptors into connection-owned scratch
+// first, then decode from that scratch so the io.Reader interface cannot make a
+// temporary descriptor buffer escape once per packet.
+func (d *IsoPacketDescriptor) Decode(wire []byte) error {
+	if len(wire) < IsoPacketDescriptorSize {
+		return io.ErrUnexpectedEOF
+	}
+	d.Offset = binary.BigEndian.Uint32(wire[0:4])
+	d.Length = binary.BigEndian.Uint32(wire[4:8])
+	d.ActualLength = binary.BigEndian.Uint32(wire[8:12])
+	d.Status = int32(binary.BigEndian.Uint32(wire[12:16]))
+	return nil
+}
+
 func (d *IsoPacketDescriptor) Read(r io.Reader) error {
-	if err := binary.Read(r, binary.BigEndian, &d.Offset); err != nil {
+	var wire [IsoPacketDescriptorSize]byte
+	if _, err := io.ReadFull(r, wire[:]); err != nil {
 		return err
 	}
-	if err := binary.Read(r, binary.BigEndian, &d.Length); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.BigEndian, &d.ActualLength); err != nil {
-		return err
-	}
-	return binary.Read(r, binary.BigEndian, &d.Status)
+	return d.Decode(wire[:])
 }
 
 func (d IsoPacketDescriptor) Write(w io.Writer) error {

@@ -116,6 +116,89 @@ func (c *fakeEndpointClock) waitForDeadline(t *testing.T, wanted time.Time) {
 	}
 }
 
+func TestRealtimeEndpointClockBlockedWakeAllocatesZero(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	clock := realtimeEndpointClock{}
+	wake := make(chan struct{})
+	trigger := make(chan struct{})
+	senderDone := make(chan struct{})
+	go func() {
+		defer close(senderDone)
+		for range trigger {
+			wake <- struct{}{}
+		}
+	}()
+	timer := time.NewTimer(time.Hour)
+	if !timer.Stop() {
+		<-timer.C
+	}
+	defer timer.Stop()
+
+	allocations := testing.AllocsPerRun(1000, func() {
+		trigger <- struct{}{}
+		if result := clock.WaitUntil(ctx, wake, timer, time.Now().Add(time.Hour)); result != endpointWaitWake {
+			panic("unexpected endpoint clock result")
+		}
+	})
+	close(trigger)
+	<-senderDone
+	require.Zero(t, allocations)
+}
+
+func TestRealtimeEndpointClockDeadlineAllocatesZero(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	clock := realtimeEndpointClock{}
+	wake := make(chan struct{}, 1)
+	timer := time.NewTimer(time.Hour)
+	if !timer.Stop() {
+		<-timer.C
+	}
+	defer timer.Stop()
+
+	// This deliberately enters the reusable timer/select path. AllocsPerRun
+	// warms the runtime select waiter cache before measuring steady state.
+	allocations := testing.AllocsPerRun(100, func() {
+		if result := clock.WaitUntil(ctx, wake, timer, time.Now().Add(50*time.Microsecond)); result != endpointWaitDeadline {
+			panic("unexpected endpoint clock result")
+		}
+	})
+	require.Zero(t, allocations)
+}
+
+func BenchmarkRealtimeEndpointClockBlockedWake(b *testing.B) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	clock := realtimeEndpointClock{}
+	wake := make(chan struct{})
+	trigger := make(chan struct{})
+	senderDone := make(chan struct{})
+	go func() {
+		defer close(senderDone)
+		for range trigger {
+			wake <- struct{}{}
+		}
+	}()
+	timer := time.NewTimer(time.Hour)
+	if !timer.Stop() {
+		<-timer.C
+	}
+	defer timer.Stop()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		trigger <- struct{}{}
+		if result := clock.WaitUntil(ctx, wake, timer, time.Now().Add(time.Hour)); result != endpointWaitWake {
+			b.Fatal("unexpected endpoint clock result")
+		}
+	}
+	b.StopTimer()
+	close(trigger)
+	<-senderDone
+}
+
 type claimedSchedulerTestDevice struct {
 	*schedulerTestDevice
 	claimReady  chan struct{}

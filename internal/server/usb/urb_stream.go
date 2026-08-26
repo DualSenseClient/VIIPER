@@ -3,6 +3,7 @@ package usb
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"net"
 	"slices"
 	"time"
@@ -72,12 +73,13 @@ func (s *Server) handleUrbStream(conn net.Conn, dev usb.Device) error {
 
 	var outPayloadScratch []byte
 	isoPacketScratch := make([]usbip.IsoPacketDescriptor, maxIsoPackets)
+	isoPacketWireScratch := make([]byte, maxIsoPackets*usbip.IsoPacketDescriptorSize)
 	var responseScratch []byte
 	var unlinkScratch []byte
 	var inputReportScratch [maximumVersionedInputReportSize]byte
+	var header [urbHdrSize]byte
 
 	for {
-		var header [urbHdrSize]byte
 		if err := usbip.ReadExactly(conn, header[:]); err != nil {
 			if failure := schedulers.failure(); failure != nil {
 				return failure
@@ -95,6 +97,12 @@ func (s *Server) handleUrbStream(conn net.Conn, dev usb.Device) error {
 		seq := binary.BigEndian.Uint32(header[urbHdrOffsetSeqnum : urbHdrOffsetSeqnum+4])
 		dir := binary.BigEndian.Uint32(header[urbHdrOffsetDir : urbHdrOffsetDir+4])
 		ep := binary.BigEndian.Uint32(header[urbHdrOffsetEp : urbHdrOffsetEp+4])
+		if dir != usbip.DirOut && dir != usbip.DirIn {
+			return fmt.Errorf("invalid URB direction %d (seq=%d)", dir, seq)
+		}
+		if ep > 15 {
+			return fmt.Errorf("invalid URB endpoint %d (seq=%d)", ep, seq)
+		}
 
 		if command == usbip.CmdUnlinkCode {
 			unlinkSeq := binary.BigEndian.Uint32(
@@ -149,10 +157,11 @@ func (s *Server) handleUrbStream(conn net.Conn, dev usb.Device) error {
 		var isoPackets []usbip.IsoPacketDescriptor
 		if isIso && packetCountWire > 0 {
 			isoPackets = isoPacketScratch[:packetCountWire]
-			for index := range isoPackets {
-				if err := isoPackets[index].Read(conn); err != nil {
-					return fmt.Errorf("read ISO packet descriptor %d: %w", index, err)
-				}
+			if err := readIsoPacketDescriptors(
+				conn, isoPacketWireScratch, isoPackets,
+			); err != nil {
+				return fmt.Errorf("read/decode %d ISO packet descriptors: %w",
+					packetCountWire, err)
 			}
 		}
 
@@ -251,6 +260,42 @@ func (s *Server) handleUrbStream(conn net.Conn, dev usb.Device) error {
 			return err
 		}
 	}
+}
+
+func readIsoPacketDescriptors(
+	reader io.Reader,
+	wireScratch []byte,
+	packets []usbip.IsoPacketDescriptor,
+) error {
+	if len(packets) > len(wireScratch)/usbip.IsoPacketDescriptorSize {
+		return fmt.Errorf("descriptor scratch length %d cannot hold packet count %d",
+			len(wireScratch), len(packets))
+	}
+	wire := wireScratch[:len(packets)*usbip.IsoPacketDescriptorSize]
+	if _, err := io.ReadFull(reader, wire); err != nil {
+		return err
+	}
+	return decodeIsoPacketDescriptors(wire, packets)
+}
+
+func decodeIsoPacketDescriptors(
+	wire []byte,
+	packets []usbip.IsoPacketDescriptor,
+) error {
+	if len(packets) > len(wire)/usbip.IsoPacketDescriptorSize ||
+		len(wire) != len(packets)*usbip.IsoPacketDescriptorSize {
+		return fmt.Errorf("descriptor wire length %d does not match packet count %d",
+			len(wire), len(packets))
+	}
+	for index := range packets {
+		offset := index * usbip.IsoPacketDescriptorSize
+		if err := packets[index].Decode(
+			wire[offset : offset+usbip.IsoPacketDescriptorSize],
+		); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func versionedInputReportRequest(
