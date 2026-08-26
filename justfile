@@ -13,11 +13,11 @@ rm_f := if os_family() == "windows" { "Remove-Item -Force -ErrorAction 0" } else
 
 version := env_var_or_default("VERSION", `git describe --tags --match "v[0-9]*.[0-9]*.[0-9]*" --always`)
 commit := `git rev-parse --short HEAD`
-build_time := if os_family() == "windows" {
-    `Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ'`
+build_time := env_var_or_default("BUILD_DATE", if os_family() == "windows" {
+    `[DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')`
 } else {
     `date -u '+%Y-%m-%dT%H:%M:%SZ'`
-}
+})
 build_type := env_var_or_default("BUILD_TYPE", "Debug")
 output_name := env_var_or_default("OUTPUT_NAME", binary_name + exe_ext)
 build_path := join(dist_dir, output_name)
@@ -49,7 +49,7 @@ test-coverage:
 
 [windows]
 generate-versioninfo:
-	go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
+	go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.7.0
 	pwsh -NoProfile -NonInteractive -File scripts/inject-version.ps1 "{{ version }}" "versioninfo.json" "versioninfo.tmp.json"
 	{{
 		if target_goarch == "amd64" {
@@ -89,7 +89,7 @@ build type=build_type:
 [windows]
 build-libVIIPER type=build_type:
 	{{ mkdir_p }} dist/libVIIPER
-	go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
+	go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.7.0
 	pwsh -NoProfile -NonInteractive -File scripts/inject-version.ps1 "{{ version }}" "lib/viiper/versioninfo.json" "libviiper.versioninfo.tmp.json"
 	goversioninfo -64 -o lib/viiper/resource.syso libviiper.versioninfo.tmp.json
 	$env:CGO_ENABLED='1'; go build -buildmode=c-shared -trimpath {{ if type == "Release" { "-ldflags \"-s -w\"" } else { "" } }} -o dist/libVIIPER/libVIIPER.dll ./lib/viiper
@@ -120,22 +120,18 @@ lint:
 
 [windows]
 licenses:
-	go install github.com/google/go-licenses/v2@latest  
 	{{ mkdir_p }} {{ dist_dir }}; $template = (Get-Content {{ licenses_template }} -Raw).Replace('VERSION_PLACEHOLDER', '{{ version }}'); [System.IO.File]::WriteAllText("{{ licenses_template_work }}", $template, [System.Text.UTF8Encoding]::new($false)); $env:GOOS = ''; $env:GOARCH = ''; {{ go_licenses_cmd }} report {{ main_pkg }} --ignore {{ licenses_ignore }} --template {{ licenses_template_work }} | Set-Content -Encoding utf8 {{ licenses_out }}; Remove-Item -Force {{ licenses_template_work }} -ErrorAction SilentlyContinue
 
 [windows]
 licenses-libVIIPER:
-	go install github.com/google/go-licenses/v2@latest  
 	{{ mkdir_p }} {{ licenses_dir }}; $template = (Get-Content {{ licenses_template }} -Raw).Replace('VERSION_PLACEHOLDER', '{{ version }}'); [System.IO.File]::WriteAllText("{{ licenses_template_work }}", $template, [System.Text.UTF8Encoding]::new($false)); $env:GOOS = ''; $env:GOARCH = ''; {{ go_licenses_cmd }} report ./lib/viiper --ignore {{ licenses_ignore }} --template {{ licenses_template_work }} | Set-Content -Encoding utf8 {{ lib_licenses_out }}; Remove-Item -Force {{ licenses_template_work }} -ErrorAction SilentlyContinue
 
 [unix]
 licenses:
-	go install github.com/google/go-licenses/v2@latest  
 	{{ mkdir_p }} {{ dist_dir }} && sed "s/VERSION_PLACEHOLDER/{{ version }}/g" {{ licenses_template }} > {{ licenses_template_work }} && GOOS= GOARCH= {{ go_licenses_cmd }} report {{ main_pkg }} --ignore {{ licenses_ignore }} --template {{ licenses_template_work }} > {{ licenses_out }} && rm -f {{ licenses_template_work }}
 
 [unix]
 licenses-libVIIPER:
-	go install github.com/google/go-licenses/v2@latest  
 	{{ mkdir_p }} {{ licenses_dir }} && sed "s/VERSION_PLACEHOLDER/{{ version }}/g" {{ licenses_template }} > {{ licenses_template_work }} && GOOS= GOARCH= {{ go_licenses_cmd }} report ./lib/viiper --ignore {{ licenses_ignore }} --template {{ licenses_template_work }} > {{ lib_licenses_out }} && rm -f {{ licenses_template_work }}
 
 run *args: build
