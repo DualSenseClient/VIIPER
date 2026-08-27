@@ -23,6 +23,12 @@ const (
 	v5MaxOutputPayload   = 4096
 	v5FrameHeaderSize    = 16
 	v5InputStateSize     = 33
+	v5RawInputStateSize  = 53
+	v5RawFlagsOffset     = 33
+	v5RawSensorOffset    = 34
+	v5RawMetadataOffset  = 38
+	v5RawMetadataValid   = 1 << 0
+	v5RawMetadataEdge    = 1 << 1
 	v5MicrophoneSize     = 1920
 	v5FrameMagic0        = 0x56
 	v5FrameMagic1        = 0x50
@@ -268,14 +274,16 @@ type v5FrameWriter struct {
 	done        chan struct{}
 	stopOnce    sync.Once
 	loaded      bool
+	rawInput    bool
 	sequence    uint32
 	frame       [v5FrameHeaderSize + v5MicrophoneSize]byte
-	inputBytes  [v5InputStateSize]byte
+	inputBytes  [v5RawInputStateSize]byte
 	microphone  [v5MicrophoneSize]byte
 	terminalErr error
 }
 
-func newV5FrameWriter(stream *viiperclient.DeviceStream, loaded bool) *v5FrameWriter {
+func newV5FrameWriter(stream *viiperclient.DeviceStream, loaded,
+	rawInput bool) *v5FrameWriter {
 	w := &v5FrameWriter{
 		stream:      stream,
 		input:       make(chan v5InputRequest, v5InputQueueCapacity),
@@ -283,6 +291,7 @@ func newV5FrameWriter(stream *viiperclient.DeviceStream, loaded bool) *v5FrameWr
 		stop:        make(chan struct{}),
 		done:        make(chan struct{}),
 		loaded:      loaded,
+		rawInput:    rawInput,
 	}
 	// A deterministic, bounded stereo waveform avoids a completely empty
 	// microphone source while keeping generation outside the timed loop.
@@ -391,8 +400,8 @@ func (w *v5FrameWriter) run() {
 }
 
 func (w *v5FrameWriter) writeInput(request v5InputRequest) bool {
-	marshalV5InputState(&request.state, w.inputBytes[:])
-	err := w.writeFrame(v5FrameInput, w.inputBytes[:])
+	size := marshalV5InputState(&request.state, w.inputBytes[:], w.rawInput)
+	err := w.writeFrame(v5FrameInput, w.inputBytes[:size])
 	w.inputResult <- err
 	if err != nil {
 		w.terminalErr = err
@@ -401,8 +410,14 @@ func (w *v5FrameWriter) writeInput(request v5InputRequest) bool {
 	return true
 }
 
-func marshalV5InputState(state *dualsense.InputState, destination []byte) {
-	b := destination[:v5InputStateSize]
+func marshalV5InputState(state *dualsense.InputState, destination []byte,
+	rawInput bool) int {
+	size := v5InputStateSize
+	if rawInput {
+		size = v5RawInputStateSize
+	}
+	b := destination[:size]
+	clear(b)
 	b[0] = uint8(state.LX)
 	b[1] = uint8(state.LY)
 	b[2] = uint8(state.RX)
@@ -423,6 +438,17 @@ func marshalV5InputState(state *dualsense.InputState, destination []byte) {
 	binary.LittleEndian.PutUint16(b[27:29], uint16(state.AccelX))
 	binary.LittleEndian.PutUint16(b[29:31], uint16(state.AccelY))
 	binary.LittleEndian.PutUint16(b[31:33], uint16(state.AccelZ))
+	if rawInput && state.PhysicalMetadataValid {
+		b[v5RawFlagsOffset] = v5RawMetadataValid
+		if state.PhysicalMetadataEdgeLayout {
+			b[v5RawFlagsOffset] |= v5RawMetadataEdge
+		}
+		binary.LittleEndian.PutUint32(b[v5RawSensorOffset:v5RawMetadataOffset],
+			state.PhysicalSensorTimestamp)
+		copy(b[v5RawMetadataOffset:v5RawInputStateSize],
+			state.PhysicalInputMetadata[:])
+	}
+	return size
 }
 
 func v5TouchStatus(active bool, tracking uint8) byte {
@@ -678,5 +704,43 @@ func TestV5FrameWriterBuildsValidatedFrame(t *testing.T) {
 		crc32.IEEETable, payload[:]); got != binary.LittleEndian.Uint32(header[12:16]) {
 		t.Fatalf("frame CRC mismatch: got %08x want %08x", got,
 			binary.LittleEndian.Uint32(header[12:16]))
+	}
+}
+
+func TestMarshalV5RawInputStateUsesExactNegotiatedLayout(t *testing.T) {
+	state := dualsense.InputState{
+		L2:                         255,
+		Buttons:                    dualsense.ButtonL2,
+		PhysicalMetadataValid:      true,
+		PhysicalMetadataEdgeLayout: true,
+		PhysicalSensorTimestamp:    0x44332211,
+		PhysicalInputMetadata: [dualsense.InputStatePhysicalMetadataSize]byte{
+			0x10, 0x09, 0x29, 1, 2, 3, 4, 0x20,
+			0x80, 0x51, 0x52, 0x53, 0x25, 0x01, 0xA5,
+		},
+	}
+	var payload [v5RawInputStateSize]byte
+	if size := marshalV5InputState(&state, payload[:], true); size != len(payload) {
+		t.Fatalf("raw input size=%d want=%d", size, len(payload))
+	}
+	if payload[v5RawFlagsOffset] != v5RawMetadataValid|v5RawMetadataEdge ||
+		binary.LittleEndian.Uint32(
+			payload[v5RawSensorOffset:v5RawMetadataOffset]) != 0x44332211 ||
+		payload[v5RawMetadataOffset+1] != 0x09 ||
+		payload[v5RawMetadataOffset+2] != 0x29 ||
+		payload[v5RawMetadataOffset+7] != 0x20 ||
+		payload[v5RawInputStateSize-2] != 0x01 ||
+		payload[v5RawInputStateSize-1] != 0xA5 {
+		t.Fatalf("unexpected raw input payload: % x", payload[:])
+	}
+
+	for index := range payload {
+		payload[index] = 0xA5
+	}
+	if size := marshalV5InputState(&state, payload[:], false); size != v5InputStateSize {
+		t.Fatalf("legacy input size=%d want=%d", size, v5InputStateSize)
+	}
+	if payload[v5RawFlagsOffset] != 0xA5 {
+		t.Fatal("legacy 33-byte marshal touched the unframed raw extension")
 	}
 }

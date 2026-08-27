@@ -2,8 +2,9 @@
 
 `Benchmark_DualSenseV5_ConsumerObservedLatency` complements the existing Xbox
 benchmark. It creates the current
-`dualsensecombinedaudioduplexv5events` device and timestamps its observation
-through SDL3's Windows virtual PS5 gamepad. Every measured epoch publishes
+`dualsensecombinedaudioduplexv5rawinputevents` device, sends the negotiated
+53-byte input payload, and timestamps its observation through SDL3's Windows
+virtual PS5 gamepad. Every measured epoch publishes
 neutral, R2=1, R2=80 with new stick/motion state, R2=255, and R2=0 before
 waiting. A press is delivered only when SDL observes the 255-level axis peak
 before release.
@@ -74,8 +75,50 @@ set:
 $env:VIIPER_DUALSENSE_DEVICE_TYPE = 'dualsensecombinedaudioduplexv5'
 ```
 
-The default remains the exact current events alias. `VIIPER_E2E_PASSWORD`,
+The default remains the exact current raw-input/events alias.
+`VIIPER_E2E_PASSWORD`,
 `VIIPER_E2E_API_LISTEN`, `VIIPER_E2E_USB_LISTEN`, and `VIIPER_E2E_WARMUP` are
 available for controlled test environments. A baseline that loses most epochs
 can use `VIIPER_E2E_TRANSITION_TIMEOUT_MS=5` to keep comparison runs practical;
 the minimum accepted timeout is two advertised endpoint intervals.
+
+## Physical L2 waveform comparison
+
+`TestDualSenseV5L2PhysicalWaveformSDL` is an opt-in correctness diagnostic for
+comparing a physical USB DualSense trace with VIIPER's actual Windows virtual
+PS5 consumer output. It starts an in-process server on an ephemeral USB/IP port
+and a separately reserved loopback API port; it never connects to an installed
+VIIPER service. The trace rises through the captured analog values at roughly
+four-millisecond intervals, holds 255 for approximately 2.45 seconds, falls to
+zero, and retransmits each value at the one-millisecond physical report
+cadence. SDL3's fixed C-side event ring captures the LEFT trigger axis.
+The same run then presents 255, holds raw L2=40 for 250 milliseconds, and
+releases, distinguishing a lower-but-active trigger value from a literal
+consumer-observed zero.
+
+```powershell
+$env:VIIPER_E2E_L2_WAVEFORM = '1'
+go test ./_testing/e2e -run '^TestDualSenseV5L2PhysicalWaveformSDL$' -count=1 -v
+```
+
+The diagnostic reports the complete changed-value sequences sent over V5 and
+observed by SDL. It fails on a missing or unexpected analog value, a
+non-monotonic edge, a neutral event before the final V5 zero, a nonzero event
+after consumer-observed release, or an SDL event-ring drop. It also builds three
+reports through the production interrupt encoder and prints the L2 fields,
+both committed counters, controller clocks, touch/trigger feedback region,
+battery, and connection status beside the physical-report behavioral
+reference. The captured trigger-mechanism contract is asserted: R2 remains
+`0x09`, L2 settles at `0x29` while held and returns to `0x09` on release, the
+L2 effect nibble remains `0x20`, physical sensor/device clocks are preserved,
+the physical headset/filter status byte `55` is preserved, and the virtual
+connection byte is wired USB `0x08`. The physical AES-CMAC
+tail is intentionally excluded because virtual remapping and counters make it
+impossible to copy validly without the controller key.
+
+For allocation reporting around one complete consumer-observed waveform, use
+the one-shot benchmark form:
+
+```powershell
+go test ./_testing/e2e -run '^$' -bench '^Benchmark_DualSenseV5_L2PhysicalWaveformSDL$' -benchtime=1x -count=1 -benchmem -v
+```

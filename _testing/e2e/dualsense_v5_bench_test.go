@@ -125,8 +125,8 @@ func transitionTimeout() time.Duration {
 	return time.Duration(milliseconds) * time.Millisecond
 }
 
-func newDualSenseHarness(b *testing.B) *dualSenseHarness {
-	b.Helper()
+func newDualSenseHarness(tb testing.TB) *dualSenseHarness {
+	tb.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	harness := &dualSenseHarness{
 		ctx:      ctx,
@@ -180,7 +180,7 @@ func newDualSenseHarness(b *testing.B) *dualSenseHarness {
 		case serverErr, ok := <-harness.done:
 			if ok && serverErr != nil {
 				cancel()
-				b.Fatalf("VIIPER server exited before API readiness: %v", serverErr)
+				tb.Fatalf("VIIPER server exited before API readiness: %v", serverErr)
 			}
 		default:
 		}
@@ -188,7 +188,7 @@ func newDualSenseHarness(b *testing.B) *dualSenseHarness {
 	}
 	if response == nil {
 		cancel()
-		b.Fatalf("BusCreate at %s failed: %v", apiAddress, err)
+		tb.Fatalf("BusCreate at %s failed: %v", apiAddress, err)
 	}
 	harness.busID = response.BusID
 	return harness
@@ -204,11 +204,11 @@ func enableOptionalEndpointDiagnostics(config *usb.ServerConfig) {
 	}
 }
 
-func (h *dualSenseHarness) close(b *testing.B) {
-	b.Helper()
+func (h *dualSenseHarness) close(tb testing.TB) {
+	tb.Helper()
 	if h.busID != 0 {
 		if _, err := h.client.BusRemove(h.busID); err != nil {
-			b.Logf("BusRemove(%d): %v", h.busID, err)
+			tb.Logf("BusRemove(%d): %v", h.busID, err)
 		}
 	}
 	h.cancel()
@@ -220,10 +220,10 @@ func (h *dualSenseHarness) close(b *testing.B) {
 	select {
 	case err := <-h.done:
 		if err != nil && h.ctx.Err() == nil {
-			b.Logf("VIIPER server shutdown: %v", err)
+			tb.Logf("VIIPER server shutdown: %v", err)
 		}
 	case <-timer.C:
-		b.Log("VIIPER in-process server did not stop within 3 seconds")
+		tb.Log("VIIPER in-process server did not stop within 3 seconds")
 	}
 }
 
@@ -237,14 +237,19 @@ type triggerObserver struct {
 }
 
 func startTriggerObserver(gamepad *sdl.Gamepad) (*triggerObserver, error) {
+	return startGamepadAxisObserver(gamepad, sdl.GamepadAxisRightTrigger)
+}
+
+func startGamepadAxisObserver(gamepad *sdl.Gamepad,
+	axis sdl.GamepadAxis) (*triggerObserver, error) {
 	sdl.UpdateGamepads()
 	observer := &triggerObserver{
 		gamepad: gamepad,
 		id:      gamepad.ID(),
-		neutral: gamepad.GetAxis(sdl.GamepadAxisRightTrigger),
+		neutral: gamepad.GetAxis(axis),
 	}
 	observer.previous = observer.neutral
-	if err := sdl.StartGamepadAxisWatch(observer.id, sdl.GamepadAxisRightTrigger); err != nil {
+	if err := sdl.StartGamepadAxisWatch(observer.id, axis); err != nil {
 		return nil, err
 	}
 	drainObservations(observer)
@@ -629,7 +634,7 @@ func runDualSenseV5Benchmark(b *testing.B, harness *dualSenseHarness, loaded boo
 	existingRecording, recordingSnapshotErr := audioDeviceSet(true)
 
 	deviceType := envOrDefault("VIIPER_DUALSENSE_DEVICE_TYPE",
-		"dualsensecombinedaudioduplexv5events")
+		dualsense.DeviceTypeCombinedAudioDuplexV5RawInputEvents)
 	deviceInfo, err := harness.client.DeviceAdd(harness.busID, deviceType, nil)
 	if err != nil {
 		b.Fatalf("DeviceAdd(%q): %v (for an older baseline set VIIPER_DUALSENSE_DEVICE_TYPE=%s)",
@@ -693,7 +698,8 @@ func runDualSenseV5Benchmark(b *testing.B, harness *dualSenseHarness, loaded boo
 		}
 	}
 
-	writer := newV5FrameWriter(stream, loaded)
+	writer := newV5FrameWriter(stream, loaded,
+		strings.Contains(strings.ToLower(deviceType), "rawinput"))
 	defer writer.stopAndWait()
 	observer, err := startTriggerObserver(gamepad)
 	if err != nil {
