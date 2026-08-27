@@ -207,7 +207,7 @@ func new(o *device.CreateOptions, edge bool) (*DualSense, error) {
 		d.mediaReportFree <- &d.mediaReportSlots[index]
 	}
 	d.inputBattery.Store(uint32(metaState.BatteryStatus))
-	d.input = newDualSenseInputScheduler(metaState.BatteryStatus)
+	d.input = newDualSenseInputScheduler(metaState.BatteryStatus, edge)
 	if edge {
 		d.deviceType = DeviceTypeEdgeCombinedAudioDuplexV5
 	}
@@ -1525,19 +1525,14 @@ func (d *DualSense) buildUSBInputReport(s *InputState, m *MetaState) []byte {
 	}
 	now := time.Now()
 	d.input.mu.Lock()
-	elapsed := now.Sub(d.input.timestampBase).Microseconds() * 3
+	timestamp := dualSenseTimestampTicks(d.input.timestampBase, now)
 	d.input.mu.Unlock()
-	if elapsed < 0 {
-		elapsed = 0
-	}
-	if elapsed > math.MaxUint32 {
-		elapsed = math.MaxUint32
-	}
 	// Compatibility helper for non-hot tests and callers. The persistent
 	// interrupt encoder is the only owner of the streaming sequence and last
 	// presented report, so this isolated build deliberately uses sequence one
 	// and never mutates those fields.
-	if !encodeUSBInputReportInto(s, battery, 1, uint32(elapsed), b) {
+	if !encodeUSBInputReportInto(s, battery, 1, 1, timestamp, d.input.edge,
+		b) {
 		d.input.mu.Lock()
 		d.input.corruptReports++
 		d.input.mu.Unlock()
@@ -1553,7 +1548,8 @@ func inputStateControlsInvalid(s *InputState) bool {
 		s.DPad&^validDualSenseInputDPad != 0
 }
 
-func resetUSBInputReportToNeutral(b []byte, seq uint8, timestamp uint32, battery byte) {
+func resetUSBInputReportToNeutral(b []byte, seq uint8, packetSequence,
+	timestamp uint32, battery byte, edge bool, metadata *InputState) {
 	for i := range b {
 		b[i] = 0
 	}
@@ -1565,6 +1561,7 @@ func resetUSBInputReportToNeutral(b []byte, seq uint8, timestamp uint32, battery
 	b[4] = 128
 	b[7] = seq
 	b[8] = DPadUSBNeutral
+	binary.LittleEndian.PutUint32(b[12:16], packetSequence)
 
 	x, y, z := DefaultAccelRaw()
 	binary.LittleEndian.PutUint16(b[22:24], uint16(x))
@@ -1574,9 +1571,7 @@ func resetUSBInputReportToNeutral(b []byte, seq uint8, timestamp uint32, battery
 
 	b[33] = TouchInactiveMask
 	b[37] = TouchInactiveMask
-	b[41] = seq
-	binary.LittleEndian.PutUint32(b[49:53], timestamp)
-	b[53] = battery
+	encodeUSBInputMetadata(b, metadata, timestamp, edge, battery)
 }
 
 func normalizeTouchTracking(active bool, tracking uint8) uint8 {

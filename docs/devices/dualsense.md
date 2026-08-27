@@ -6,17 +6,28 @@ advanced haptics, and microphone endpoints.
 
 ## Supported device types
 
-VIIPER 0.1.1 exposes only the production V5 contracts:
+The registry exposes only production V5 contracts. Input size is negotiated by
+the exact device type; there is no per-frame downgrade:
 
-| Device type | USB functions |
-| --- | --- |
-| `dualsensecombinedaudioduplexv5` | DualSense HID, speaker/haptics OUT, microphone IN |
-| `dualsenseaudioonlyduplexv5` | DualSense speaker/haptics OUT and microphone IN sidecar |
-| `dualsenseedgecombinedaudioduplexv5` | DualSense Edge HID, speaker/haptics OUT, microphone IN |
+| Device type | Input | Output event `0x85` | USB functions |
+| --- | --- | --- | --- |
+| `dualsensecombinedaudioduplexv5` | 33 bytes | No | DualSense HID, speaker/haptics OUT, microphone IN |
+| `dualsenseaudioonlyduplexv5` | 33 bytes | No | DualSense audio sidecar |
+| `dualsensegamepadv5` | 33 bytes | No | DualSense HID only |
+| `dualsensecombinedaudioduplexv5events` | 33 bytes | Yes | DualSense HID and audio |
+| `dualsenseaudioonlyduplexv5events` | 33 bytes | Yes | DualSense audio sidecar |
+| `dualsensecombinedaudioduplexv5rawinputevents` | 53 bytes | Yes | DualSense HID and audio |
+| `dualsenseaudioonlyduplexv5rawinputevents` | 53 bytes | Yes | DualSense audio sidecar |
+| `dualsensegamepadv5rawinput` | 53 bytes | No | DualSense HID only |
+| `dualsenseedgecombinedaudioduplexv5` | 33 bytes | No | DualSense Edge HID and audio |
+| `dualsenseedgegamepadv5` | 33 bytes | No | DualSense Edge HID only |
+| `dualsenseedgecombinedaudioduplexv5events` | 33 bytes | Yes | DualSense Edge HID and audio |
+| `dualsenseedgecombinedaudioduplexv5rawinputevents` | 53 bytes | Yes | DualSense Edge HID and audio |
+| `dualsenseedgegamepadv5rawinput` | 53 bytes | No | DualSense Edge HID only |
 
-The old raw, extended, V1, V2, V3, and V4 names are intentionally not
-registered. Clients must use V5; VIIPER does not silently negotiate an older
-header or split audio/state transport.
+Deprecated pre-V5 raw, extended, V1, V2, V3, and V4 names are intentionally
+not registered. Clients must use an exact V5 alias; VIIPER does not silently
+negotiate an older header or split audio/state transport.
 
 ## V5 stream contract
 
@@ -38,10 +49,11 @@ closes the stream instead of changing protocols.
 
 | Direction | Type | Payload |
 | --- | --- | --- |
-| Client to VIIPER | `0x01` | 33-byte controller input state |
+| Client to VIIPER | `0x01` | Exact 33- or 53-byte controller input state selected by device alias |
 | Client to VIIPER | `0x02` | 1,920-byte microphone PCM block: stereo S16LE, 48 kHz, 10 ms |
 | VIIPER to client | `0x81` | 474-byte current combined controller feedback |
 | VIIPER to client | `0x83` | Atomic feedback plus the matching 1,920-byte speaker PCM generation |
+| VIIPER to client | `0x85` | Microphone-interface active byte plus 64-bit stream generation, event aliases only |
 
 An atomic `0x83` payload begins with a little-endian 16-bit feedback length,
 then the 474-byte feedback object, then exactly 480 stereo S16LE speaker
@@ -58,7 +70,7 @@ cannot cross a stop/reconnect.
 
 ## Input state
 
-The 33-byte input payload is little endian:
+Every input payload begins with the same 33-byte little-endian mapped state:
 
 - Sticks: LX, LY, RX, RY as signed 8-bit values.
 - Buttons: 32-bit bitfield.
@@ -86,6 +98,47 @@ Button bits:
 | Edge L4 / R4 | `0x00400000` / `0x00800000` |
 
 D-pad bits are Up `0x01`, Down `0x02`, Left `0x04`, and Right `0x08`.
+
+### Raw-input extension
+
+Only exact `...v5rawinput...` aliases require the 53-byte payload. Existing
+legacy aliases and `...v5events` aliases remain exactly 33 bytes; the events
+suffix negotiates output lifecycle events, not enhanced input.
+
+| Payload bytes | Meaning |
+| --- | --- |
+| `0:33` | mapped state described above |
+| `33` | flags: bit 0 physical metadata valid; bit 1 physical source uses Edge layout |
+| `34:38` | physical input report bytes `28:32`, normalized from USB or Bluetooth |
+| `38:53` | physical input report bytes `41:56`, normalized from USB or Bluetooth |
+
+Bit 1 is valid only together with bit 0; unknown bits close the framed stream.
+Legacy decode explicitly clears the extension fields to prevent stale metadata
+after reconnect or alias changes.
+
+Valid metadata supplies the physical sensor timestamp, trigger mechanism and
+effect status, host timestamp echo, battery, and common headset/filter status.
+VIIPER copies physical report
+bytes 49 through 52 only when the physical source and virtual target both use
+the same base or Edge layout. On a mismatch it synthesizes the target layout:
+base uses its generated device clock, while Edge uses `80 00 00 00`. The
+virtual connection byte `54` is always USB-wired `0x08` even when the source
+report arrived over Bluetooth. Without valid metadata, trigger status is the
+confirmed physical off/no-load value `09 09`, effect status is `00`, and the
+clock/profile and battery use VIIPER's generated state.
+
+Physical report bytes 56 through 63 are an eight-byte AES-CMAC. They are
+deliberately excluded: remapping controls and replacing virtual
+counters/connect state invalidates the physical authentication tag, and
+VIIPER cannot recompute it without the controller key. The corresponding
+virtual report tail stays zero.
+
+Physical metadata is continuous latest-state data and never creates an ordered
+queue entry by itself. A real button, D-pad, touch-contact/ID, or trigger
+zero-crossing transition carries its complete metadata snapshot. In a trigger
+epoch, peak strengthening couples only that trigger's status byte and effect
+nibble; equal-analog settling such as L2 `28` to `29` is preserved before
+release without turning normal mechanical progression into a stale FIFO.
 
 ## Feedback state
 

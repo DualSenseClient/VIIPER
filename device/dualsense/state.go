@@ -27,6 +27,18 @@ type InputState struct {
 
 	GyroX, GyroY, GyroZ    int16
 	AccelX, AccelY, AccelZ int16
+
+	// PhysicalInputMetadata is the normalized physical DualSense input report
+	// bytes 41:56. It intentionally ends before the physical report's AES-CMAC
+	// at bytes 56:64: rewriting virtual counters/connect state invalidates that
+	// tag and VIIPER does not possess the controller key needed to recompute it.
+	// PhysicalSensorTimestamp is bytes 28:32 from that same report.
+	// The fields are authoritative only when PhysicalMetadataValid is true and
+	// travel through the input scheduler as part of this complete state.
+	PhysicalMetadataValid      bool
+	PhysicalMetadataEdgeLayout bool
+	PhysicalSensorTimestamp    uint32
+	PhysicalInputMetadata      [InputStatePhysicalMetadataSize]byte
 }
 
 // NewInputState returns a DualSense input state in its neutral/resting state.
@@ -58,15 +70,9 @@ func (s *InputState) MarshalInto(destination []byte) error {
 	binary.LittleEndian.PutUint16(b[11:13], s.Touch1X)
 	binary.LittleEndian.PutUint16(b[13:15], s.Touch1Y)
 	b[15] = encodeTouchStatus(s.Touch1Active, s.Touch1Tracking)
-	if s.Touch1Active && b[15] == 0 {
-		b[15] = 1
-	}
 	binary.LittleEndian.PutUint16(b[16:18], s.Touch2X)
 	binary.LittleEndian.PutUint16(b[18:20], s.Touch2Y)
 	b[20] = encodeTouchStatus(s.Touch2Active, s.Touch2Tracking)
-	if s.Touch2Active && b[20] == 0 {
-		b[20] = 1
-	}
 	binary.LittleEndian.PutUint16(b[21:23], uint16(s.GyroX))
 	binary.LittleEndian.PutUint16(b[23:25], uint16(s.GyroY))
 	binary.LittleEndian.PutUint16(b[25:27], uint16(s.GyroZ))
@@ -81,7 +87,43 @@ func (s *InputState) MarshalBinary() ([]byte, error) {
 	return b, s.MarshalInto(b)
 }
 
+// MarshalRawInputInto writes the opt-in ...v5rawinput... input payload. Legacy
+// clients continue to use MarshalInto and the exact 33-byte payload.
+func (s *InputState) MarshalRawInputInto(destination []byte) error {
+	if len(destination) < InputStateRawSize {
+		return io.ErrShortBuffer
+	}
+	b := destination[:InputStateRawSize]
+	clear(b)
+	if err := s.MarshalInto(b[:InputStateSize]); err != nil {
+		return err
+	}
+	if !s.PhysicalMetadataValid {
+		if s.PhysicalMetadataEdgeLayout {
+			return fmt.Errorf("physical Edge metadata layout requires valid metadata")
+		}
+		return nil
+	}
+	b[InputStateRawFlagsOffset] = InputStatePhysicalMetadataValid
+	if s.PhysicalMetadataEdgeLayout {
+		b[InputStateRawFlagsOffset] |= InputStatePhysicalMetadataEdgeLayout
+	}
+	binary.LittleEndian.PutUint32(
+		b[InputStatePhysicalSensorOffset:InputStatePhysicalMetadataOffset],
+		s.PhysicalSensorTimestamp)
+	copy(b[InputStatePhysicalMetadataOffset:InputStateRawSize],
+		s.PhysicalInputMetadata[:])
+	return nil
+}
+
 func (s *InputState) UnmarshalBinary(data []byte) error {
+	if len(data) != InputStateSize && len(data) != InputStateRawSize {
+		if len(data) < InputStateSize {
+			return io.ErrUnexpectedEOF
+		}
+		return fmt.Errorf("invalid DualSense input state length %d, expected %d or %d",
+			len(data), InputStateSize, InputStateRawSize)
+	}
 	if len(data) < InputStateSize {
 		return io.ErrUnexpectedEOF
 	}
@@ -105,6 +147,30 @@ func (s *InputState) UnmarshalBinary(data []byte) error {
 	s.AccelX = int16(binary.LittleEndian.Uint16(data[27:29]))
 	s.AccelY = int16(binary.LittleEndian.Uint16(data[29:31]))
 	s.AccelZ = int16(binary.LittleEndian.Uint16(data[31:33]))
+	s.PhysicalMetadataValid = false
+	s.PhysicalMetadataEdgeLayout = false
+	s.PhysicalSensorTimestamp = 0
+	clear(s.PhysicalInputMetadata[:])
+	if len(data) == InputStateRawSize {
+		flags := data[InputStateRawFlagsOffset]
+		if flags&^inputStateRawKnownFlags != 0 {
+			return fmt.Errorf("invalid DualSense input state flags 0x%02X", flags)
+		}
+		if flags&InputStatePhysicalMetadataEdgeLayout != 0 &&
+			flags&InputStatePhysicalMetadataValid == 0 {
+			return fmt.Errorf("invalid DualSense input state flags 0x%02X: Edge layout without valid metadata",
+				flags)
+		}
+		if flags&InputStatePhysicalMetadataValid != 0 {
+			s.PhysicalMetadataValid = true
+			s.PhysicalMetadataEdgeLayout =
+				flags&InputStatePhysicalMetadataEdgeLayout != 0
+			s.PhysicalSensorTimestamp = binary.LittleEndian.Uint32(
+				data[InputStatePhysicalSensorOffset:InputStatePhysicalMetadataOffset])
+			copy(s.PhysicalInputMetadata[:],
+				data[InputStatePhysicalMetadataOffset:InputStateRawSize])
+		}
+	}
 	return nil
 }
 

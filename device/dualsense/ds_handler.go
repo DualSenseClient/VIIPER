@@ -24,12 +24,20 @@ func init() {
 		&dshandler{micInterfaceEvents: true})
 	api.RegisterDevice(DeviceTypeAudioOnlyDuplexV5Events,
 		&dshandler{audioOnly: true, micInterfaceEvents: true})
+	api.RegisterDevice(DeviceTypeCombinedAudioDuplexV5RawInputEvents,
+		&dshandler{micInterfaceEvents: true, physicalInputMetadata: true})
+	api.RegisterDevice(DeviceTypeAudioOnlyDuplexV5RawInputEvents,
+		&dshandler{audioOnly: true, micInterfaceEvents: true,
+			physicalInputMetadata: true})
+	api.RegisterDevice(DeviceTypeGamepadOnlyV5RawInput,
+		&dshandler{gamepadOnly: true, physicalInputMetadata: true})
 }
 
 type dshandler struct {
-	audioOnly          bool
-	gamepadOnly        bool
-	micInterfaceEvents bool
+	audioOnly             bool
+	gamepadOnly           bool
+	micInterfaceEvents    bool
+	physicalInputMetadata bool
 }
 
 func (h *dshandler) CreateDevice(o *device.CreateOptions) (usb.Device, error) {
@@ -113,14 +121,22 @@ func (h *dshandler) CreateDevice(o *device.CreateOptions) (usb.Device, error) {
 	}
 	if h.audioOnly {
 		dse.descriptor = makeAudioOnlyDescriptor(false)
-		if h.micInterfaceEvents {
+		if h.physicalInputMetadata {
+			dse.deviceType = DeviceTypeAudioOnlyDuplexV5RawInputEvents
+		} else if h.micInterfaceEvents {
 			dse.deviceType = DeviceTypeAudioOnlyDuplexV5Events
 		} else {
 			dse.deviceType = DeviceTypeAudioOnlyDuplexV5
 		}
 	} else if h.gamepadOnly {
 		dse.descriptor = makeGamepadOnlyDescriptor(false)
-		dse.deviceType = DeviceTypeGamepadOnlyV5
+		if h.physicalInputMetadata {
+			dse.deviceType = DeviceTypeGamepadOnlyV5RawInput
+		} else {
+			dse.deviceType = DeviceTypeGamepadOnlyV5
+		}
+	} else if h.physicalInputMetadata {
+		dse.deviceType = DeviceTypeCombinedAudioDuplexV5RawInputEvents
 	} else if h.micInterfaceEvents {
 		dse.deviceType = DeviceTypeCombinedAudioDuplexV5Events
 	}
@@ -128,11 +144,12 @@ func (h *dshandler) CreateDevice(o *device.CreateOptions) (usb.Device, error) {
 }
 
 func (h *dshandler) StreamHandler() api.StreamHandlerFunc {
-	return dualSenseV5StreamHandler("DualSense", h.micInterfaceEvents)
+	return dualSenseV5StreamHandler("DualSense", h.micInterfaceEvents,
+		h.physicalInputMetadata)
 }
 
 func dualSenseV5StreamHandler(deviceName string,
-	micInterfaceEvents bool) api.StreamHandlerFunc {
+	micInterfaceEvents, physicalInputMetadata bool) api.StreamHandlerFunc {
 	return func(conn net.Conn, devPtr *usb.Device, logger *slog.Logger) error {
 		defer releaseDualSenseIdentity(devPtr, deviceName)
 		if devPtr == nil || *devPtr == nil {
@@ -147,6 +164,7 @@ func dualSenseV5StreamHandler(deviceName string,
 			"microphoneInput", true,
 			"speakerOutput", true,
 			"microphoneInterfaceEvents", micInterfaceEvents,
+			"physicalInputMetadata", physicalInputMetadata,
 			"frameVersion", StreamFrameVersionV5)
 
 		streamGeneration := dse.beginInputStreamGeneration()
@@ -181,7 +199,7 @@ func dualSenseV5StreamHandler(deviceName string,
 		}()
 
 		return readDualSenseV5InputStreamGeneration(conn, dse, logger,
-			streamGeneration)
+			streamGeneration, physicalInputMetadata)
 	}
 }
 
@@ -207,14 +225,19 @@ func releaseDualSenseIdentity(devPtr *usb.Device, deviceName string) {
 
 func readDualSenseV5InputStream(conn net.Conn, dse *DualSense, logger *slog.Logger) error {
 	return readDualSenseV5InputStreamGeneration(conn, dse, logger,
-		dse.input.currentGeneration())
+		dse.input.currentGeneration(), false)
 }
 
 func readDualSenseV5InputStreamGeneration(conn net.Conn, dse *DualSense,
-	logger *slog.Logger, streamGeneration uint64) error {
+	logger *slog.Logger, streamGeneration uint64,
+	physicalInputMetadata bool) error {
 	header := make([]byte, StreamFrameHeaderSize)
-	input := make([]byte, InputStateSize)
+	input := make([]byte, InputStateRawSize)
 	microphonePCM := make([]byte, USBMicrophoneClientFrameSize)
+	expectedInputSize := InputStateSize
+	if physicalInputMetadata {
+		expectedInputSize = InputStateRawSize
+	}
 	var expectedSequence uint32
 	sequenceInitialized := false
 	for {
@@ -244,10 +267,11 @@ func readDualSenseV5InputStreamGeneration(conn net.Conn, dse *DualSense,
 		var payload []byte
 		switch frameType {
 		case StreamFrameInputState:
-			if payloadLen != InputStateSize {
-				return fmt.Errorf("invalid framed input state length %d", payloadLen)
+			if payloadLen != expectedInputSize {
+				return fmt.Errorf("invalid framed input state length %d, expected %d",
+					payloadLen, expectedInputSize)
 			}
-			payload = input
+			payload = input[:expectedInputSize]
 		case StreamFrameMicrophonePCM:
 			if payloadLen != USBMicrophoneClientFrameSize {
 				return fmt.Errorf("invalid microphone pcm frame length %d", payloadLen)
@@ -285,12 +309,12 @@ func readDualSenseV5InputStreamGeneration(conn net.Conn, dse *DualSense,
 		switch frameType {
 		case StreamFrameInputState:
 			dse.inputTransportTelemetry.inputFrames.Add(1)
-			corruptReason := inputStatePayloadCorruptionReason(input)
+			corruptReason := inputStatePayloadCorruptionReason(payload)
 			if corruptReason != "" {
 				return fmt.Errorf("invalid framed input state: %s", corruptReason)
 			}
 			var state InputState
-			if err := state.UnmarshalBinary(input); err != nil {
+			if err := state.UnmarshalBinary(payload); err != nil {
 				return fmt.Errorf("unmarshal framed input state: %w", err)
 			}
 			var decodeCompleted time.Time
@@ -316,8 +340,21 @@ func framedStreamCRC(headerFields, payload []byte) uint32 {
 }
 
 func inputStatePayloadCorruptionReason(input []byte) string {
-	if len(input) < InputStateSize {
+	if len(input) != InputStateSize && len(input) != InputStateRawSize {
 		return fmt.Sprintf("invalid length %d", len(input))
+	}
+	if len(input) == InputStateRawSize &&
+		input[InputStateRawFlagsOffset]&^inputStateRawKnownFlags != 0 {
+		return fmt.Sprintf("invalid flags 0x%02X",
+			input[InputStateRawFlagsOffset])
+	}
+	if len(input) == InputStateRawSize {
+		flags := input[InputStateRawFlagsOffset]
+		if flags&InputStatePhysicalMetadataEdgeLayout != 0 &&
+			flags&InputStatePhysicalMetadataValid == 0 {
+			return fmt.Sprintf("invalid flags 0x%02X: Edge layout without valid metadata",
+				flags)
+		}
 	}
 
 	buttons := binary.LittleEndian.Uint32(input[4:8])

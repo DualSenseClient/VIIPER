@@ -6,7 +6,20 @@ import (
 	"time"
 )
 
-const dualSenseInputTransitionCapacity = 64
+const (
+	dualSenseInputTransitionCapacity = 64
+	dualSenseUSBConnectStateWired    = 0x08
+	dualSenseEdgeActiveProfile       = 0x80
+	dualSenseTriggerStatusNeutral    = 0x09
+
+	physicalMetadataTouchTimestamp = 0  // physical report byte 41
+	physicalMetadataR2Status       = 1  // physical report byte 42
+	physicalMetadataL2Status       = 2  // physical report byte 43
+	physicalMetadataEffectStatus   = 7  // physical report byte 48
+	physicalMetadataBattery        = 12 // physical report byte 53
+	physicalMetadataConnectState   = 13 // physical report byte 54
+	physicalMetadataHeadsetStatus  = 14 // physical report byte 55
+)
 
 var inputQueueAgeBucketLimits = [...]time.Duration{
 	50 * time.Microsecond,
@@ -27,6 +40,7 @@ type inputTriggerEpoch struct {
 	active             bool
 	peak               uint8
 	presentedPeak      uint8
+	presentedPeakState InputState
 	peakState          InputState
 	peakReceivedAt     time.Time
 	peakReceiveOrdinal uint64
@@ -87,6 +101,8 @@ type InputSchedulerSnapshot struct {
 type dualSenseInputScheduler struct {
 	mu sync.Mutex
 
+	edge bool // immutable report-layout variant selected at construction
+
 	transitions [dualSenseInputTransitionCapacity]scheduledInputState
 	head        int
 	count       int
@@ -95,9 +111,10 @@ type dualSenseInputScheduler struct {
 	retry       scheduledInputState
 	hasRetry    bool
 
-	claimed         scheduledInputState
-	claimedReport   [InputReportSize]byte
-	claimedSequence uint8
+	claimed               scheduledInputState
+	claimedReport         [InputReportSize]byte
+	claimedSequence       uint8
+	claimedPacketSequence uint32
 	// claimRequiresOrderedRecovery is set when a later transition depends on
 	// an uncommitted continuous claim to represent a trigger peak. The claim
 	// remains immutable, but a failed send is then recovered ahead of that
@@ -131,6 +148,7 @@ type dualSenseInputScheduler struct {
 	selectionAgeBuckets [len(inputQueueAgeBucketLimits) + 1]uint64
 
 	sequence            uint8
+	packetSequence      uint32
 	timestampBase       time.Time
 	lastReport          [InputReportSize]byte
 	presentationVersion uint64
@@ -142,10 +160,11 @@ func neutralInputState() InputState {
 	return InputState{AccelX: x, AccelY: y, AccelZ: z}
 }
 
-func newDualSenseInputScheduler(battery byte) *dualSenseInputScheduler {
+func newDualSenseInputScheduler(battery byte, edge bool) *dualSenseInputScheduler {
 	now := time.Now()
 	neutral := neutralInputState()
 	s := &dualSenseInputScheduler{
+		edge:                edge,
 		generation:          1,
 		presentationVersion: 1,
 		timestampBase:       now,
@@ -158,7 +177,8 @@ func newDualSenseInputScheduler(battery byte) *dualSenseInputScheduler {
 		hasSelected:  true,
 		hasPresented: true,
 	}
-	encodeUSBInputReportInto(&neutral, battery, 0, 0, s.lastReport[:])
+	encodeUSBInputReportInto(&neutral, battery, 0, 0, 0, edge,
+		s.lastReport[:])
 	return s
 }
 
@@ -242,12 +262,12 @@ func (s *dualSenseInputScheduler) updateAt(state *InputState, generation uint64,
 	if l2Press {
 		s.beginTriggerEpoch(&s.l2, next.L2, next, now, receiveOrdinal)
 	} else if s.l2.active {
-		s.observeTriggerEpoch(&s.l2, next.L2, next, now, receiveOrdinal)
+		s.observeTriggerEpoch(&s.l2, next.L2, next, now, receiveOrdinal, true)
 	}
 	if r2Press {
 		s.beginTriggerEpoch(&s.r2, next.R2, next, now, receiveOrdinal)
 	} else if s.r2.active {
-		s.observeTriggerEpoch(&s.r2, next.R2, next, now, receiveOrdinal)
+		s.observeTriggerEpoch(&s.r2, next.R2, next, now, receiveOrdinal, false)
 	}
 
 	entry := scheduledInputState{
@@ -315,79 +335,91 @@ func (s *dualSenseInputScheduler) beginTriggerEpoch(epoch *inputTriggerEpoch,
 	epoch.active = true
 	epoch.peak = value
 	epoch.presentedPeak = 0
+	epoch.presentedPeakState = InputState{}
 	epoch.peakState = state
 	epoch.peakReceivedAt = receivedAt
 	epoch.peakReceiveOrdinal = receiveOrdinal
 }
 
 func (s *dualSenseInputScheduler) observeTriggerEpoch(epoch *inputTriggerEpoch,
-	value uint8, state InputState, receivedAt time.Time, receiveOrdinal uint64) {
+	value uint8, state InputState, receivedAt time.Time, receiveOrdinal uint64,
+	left bool) {
 	if value > epoch.peak {
 		epoch.peak = value
 		epoch.peakState = state
 		epoch.peakReceivedAt = receivedAt
 		epoch.peakReceiveOrdinal = receiveOrdinal
+	} else if value == epoch.peak && value != 0 {
+		// Physical trigger mechanics can settle one report after the analog
+		// maximum. Resonance, for example, advances L2 status 0x28 -> 0x29 at
+		// analog 255. Keep only this trigger's newer coupled status; changing the
+		// peak's receive ordinal or unrelated state would invent ordering.
+		if physicalMetadataLayoutsMatch(&epoch.peakState, &state) {
+			copyTriggerPhysicalStatus(&epoch.peakState, &state, left)
+		} else {
+			// A validity/layout boundary cannot be partially merged. Preserve the
+			// later complete peak as its own truthful snapshot so release handling
+			// can order it after any pending state from the former layout.
+			epoch.peakState = state
+			epoch.peakReceivedAt = receivedAt
+			epoch.peakReceiveOrdinal = receiveOrdinal
+		}
 	}
 }
 
-func setTriggerPeak(state *InputState, left bool, peak uint8) {
+func setTriggerPeak(state *InputState, peakState *InputState, left bool,
+	peak uint8) {
 	if left {
 		state.L2 = peak
 		if peak != 0 {
 			state.Buttons |= ButtonL2
 		}
+	} else {
+		state.R2 = peak
+		if peak != 0 {
+			state.Buttons |= ButtonR2
+		}
+	}
+	if peakState != nil {
+		copyTriggerPhysicalStatus(state, peakState, left)
+	}
+}
+
+// copyTriggerPhysicalStatus couples analog peak strengthening to only the
+// physical status owned by that trigger. The opposite status nibble and every
+// other same-report observation remain from the pending complete state.
+func copyTriggerPhysicalStatus(destination, source *InputState, left bool) {
+	if destination == nil || source == nil ||
+		!destination.PhysicalMetadataValid || !source.PhysicalMetadataValid ||
+		destination.PhysicalMetadataEdgeLayout !=
+			source.PhysicalMetadataEdgeLayout {
 		return
 	}
-	state.R2 = peak
-	if peak != 0 {
-		state.Buttons |= ButtonR2
+	if left {
+		destination.PhysicalInputMetadata[physicalMetadataL2Status] =
+			source.PhysicalInputMetadata[physicalMetadataL2Status]
+		destination.PhysicalInputMetadata[physicalMetadataEffectStatus] =
+			(destination.PhysicalInputMetadata[physicalMetadataEffectStatus] & 0x0F) |
+				(source.PhysicalInputMetadata[physicalMetadataEffectStatus] & 0xF0)
+		return
 	}
+	destination.PhysicalInputMetadata[physicalMetadataR2Status] =
+		source.PhysicalInputMetadata[physicalMetadataR2Status]
+	destination.PhysicalInputMetadata[physicalMetadataEffectStatus] =
+		(destination.PhysicalInputMetadata[physicalMetadataEffectStatus] & 0xF0) |
+			(source.PhysicalInputMetadata[physicalMetadataEffectStatus] & 0x0F)
 }
 
 func (s *dualSenseInputScheduler) preserveTriggerPeakBeforeTransition(
 	epoch *inputTriggerEpoch, left bool, upcoming *scheduledInputState) {
-	if !epoch.active || epoch.peak == 0 || epoch.presentedPeak >= epoch.peak {
+	if !epoch.active || epoch.peak == 0 ||
+		(epoch.presentedPeak >= epoch.peak &&
+			triggerPhysicalStatusMatches(
+				&epoch.presentedPeakState, &epoch.peakState, left)) {
 		return
 	}
-	if upcoming != nil && entryRepresentsPeak(upcoming, epoch.id, epoch.peak, left) {
+	if upcoming != nil && entryRepresentsTruthfulPeak(upcoming, epoch, left) {
 		return
-	}
-
-	// The initial press is already ordered. While it remains unclaimed it is
-	// the safest place to preserve the peak because changing only this trigger
-	// cannot reorder or invent any unrelated transition.
-	if s.hasRetry {
-		pending := &s.retry
-		matches := pending.l2Epoch == epoch.id && pending.l2Press
-		if !left {
-			matches = pending.r2Epoch == epoch.id && pending.r2Press
-		}
-		if matches && pendingInitialCanAnchorPeak(pending, epoch, left) {
-			before := triggerValue(&pending.state, left)
-			if before < epoch.peak {
-				setTriggerPeak(&pending.state, left, epoch.peak)
-				s.peakUpgrades++
-			}
-			markPendingPeakAnchored(pending, left)
-			return
-		}
-	}
-	for offset := 0; offset < s.count; offset++ {
-		index := (s.head + offset) % len(s.transitions)
-		pending := &s.transitions[index]
-		matches := pending.l2Epoch == epoch.id && pending.l2Press
-		if !left {
-			matches = pending.r2Epoch == epoch.id && pending.r2Press
-		}
-		if matches && pendingInitialCanAnchorPeak(pending, epoch, left) {
-			before := triggerValue(&pending.state, left)
-			if before < epoch.peak {
-				setTriggerPeak(&pending.state, left, epoch.peak)
-				s.peakUpgrades++
-			}
-			markPendingPeakAnchored(pending, left)
-			return
-		}
 	}
 
 	// A claimed report is immutable and is not presented until completion owns
@@ -395,26 +427,63 @@ func (s *dualSenseInputScheduler) preserveTriggerPeakBeforeTransition(
 	// recover it ahead of the upcoming transition. This avoids an unnecessary
 	// duplicate when the claim succeeds while preserving the peak on unlink or
 	// a pre-send socket failure.
-	if s.hasClaim && entryRepresentsPeak(&s.claimed, epoch.id, epoch.peak, left) {
+	if s.hasClaim && entryRepresentsTruthfulPeak(&s.claimed, epoch, left) {
 		s.claimRequiresOrderedRecovery = true
 		return
 	}
 
-	// A queued ordered state may already contain the exact peak.
-	if s.hasRetry && entryRepresentsPeak(&s.retry, epoch.id, epoch.peak, left) {
+	// A failed transition is immutable recovery work. It may satisfy this peak
+	// only when the exact logical report already represents it; otherwise the
+	// saved complete peak is queued behind the retry and before the release.
+	if s.hasRetry && entryRepresentsTruthfulPeak(&s.retry, epoch, left) {
 		return
 	}
 	for offset := 0; offset < s.count; offset++ {
 		index := (s.head + offset) % len(s.transitions)
 		pending := &s.transitions[index]
-		if entryRepresentsPeak(pending, epoch.id, epoch.peak, left) {
+		if entryRepresentsTruthfulPeak(pending, epoch, left) {
+			return
+		}
+	}
+
+	// The initial press is already ordered. While it remains in the transition
+	// ring and has never been claimed, it is the safest place to preserve an
+	// otherwise unrepresented peak because changing only this trigger cannot
+	// reorder or invent an unrelated transition. Check every immutable/exact
+	// representation first so a later truthful button state is never folded
+	// backward into the initial report. Retry storage is deliberately excluded:
+	// a failed serialized transition must be retried as the same logical report.
+	for offset := 0; offset < s.count; offset++ {
+		index := (s.head + offset) % len(s.transitions)
+		pending := &s.transitions[index]
+		matches := pending.l2Epoch == epoch.id && pending.l2Press
+		if !left {
+			matches = pending.r2Epoch == epoch.id && pending.r2Press
+		}
+		if matches && pendingInitialCanAnchorPeak(pending, epoch, left) {
+			if offset != s.count-1 &&
+				!triggerPhysicalStatusMatches(
+					&pending.state, &epoch.peakState, left) {
+				// Later ordered controls already follow this initial press. Do
+				// not move a newly settled physical status ahead of them: the
+				// latest complete peak is promoted after those transitions.
+				break
+			}
+			before := triggerValue(&pending.state, left)
+			setTriggerPeak(&pending.state, &epoch.peakState, left, epoch.peak)
+			if before < epoch.peak {
+				s.peakUpgrades++
+			}
+			markPendingPeakAnchored(pending, left)
 			return
 		}
 	}
 
 	// A continuous peak would otherwise be discarded when the release is
 	// enqueued. Promote it to ordered work immediately before that release.
-	if s.hasLatest && entryRepresentsPeak(&s.latest, epoch.id, epoch.peak, left) {
+	if s.hasLatest && entryRepresentsPeak(&s.latest, epoch.id, epoch.peak, left) &&
+		physicalMetadataLayoutsMatch(&s.latest.state, &epoch.peakState) {
+		copyTriggerPhysicalStatus(&s.latest.state, &epoch.peakState, left)
 		peak := s.latest
 		s.hasLatest = false
 		s.latest = scheduledInputState{}
@@ -450,12 +519,38 @@ func (s *dualSenseInputScheduler) preserveTriggerPeakBeforeTransition(
 // receive order.
 func pendingInitialCanAnchorPeak(pending *scheduledInputState,
 	epoch *inputTriggerEpoch, left bool) bool {
+	if !physicalMetadataLayoutsMatch(&pending.state, &epoch.peakState) {
+		return false
+	}
 	if left {
 		return !pending.r2PeakAnchored ||
-			pending.state.R2 == epoch.peakState.R2
+			(pending.state.R2 == epoch.peakState.R2 &&
+				oppositeTriggerPhysicalStatusMatches(
+					&pending.state, &epoch.peakState, true))
 	}
 	return !pending.l2PeakAnchored ||
-		pending.state.L2 == epoch.peakState.L2
+		(pending.state.L2 == epoch.peakState.L2 &&
+			oppositeTriggerPhysicalStatusMatches(
+				&pending.state, &epoch.peakState, false))
+}
+
+func oppositeTriggerPhysicalStatusMatches(a, b *InputState, left bool) bool {
+	if !physicalMetadataLayoutsMatch(a, b) {
+		return false
+	}
+	if !a.PhysicalMetadataValid {
+		return true
+	}
+	if left {
+		return a.PhysicalInputMetadata[physicalMetadataR2Status] ==
+			b.PhysicalInputMetadata[physicalMetadataR2Status] &&
+			a.PhysicalInputMetadata[physicalMetadataEffectStatus]&0x0F ==
+				b.PhysicalInputMetadata[physicalMetadataEffectStatus]&0x0F
+	}
+	return a.PhysicalInputMetadata[physicalMetadataL2Status] ==
+		b.PhysicalInputMetadata[physicalMetadataL2Status] &&
+		a.PhysicalInputMetadata[physicalMetadataEffectStatus]&0xF0 ==
+			b.PhysicalInputMetadata[physicalMetadataEffectStatus]&0xF0
 }
 
 func markPendingPeakAnchored(pending *scheduledInputState, left bool) {
@@ -479,6 +574,40 @@ func entryRepresentsPeak(entry *scheduledInputState, epochID uint64,
 		return entry.l2Epoch == epochID && entry.state.L2 >= peak
 	}
 	return entry.r2Epoch == epochID && entry.state.R2 >= peak
+}
+
+func entryRepresentsTruthfulPeak(entry *scheduledInputState,
+	epoch *inputTriggerEpoch, left bool) bool {
+	return entryRepresentsPeak(entry, epoch.id, epoch.peak, left) &&
+		triggerPhysicalStatusMatches(&entry.state, &epoch.peakState, left)
+}
+
+func triggerPhysicalStatusMatches(a, b *InputState, left bool) bool {
+	if !physicalMetadataLayoutsMatch(a, b) {
+		return false
+	}
+	if !a.PhysicalMetadataValid {
+		return true
+	}
+	if left {
+		return a.PhysicalInputMetadata[physicalMetadataL2Status] ==
+			b.PhysicalInputMetadata[physicalMetadataL2Status] &&
+			a.PhysicalInputMetadata[physicalMetadataEffectStatus]&0xF0 ==
+				b.PhysicalInputMetadata[physicalMetadataEffectStatus]&0xF0
+	}
+	return a.PhysicalInputMetadata[physicalMetadataR2Status] ==
+		b.PhysicalInputMetadata[physicalMetadataR2Status] &&
+		a.PhysicalInputMetadata[physicalMetadataEffectStatus]&0x0F ==
+			b.PhysicalInputMetadata[physicalMetadataEffectStatus]&0x0F
+}
+
+func physicalMetadataLayoutsMatch(a, b *InputState) bool {
+	if a == nil || b == nil ||
+		a.PhysicalMetadataValid != b.PhysicalMetadataValid {
+		return false
+	}
+	return !a.PhysicalMetadataValid ||
+		a.PhysicalMetadataEdgeLayout == b.PhysicalMetadataEdgeLayout
 }
 
 func (s *dualSenseInputScheduler) enqueueTransition(entry scheduledInputState) bool {
@@ -547,15 +676,10 @@ func (s *dualSenseInputScheduler) beginClaim(now time.Time, battery byte,
 	}
 	selected := s.selectState(now)
 	sequence := s.sequence + 1
-	elapsed := now.Sub(s.timestampBase).Microseconds() * 3
-	if elapsed < 0 {
-		elapsed = 0
-	}
-	if elapsed > int64(^uint32(0)) {
-		elapsed = int64(^uint32(0))
-	}
+	packetSequence := s.packetSequence + 1
+	timestamp := dualSenseTimestampTicks(s.timestampBase, now)
 	if !encodeUSBInputReportInto(&selected.state, battery, sequence,
-		uint32(elapsed), s.claimedReport[:]) {
+		packetSequence, timestamp, s.edge, s.claimedReport[:]) {
 		s.corruptReports++
 	}
 	s.nextClaimToken++
@@ -564,10 +688,24 @@ func (s *dualSenseInputScheduler) beginClaim(now time.Time, battery byte,
 	}
 	s.claimed = selected
 	s.claimedSequence = sequence
+	s.claimedPacketSequence = packetSequence
 	s.claimToken = s.nextClaimToken
 	s.hasClaim = true
 	copy(destination[:InputReportSize], s.claimedReport[:])
 	return InputReportSize, s.claimToken
+}
+
+func dualSenseTimestampTicks(base, now time.Time) uint32 {
+	elapsed := now.Sub(base)
+	if elapsed <= 0 {
+		return 0
+	}
+	// One tick is one third of a microsecond. A time.Duration cannot exceed
+	// MaxInt64 nanoseconds, so converting positive whole microseconds to uint64
+	// and multiplying by three cannot overflow. The final conversion is the
+	// controller clock's intentional modulo-2^32 wrap.
+	microseconds := uint64(elapsed / time.Microsecond)
+	return uint32(microseconds * 3)
 }
 
 func (s *dualSenseInputScheduler) completeClaim(token uint64, presented bool) {
@@ -582,6 +720,7 @@ func (s *dualSenseInputScheduler) completeClaimAt(token uint64, presented bool,
 	claimed := s.claimed
 	if presented {
 		s.sequence = s.claimedSequence
+		s.packetSequence = s.claimedPacketSequence
 		s.lastPresented = claimed
 		s.hasPresented = true
 		copy(s.lastReport[:], s.claimedReport[:])
@@ -591,9 +730,19 @@ func (s *dualSenseInputScheduler) completeClaimAt(token uint64, presented bool,
 		}
 		if claimed.l2Epoch == s.l2.id && claimed.state.L2 > s.l2.presentedPeak {
 			s.l2.presentedPeak = claimed.state.L2
+			s.l2.presentedPeakState = claimed.state
+		} else if claimed.l2Epoch == s.l2.id &&
+			claimed.state.L2 == s.l2.presentedPeak {
+			copyTriggerPhysicalStatus(&s.l2.presentedPeakState,
+				&claimed.state, true)
 		}
 		if claimed.r2Epoch == s.r2.id && claimed.state.R2 > s.r2.presentedPeak {
 			s.r2.presentedPeak = claimed.state.R2
+			s.r2.presentedPeakState = claimed.state
+		} else if claimed.r2Epoch == s.r2.id &&
+			claimed.state.R2 == s.r2.presentedPeak {
+			copyTriggerPhysicalStatus(&s.r2.presentedPeakState,
+				&claimed.state, false)
 		}
 		if claimed.sampleQueueAge {
 			s.recordPresentedQueueAge(completedAt, claimed.receivedAt)
@@ -613,6 +762,7 @@ func (s *dualSenseInputScheduler) completeClaimAt(token uint64, presented bool,
 	}
 	s.claimed = scheduledInputState{}
 	s.claimedSequence = 0
+	s.claimedPacketSequence = 0
 	s.claimRequiresOrderedRecovery = false
 	s.claimToken = 0
 	s.hasClaim = false
@@ -718,7 +868,7 @@ func inputStateNonNeutral(state InputState) bool {
 }
 
 func encodeUSBInputReportInto(state *InputState, battery, sequence uint8,
-	timestamp uint32, destination []byte) bool {
+	packetSequence, timestamp uint32, edge bool, destination []byte) bool {
 	if len(destination) < InputReportSize {
 		return false
 	}
@@ -759,6 +909,7 @@ func encodeUSBInputReportInto(state *InputState, battery, sequence uint8,
 	b[8] = (usbDPad & DPadMask) | (uint8(state.Buttons) & 0xF0)
 	b[9] = uint8(state.Buttons >> 8)
 	b[10] = uint8(state.Buttons >> 16)
+	binary.LittleEndian.PutUint32(b[12:16], packetSequence)
 
 	binary.LittleEndian.PutUint16(b[16:18], uint16(state.GyroX))
 	binary.LittleEndian.PutUint16(b[18:20], uint16(state.GyroY))
@@ -766,18 +917,61 @@ func encodeUSBInputReportInto(state *InputState, battery, sequence uint8,
 	binary.LittleEndian.PutUint16(b[22:24], uint16(state.AccelX))
 	binary.LittleEndian.PutUint16(b[24:26], uint16(state.AccelY))
 	binary.LittleEndian.PutUint16(b[26:28], uint16(state.AccelZ))
-	binary.LittleEndian.PutUint32(b[28:32], timestamp)
 	b[33] = normalizeTouchTracking(state.Touch1Active, state.Touch1Tracking)
 	encodeTouchCoords(b[34:37], state.Touch1X, state.Touch1Y)
 	b[37] = normalizeTouchTracking(state.Touch2Active, state.Touch2Tracking)
 	encodeTouchCoords(b[38:41], state.Touch2X, state.Touch2Y)
-	b[41] = sequence
-	binary.LittleEndian.PutUint32(b[49:53], timestamp)
-	b[53] = battery
+	encodeUSBInputMetadata(b, state, timestamp, edge, battery)
 
 	if inputStateControlsInvalid(state) {
-		resetUSBInputReportToNeutral(b, sequence, timestamp, battery)
+		resetUSBInputReportToNeutral(b, sequence, packetSequence, timestamp,
+			battery, edge, nil)
 		return false
 	}
 	return true
+}
+
+func encodeUSBInputMetadata(report []byte, state *InputState, timestamp uint32,
+	edge bool, battery byte) {
+	binary.LittleEndian.PutUint32(report[28:32], timestamp)
+	// A physical USB DualSense at rest reports both adaptive-trigger arms at
+	// position nine with no active effect. Zero is not a truthful fallback and
+	// has observable compatibility consequences in raw-input games.
+	report[42] = dualSenseTriggerStatusNeutral
+	report[43] = dualSenseTriggerStatusNeutral
+	report[48] = 0
+	encodeUSBInputStatus(report, timestamp, edge)
+	report[53] = battery
+	report[54] = dualSenseUSBConnectStateWired
+	if state == nil || !state.PhysicalMetadataValid {
+		return
+	}
+	binary.LittleEndian.PutUint32(report[28:32],
+		state.PhysicalSensorTimestamp)
+	copy(report[41:49], state.PhysicalInputMetadata[:8])
+	// Base and Edge interpret bytes 49:53 differently. Preserve the physical
+	// values only for a matching virtual layout; otherwise the target-specific
+	// fallback written above remains authoritative.
+	if state.PhysicalMetadataEdgeLayout == edge {
+		copy(report[49:53], state.PhysicalInputMetadata[8:12])
+	}
+	report[53] = state.PhysicalInputMetadata[physicalMetadataBattery]
+	// The virtual device is always presented over USB even when DS4Windows
+	// normalized the authoritative metadata from a physical Bluetooth report.
+	report[54] = dualSenseUSBConnectStateWired
+	// Byte 55 is the third non-authenticated controller-status byte
+	// (external-microphone / haptics low-pass state), common to base and Edge.
+	report[55] = state.PhysicalInputMetadata[physicalMetadataHeadsetStatus]
+}
+
+func encodeUSBInputStatus(report []byte, timestamp uint32, edge bool) {
+	if edge {
+		// The Edge uses the four bytes that the base DualSense exposes as
+		// Timer2 for profile/trigger-module status. Normal USB mode is profile
+		// 0x80 with zero trigger level and module-loss padding.
+		report[49] = dualSenseEdgeActiveProfile
+		clear(report[50:53])
+		return
+	}
+	binary.LittleEndian.PutUint32(report[49:53], timestamp)
 }

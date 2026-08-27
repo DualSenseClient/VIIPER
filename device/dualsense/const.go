@@ -15,12 +15,20 @@ const (
 	DeviceTypeEdgeCombinedAudioDuplexV5 = "dualsenseedgecombinedaudioduplexv5"
 	DeviceTypeEdgeGamepadOnlyV5         = "dualsenseedgegamepadv5"
 
-	// The events aliases are an explicit protocol capability boundary. Legacy
-	// V5 clients never receive frame types they do not understand; clients that
-	// request an alias opt in to ordered microphone-interface state events.
+	// The events aliases are an explicit output-event capability boundary. They
+	// retain the exact legacy 33-byte input payload for existing clients.
 	DeviceTypeCombinedAudioDuplexV5Events     = "dualsensecombinedaudioduplexv5events"
 	DeviceTypeAudioOnlyDuplexV5Events         = "dualsenseaudioonlyduplexv5events"
 	DeviceTypeEdgeCombinedAudioDuplexV5Events = "dualsenseedgecombinedaudioduplexv5events"
+
+	// Raw-input aliases explicitly negotiate the enhanced 53-byte input state.
+	// Audio-capable variants also retain ordered output lifecycle events;
+	// gamepad-only variants have no microphone interface to advertise.
+	DeviceTypeCombinedAudioDuplexV5RawInputEvents     = "dualsensecombinedaudioduplexv5rawinputevents"
+	DeviceTypeAudioOnlyDuplexV5RawInputEvents         = "dualsenseaudioonlyduplexv5rawinputevents"
+	DeviceTypeGamepadOnlyV5RawInput                   = "dualsensegamepadv5rawinput"
+	DeviceTypeEdgeCombinedAudioDuplexV5RawInputEvents = "dualsenseedgecombinedaudioduplexv5rawinputevents"
+	DeviceTypeEdgeGamepadOnlyV5RawInput               = "dualsenseedgegamepadv5rawinput"
 )
 
 const (
@@ -62,9 +70,22 @@ const (
 )
 
 const (
-	InputReportSize          = 64
-	OutputReportSize         = 48
-	InputStateSize           = 33
+	InputReportSize  = 64
+	OutputReportSize = 48
+	InputStateSize   = 33
+	// InputStateRawSize is negotiated only by the exact ...v5rawinput... device
+	// aliases. It retains the legacy state at bytes 0:33, adds one flags byte,
+	// then transports normalized physical DualSense report metadata without
+	// changing the legacy V5 contract.
+	InputStateRawSize                          = 53
+	InputStateRawFlagsOffset                   = InputStateSize
+	InputStatePhysicalSensorOffset             = InputStateRawFlagsOffset + 1
+	InputStatePhysicalMetadataOffset           = InputStatePhysicalSensorOffset + 4
+	InputStatePhysicalMetadataSize             = 15
+	InputStatePhysicalMetadataValid      uint8 = 1 << 0
+	InputStatePhysicalMetadataEdgeLayout uint8 = 1 << 1
+	inputStateRawKnownFlags                    = InputStatePhysicalMetadataValid |
+		InputStatePhysicalMetadataEdgeLayout
 	StreamFrameHeaderSize    = 16
 	StreamFrameMagic0        = 0x56
 	StreamFrameMagic1        = 0x50

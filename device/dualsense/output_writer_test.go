@@ -690,6 +690,58 @@ func TestDualSenseV5EventsAliasPublishesMicrophoneInterfaceLifecycle(t *testing.
 	}
 }
 
+func TestDualSenseGamepadRawInputAliasHasNoMicrophoneLifecycle(t *testing.T) {
+	variant := &dshandler{
+		gamepadOnly:           true,
+		physicalInputMetadata: true,
+	}
+	dev, err := variant.CreateDevice(nil)
+	if err != nil {
+		t.Fatalf("CreateDevice: %v", err)
+	}
+	if got := dev.(*DualSense).VIIPERDeviceType(); got != DeviceTypeGamepadOnlyV5RawInput {
+		t.Fatalf("raw gamepad alias type=%q", got)
+	}
+
+	server, client := net.Pipe()
+	errCh := make(chan error, 1)
+	go func() {
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		errCh <- variant.StreamHandler()(server, &dev, logger)
+	}()
+
+	if err := client.SetReadDeadline(time.Now().Add(25 * time.Millisecond)); err != nil {
+		t.Fatalf("SetReadDeadline: %v", err)
+	}
+	var firstByte [1]byte
+	if _, err := client.Read(firstByte[:]); err == nil {
+		t.Fatalf("raw gamepad alias received microphone event byte %#x",
+			firstByte[0])
+	} else if timeout, ok := err.(net.Error); !ok || !timeout.Timeout() {
+		t.Fatalf("raw gamepad read returned non-timeout error: %v", err)
+	}
+	if err := client.SetReadDeadline(time.Time{}); err != nil {
+		t.Fatalf("clear read deadline: %v", err)
+	}
+
+	state := *NewInputState()
+	state.PhysicalMetadataValid = true
+	state.PhysicalInputMetadata[physicalMetadataR2Status] = 0x09
+	state.PhysicalInputMetadata[physicalMetadataL2Status] = 0x09
+	var payload [InputStateRawSize]byte
+	if err := state.MarshalRawInputInto(payload[:]); err != nil {
+		t.Fatalf("MarshalRawInputInto: %v", err)
+	}
+	if _, err := client.Write(makeV5StreamFrame(
+		StreamFrameInputState, 0, payload[:])); err != nil {
+		t.Fatalf("write raw input: %v", err)
+	}
+	_ = client.Close()
+	if err := <-errCh; err != nil {
+		t.Fatalf("raw gamepad stream handler: %v", err)
+	}
+}
+
 func TestDualSenseLegacyV5AliasDoesNotEmitMicrophoneInterfaceEvent(t *testing.T) {
 	variant := &dshandler{}
 	dev, err := variant.CreateDevice(nil)
