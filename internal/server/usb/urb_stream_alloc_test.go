@@ -17,7 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func makeIsoDescriptorReadStream(packetCount int) []byte {
+func makeIsoDescriptorReadStream() []byte {
+	const packetCount = 8
 	stream := make([]byte, urbHdrSize+packetCount*usbip.IsoPacketDescriptorSize)
 	binary.BigEndian.PutUint32(stream[urbHdrOffsetCommand:urbHdrOffsetCommand+4],
 		usbip.CmdSubmitCode)
@@ -51,7 +52,7 @@ func readLoadedURBScratch(
 
 func TestLoadedURBHeaderAndIsoDescriptorReadAllocatesZero(t *testing.T) {
 	const packetCount = 8
-	stream := makeIsoDescriptorReadStream(packetCount)
+	stream := makeIsoDescriptorReadStream()
 	reader := bytes.NewReader(stream)
 	var header [urbHdrSize]byte
 	var descriptorWire [packetCount * usbip.IsoPacketDescriptorSize]byte
@@ -76,7 +77,7 @@ func TestLoadedURBHeaderAndIsoDescriptorReadAllocatesZero(t *testing.T) {
 
 func BenchmarkLoadedURBHeaderAndIsoDescriptorRead(b *testing.B) {
 	const packetCount = 8
-	stream := makeIsoDescriptorReadStream(packetCount)
+	stream := makeIsoDescriptorReadStream()
 	reader := bytes.NewReader(stream)
 	var header [urbHdrSize]byte
 	var descriptorWire [packetCount * usbip.IsoPacketDescriptorSize]byte
@@ -95,7 +96,7 @@ func BenchmarkLoadedURBHeaderAndIsoDescriptorRead(b *testing.B) {
 
 func TestLoadedURBDecodeAndEndpointClockAllocatesZero(t *testing.T) {
 	const packetCount = 8
-	stream := makeIsoDescriptorReadStream(packetCount)
+	stream := makeIsoDescriptorReadStream()
 	reader := bytes.NewReader(stream)
 	var header [urbHdrSize]byte
 	var descriptorWire [packetCount * usbip.IsoPacketDescriptorSize]byte
@@ -137,7 +138,7 @@ func TestLoadedURBDecodeAndEndpointClockAllocatesZero(t *testing.T) {
 
 func BenchmarkLoadedURBDecodeAndEndpointClock(b *testing.B) {
 	const packetCount = 8
-	stream := makeIsoDescriptorReadStream(packetCount)
+	stream := makeIsoDescriptorReadStream()
 	reader := bytes.NewReader(stream)
 	var header [urbHdrSize]byte
 	var descriptorWire [packetCount * usbip.IsoPacketDescriptorSize]byte

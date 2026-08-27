@@ -205,7 +205,7 @@ type OutputState struct {
 	BluetoothCombinedOutputReport [BluetoothCombinedHapticsReportSize]byte
 }
 
-// MarshalV5Binary emits the single V5 transport feedback contract:
+// MarshalV5Into emits the single V5 transport feedback contract:
 // compact state, native USB output report, and combined Bluetooth carrier.
 func (f *OutputState) MarshalV5Into(destination []byte) error {
 	if len(destination) < OutputStateV5Size {

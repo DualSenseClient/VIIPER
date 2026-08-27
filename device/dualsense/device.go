@@ -620,8 +620,7 @@ func (d *DualSense) ResetEndpoint(endpoint uint8) {
 		return
 	}
 	d.mediaMu.Lock()
-	var speakerGeneration uint64
-	speakerGeneration = d.resetSpeakerAudioLocked()
+	speakerGeneration := d.resetSpeakerAudioLocked()
 	d.mediaMu.Unlock()
 	var resetSpeaker func()
 	var resetTransportSpeaker func(uint64)

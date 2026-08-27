@@ -299,12 +299,13 @@ func newEndpointWorkerWithClock(
 	if maxPacket > 0 {
 		w.reportBuffer = make([]byte, maxPacket)
 		responseCapacity := retSubmitHeaderSize + maxPacket
-		if kind == isoInWorker {
+		switch kind {
+		case isoInWorker:
 			mediaCapacity := maxPacket * preallocatedIsoPacketCount
 			w.mediaBuffer = make([]byte, 0, mediaCapacity)
 			responseCapacity = retSubmitHeaderSize + mediaCapacity +
 				preallocatedIsoPacketCount*isoPacketDescriptorSize
-		} else if kind == isoOutWorker {
+		case isoOutWorker:
 			responseCapacity = retSubmitHeaderSize +
 				preallocatedIsoPacketCount*isoPacketDescriptorSize
 		}

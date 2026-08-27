@@ -223,11 +223,6 @@ func releaseDualSenseIdentity(devPtr *usb.Device, deviceName string) {
 	slog.Debug(deviceName+" disconnected, serial/mac released", "serial", serial, "mac", mac)
 }
 
-func readDualSenseV5InputStream(conn net.Conn, dse *DualSense, logger *slog.Logger) error {
-	return readDualSenseV5InputStreamGeneration(conn, dse, logger,
-		dse.input.currentGeneration(), false)
-}
-
 func readDualSenseV5InputStreamGeneration(conn net.Conn, dse *DualSense,
 	logger *slog.Logger, streamGeneration uint64,
 	physicalInputMetadata bool) error {
@@ -365,10 +360,6 @@ func inputStatePayloadCorruptionReason(input []byte) string {
 	}
 
 	return ""
-}
-
-func isPowerOfTwo(value int) bool {
-	return value > 0 && value&(value-1) == 0
 }
 
 func (h *dshandler) UpdateMetaState(meta string, dev *usb.Device) error {

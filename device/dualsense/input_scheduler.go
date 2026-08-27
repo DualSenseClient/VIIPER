@@ -610,7 +610,7 @@ func physicalMetadataLayoutsMatch(a, b *InputState) bool {
 		a.PhysicalMetadataEdgeLayout == b.PhysicalMetadataEdgeLayout
 }
 
-func (s *dualSenseInputScheduler) enqueueTransition(entry scheduledInputState) bool {
+func (s *dualSenseInputScheduler) enqueueTransition(entry scheduledInputState) {
 	// Continuous state older than this ordered boundary can never be selected
 	// after it without replaying stale motion or a stale trigger level.
 	s.latest = scheduledInputState{}
@@ -623,7 +623,7 @@ func (s *dualSenseInputScheduler) enqueueTransition(entry scheduledInputState) b
 		// indefinitely stuck after the ordered ring drains.
 		s.latest = entry
 		s.hasLatest = true
-		return false
+		return
 	}
 	index := (s.head + s.count) % len(s.transitions)
 	s.transitions[index] = entry
@@ -631,7 +631,6 @@ func (s *dualSenseInputScheduler) enqueueTransition(entry scheduledInputState) b
 	if s.count > s.highWater {
 		s.highWater = s.count
 	}
-	return true
 }
 
 func (s *dualSenseInputScheduler) selectState(now time.Time) scheduledInputState {
@@ -706,10 +705,6 @@ func dualSenseTimestampTicks(base, now time.Time) uint32 {
 	// controller clock's intentional modulo-2^32 wrap.
 	microseconds := uint64(elapsed / time.Microsecond)
 	return uint32(microseconds * 3)
-}
-
-func (s *dualSenseInputScheduler) completeClaim(token uint64, presented bool) {
-	s.completeClaimAt(token, presented, time.Now())
 }
 
 func (s *dualSenseInputScheduler) completeClaimAt(token uint64, presented bool,
