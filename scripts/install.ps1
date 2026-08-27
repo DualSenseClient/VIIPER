@@ -21,7 +21,7 @@ if (-not $DeveloperStandalone -or
     )
 }
 
-$viiperVersion = "v0.1.1"
+$viiperVersion = "v0.1.2"
 $usbipTargetVersion = [Version]"0.9.7.7"
 $installDir = Join-Path $env:LOCALAPPDATA "VIIPER"
 $usbipReplacementStatePath = Join-Path $installDir `
