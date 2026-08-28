@@ -1,0 +1,1919 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Virtual Input over IP EmulatoR - Documentation">
+      
+      
+        <meta name="author" content="Peter Repukat">
+      
+      
+      
+        <link rel="prev" href="../../getting-started/usbip/">
+      
+      
+        <link rel="next" href="../csharp/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.57">
+    
+    
+      
+        <title>libVIIPER Documentation - VIIPER Documentation</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../assets/stylesheets/modern/main.5da3a30f.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/modern/palette.812a03bb.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#libviiper-documentation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="VIIPER Documentation" class="md-header__button md-logo" aria-label="VIIPER Documentation" data-md-component="logo">
+      
+  <img src="../../viiper.svg" alt="VIIPER Documentation">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            VIIPER Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              libVIIPER Documentation
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+        <a href="https://github.com/DualSenseClient/VIIPER" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DualSenseClient/VIIPER
+  </div>
+</a>
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+      
+    
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting-started/installation/" class="md-tabs__link">
+          
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+      
+    
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="././" class="md-tabs__link">
+          
+  
+  libVIIPER
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../misc/support/" class="md-tabs__link">
+        
+  
+  Community & Support
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="VIIPER Documentation" class="md-nav__button md-logo" aria-label="VIIPER Documentation" data-md-component="logo">
+      
+  <img src="../../viiper.svg" alt="VIIPER Documentation">
+
+    </a>
+    VIIPER Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/DualSenseClient/VIIPER" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DualSenseClient/VIIPER
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Home
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Getting Started
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+  Getting Started
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Installation
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Quick Start
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/usbip/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  USBIP Setup
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  libVIIPER
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+  libVIIPER
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Overview
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Overview
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#c-and-client-libraries" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        C# and client libraries
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        API Overview
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#server-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Server lifecycle
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bus-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Bus management
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Logging
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#devices" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Devices
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Devices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#device-telemetry" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Device telemetry
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#common-device-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Common device API
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common device API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#xbox-360" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Xbox 360
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dualshock-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        DualShock 4
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dualsense-and-edge" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        DualSense (and Edge)
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#switch-2-pro" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Switch 2 Pro
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#keyboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Keyboard
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mouse" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Mouse
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Examples
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#c-interop-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        C# Interop Notes
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../csharp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  C# Bindings
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../client-libraries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Client Libraries
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Devices
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+  Devices
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../devices/xbox360/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Xbox 360 Controller
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../devices/dualshock4/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  DualShock 4
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../devices/dualsense/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  DualSense
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../devices/ns2pro/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Switch 2 Pro Controller
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../devices/keyboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Keyboard
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../devices/mouse/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Mouse
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../misc/support/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Community & Support
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Changelog
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#c-and-client-libraries" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        C# and client libraries
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        API Overview
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#server-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Server lifecycle
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bus-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Bus management
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Logging
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#devices" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Devices
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Devices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#device-telemetry" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Device telemetry
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#common-device-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Common device API
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common device API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#xbox-360" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Xbox 360
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dualshock-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        DualShock 4
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dualsense-and-edge" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        DualSense (and Edge)
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#switch-2-pro" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Switch 2 Pro
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#keyboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Keyboard
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mouse" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Mouse
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Examples
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#c-interop-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        C# Interop Notes
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+  
+  
+
+
+<h1 id="libviiper-documentation">libVIIPER Documentation</h1>
+<p>libVIIPER is a shared library (<code>libVIIPER.dll</code> on Windows, <code>libVIIPER.so</code> on Linux) that embeds the full VIIPER USB/USBIP stack directly into your application.</p>
+<ul>
+<li>Single shared library (<code>libVIIPER.dll</code> / <code>libVIIPER.so</code>)</li>
+<li>Pure C API callable from any language with C FFI support</li>
+<li>In-process + threadsafe
+  the USBIP server runs in a background thread inside your application</li>
+<li>Optional auto-attach to the local USBIP client on the same machine</li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">License</p>
+<p>libVIIPER is licensed under <strong>GPL-3.0</strong>.
+Linking against it <strong>requires your application to be GPL-3.0 compatible</strong>.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">USBIP Required</p>
+<p>libVIIPER uses USBIP internally. A USBIP client must be installed on the target machine.
+See <a href="../../getting-started/installation/#requirements">Installation › Requirements</a> for setup instructions.</p>
+</div>
+<h2 id="c-and-client-libraries">C# and client libraries</h2>
+<ul>
+<li>Looking for C#? See the complete <a href="../csharp/">C# Bindings</a> reference (all functions,
+  structs, enums and callbacks with P/Invoke declarations).</li>
+<li>Want to drive VIIPER over TCP instead of embedding it? See
+  <a href="../client-libraries/">Client Libraries</a> for the generated C#, C++, Rust,
+  TypeScript and Go clients.</li>
+</ul>
+<h2 id="api-overview">API Overview</h2>
+<p>The libVIIPER C API is declared in <code>libVIIPER.h</code>.</p>
+<ul>
+<li>All functions return <code>bool</code> (<code>true</code> on success, <code>false</code> on failure).</li>
+<li>Handles (<code>USBServerHandle</code>, <code>Xbox360DeviceHandle</code>, …) are opaque <code>uintptr_t</code> values.</li>
+<li>Callbacks are invoked from the USBIP server's background threads. Keep them short and
+  thread-safe; never call into libVIIPER from inside a callback.
+  PCM buffers passed to audio callbacks are <strong>only valid during the call</strong> — copy the data
+  if you need to keep it.</li>
+<li>Pass <code>NULL</code> to any callback setter to clear a previously registered callback.</li>
+<li>Struct fields set to their zero value (or <code>NULL</code>/<code>0</code>) select the device's default, so a
+  zeroed struct always creates a device with default identity.</li>
+</ul>
+<h3 id="server-lifecycle">Server lifecycle</h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NewUSBServer(config, &amp;handle, logCb)</code></td>
+<td>Start a USB server in a background thread</td>
+</tr>
+<tr>
+<td><code>CloseUSBServer(handle)</code></td>
+<td>Stop the server and free all resources</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="kt">char</span><span class="o">*</span><span class="w">    </span><span class="n">addr</span><span class="p">;</span><span class="w">                            </span><span class="c1">// default "0.0.0.0:3241"</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="kt">uint64_t</span><span class="w"> </span><span class="n">connection_timeout_ms</span><span class="p">;</span><span class="w">           </span><span class="c1">// default 30000 (30s)</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="kt">uint64_t</span><span class="w"> </span><span class="n">device_handler_connect_timeout_ms</span><span class="p">;</span><span class="w"> </span><span class="c1">// default 5000 (5s)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">write_batch_flush_interval_ms</span><span class="p">;</span><span class="w">   </span><span class="c1">// default 1 (1ms)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">}</span><span class="w"> </span><span class="n">USBServerConfig</span><span class="p">;</span>
+</code></pre></div>
+<p><code>NewUSBServer</code> blocks until the server is ready. On <code>localhost</code> the server automatically
+attaches the USBIP client, so devices created with <code>autoAttachLocalhost = true</code> appear on
+your machine without any manual USBIP interaction.</p>
+<h3 id="bus-management">Bus management</h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CreateUSBBus(serverHandle, &amp;busID)</code></td>
+<td>Create a new USB bus (pass <code>0</code> to auto-assign ID)</td>
+</tr>
+<tr>
+<td><code>RemoveUSBBus(serverHandle, busID)</code></td>
+<td>Remove a bus and all its devices</td>
+</tr>
+<tr>
+<td><code>SetUSBAutoAttachWindowsNative(serverHandle, useNativeIOCTL)</code></td>
+<td>Windows only: attach via native IOCTL (default) or usbip.exe</td>
+</tr>
+</tbody>
+</table>
+<h3 id="logging">Logging</h3>
+<p>Pass a <code>VIIPERLogCallback</code> to <code>NewUSBServer</code> to receive log messages from the library.
+Pass <code>NULL</code> to discard all log output.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">typedef</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span><span class="n">VIIPER_LOG_DEBUG</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">-4</span><span class="p">,</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="n">VIIPER_LOG_INFO</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="n">VIIPER_LOG_WARN</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="n">VIIPER_LOG_ERROR</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="p">}</span><span class="w"> </span><span class="n">VIIPERLogLevel</span><span class="p">;</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="k">typedef</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">VIIPERLogCallback</span><span class="p">)(</span><span class="n">VIIPERLogLevel</span><span class="w"> </span><span class="n">level</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">message</span><span class="p">);</span>
+</code></pre></div>
+<h2 id="devices">Devices</h2>
+<p>Each device family has its own create/state/callback functions documented on its page:</p>
+<ul>
+<li><a href="../../devices/xbox360/">Xbox 360 Controller</a></li>
+<li><a href="../../devices/dualshock4/">DualShock 4</a></li>
+<li><a href="../../devices/dualsense/">DualSense (and Edge)</a></li>
+<li><a href="../../devices/ns2pro/">Switch 2 Pro Controller</a></li>
+<li><a href="../../devices/keyboard/">Keyboard</a></li>
+<li><a href="../../devices/mouse/">Mouse</a></li>
+</ul>
+<h3 id="device-telemetry">Device telemetry</h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GetDeviceTelemetry(handle, buffer, bufferSize)</code></td>
+<td>Read live device telemetry (stream health, buffers) as JSON</td>
+</tr>
+</tbody>
+</table>
+<p>Works with any device handle from any family. Call it once with <code>buffer = NULL</code>
+to obtain the required size in bytes (including the null terminator), then
+again with an adequately sized buffer. Returns <code>0</code> for an invalid handle.</p>
+<h3 id="common-device-api">Common device API</h3>
+<h4 id="xbox-360">Xbox 360</h4>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CreateXbox360Device(serverHandle, &amp;handle, busID, autoAttach, vid, pid, subType)</code></td>
+<td>Create a virtual Xbox 360 controller</td>
+</tr>
+<tr>
+<td><code>SetXbox360DeviceState(handle, state)</code></td>
+<td>Push an input state to the device</td>
+</tr>
+<tr>
+<td><code>SetXbox360RumbleCallback(handle, cb)</code></td>
+<td>Register a callback for rumble output</td>
+</tr>
+<tr>
+<td><code>RemoveXbox360Device(handle)</code></td>
+<td>Remove the device</td>
+</tr>
+</tbody>
+</table>
+<h4 id="dualshock-4">DualShock 4</h4>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CreateDS4Device(serverHandle, &amp;handle, busID, autoAttach, vid, pid, meta)</code></td>
+<td>Create a virtual DualShock 4</td>
+</tr>
+<tr>
+<td><code>CreateDS4AudioOnlyDevice(...)</code></td>
+<td>Create an audio-only DualShock 4 sidecar (no HID gamepad)</td>
+</tr>
+<tr>
+<td><code>SetDS4DeviceState(handle, state)</code></td>
+<td>Push an input state to the device</td>
+</tr>
+<tr>
+<td><code>SetDS4MetaState(handle, meta)</code></td>
+<td>Merge-update identity/battery state at runtime</td>
+</tr>
+<tr>
+<td><code>SetDS4OutputCallback(handle, cb)</code></td>
+<td>Register a callback for rumble and LED output</td>
+</tr>
+<tr>
+<td><code>SetDS4SpeakerCallback(handle, cb)</code></td>
+<td>Register a callback for speaker PCM from the host</td>
+</tr>
+<tr>
+<td><code>SetDS4SpeakerResetCallback(handle, cb)</code></td>
+<td>Register a callback for speaker-stream resets</td>
+</tr>
+<tr>
+<td><code>SetDS4MicrophonePCM(handle, data, length)</code></td>
+<td>Queue a microphone PCM frame (320 bytes)</td>
+</tr>
+<tr>
+<td><code>RemoveDS4Device(handle)</code></td>
+<td>Remove the device</td>
+</tr>
+</tbody>
+</table>
+<h4 id="dualsense-and-edge">DualSense (and Edge)</h4>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CreateDualSenseDevice(serverHandle, &amp;handle, busID, autoAttach, vid, pid, meta)</code></td>
+<td>Create a virtual DualSense (HID + audio)</td>
+</tr>
+<tr>
+<td><code>CreateDualSenseEdgeDevice(...)</code></td>
+<td>Create a virtual DualSense Edge (HID + audio)</td>
+</tr>
+<tr>
+<td><code>CreateDualSenseAudioOnlyDevice(...)</code></td>
+<td>Create an audio-only DualSense sidecar (no HID gamepad)</td>
+</tr>
+<tr>
+<td><code>CreateDualSenseEdgeAudioOnlyDevice(...)</code></td>
+<td>Create an audio-only DualSense Edge sidecar</td>
+</tr>
+<tr>
+<td><code>CreateDualSenseGamepadOnlyDevice(...)</code></td>
+<td>Create a gamepad-only DualSense (no audio)</td>
+</tr>
+<tr>
+<td><code>CreateDualSenseEdgeGamepadOnlyDevice(...)</code></td>
+<td>Create a gamepad-only DualSense Edge</td>
+</tr>
+<tr>
+<td><code>SetDualSenseDeviceState(handle, state)</code></td>
+<td>Push an input state to the device</td>
+</tr>
+<tr>
+<td><code>SetDualSenseMetaState(handle, meta)</code></td>
+<td>Merge-update identity/battery/state at runtime</td>
+</tr>
+<tr>
+<td><code>SetDualSenseOutputCallback(handle, cb)</code></td>
+<td>Register a callback for rumble, LEDs and player LEDs</td>
+</tr>
+<tr>
+<td><code>SetDualSenseOutputStateCallback(handle, cb)</code></td>
+<td>Register a callback for the full output state (incl. adaptive triggers)</td>
+</tr>
+<tr>
+<td><code>SetDualSenseRealtimeHapticsCallback(handle, cb)</code></td>
+<td>Register a callback for low-latency rear haptics</td>
+</tr>
+<tr>
+<td><code>SetDualSenseAtomicAudioHapticsCallback(handle, cb)</code></td>
+<td>Register a callback pairing each V5 output state with its speaker PCM</td>
+</tr>
+<tr>
+<td><code>SetDualSenseSpeakerResetCallback(handle, cb)</code></td>
+<td>Register a callback for speaker-stream resets</td>
+</tr>
+<tr>
+<td><code>SetDualSenseAudioOutCallback(handle, cb)</code></td>
+<td>Register a callback for haptics/speaker PCM from the host</td>
+</tr>
+<tr>
+<td><code>SetDualSenseMicrophonePCM(handle, data, length)</code></td>
+<td>Queue a microphone PCM frame (1920 bytes)</td>
+</tr>
+<tr>
+<td><code>RemoveDualSenseDevice(handle)</code></td>
+<td>Remove the device</td>
+</tr>
+</tbody>
+</table>
+<h4 id="switch-2-pro">Switch 2 Pro</h4>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CreateNS2ProDevice(...)</code></td>
+<td>Create a virtual Switch 2 Pro Controller</td>
+</tr>
+<tr>
+<td><code>SetNS2ProDeviceState(handle, state)</code></td>
+<td>Push input state</td>
+</tr>
+<tr>
+<td><code>SetNS2ProMetaState(handle, meta)</code></td>
+<td>Merge-update identity/battery state at runtime</td>
+</tr>
+<tr>
+<td><code>SetNS2ProOutputCallback(handle, cb)</code></td>
+<td>Register output (rumble/LED) callback</td>
+</tr>
+<tr>
+<td><code>RemoveNS2ProDevice(handle)</code></td>
+<td>Remove the device</td>
+</tr>
+</tbody>
+</table>
+<h4 id="keyboard">Keyboard</h4>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CreateKeyboardDevice(serverHandle, &amp;handle, busID, autoAttach, vid, pid)</code></td>
+<td>Create a virtual HID keyboard</td>
+</tr>
+<tr>
+<td><code>SetKeyboardDeviceState(handle, state)</code></td>
+<td>Push an input state to the device</td>
+</tr>
+<tr>
+<td><code>SetKeyboardLEDCallback(handle, cb)</code></td>
+<td>Register a callback for LED state changes</td>
+</tr>
+<tr>
+<td><code>RemoveKeyboardDevice(handle)</code></td>
+<td>Remove the device</td>
+</tr>
+</tbody>
+</table>
+<h4 id="mouse">Mouse</h4>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CreateMouseDevice(serverHandle, &amp;handle, busID, autoAttach, vid, pid)</code></td>
+<td>Create a virtual HID mouse</td>
+</tr>
+<tr>
+<td><code>SetMouseDeviceState(handle, state)</code></td>
+<td>Push an input state to the device</td>
+</tr>
+<tr>
+<td><code>RemoveMouseDevice(handle)</code></td>
+<td>Remove the device</td>
+</tr>
+</tbody>
+</table>
+<h2 id="examples">Examples</h2>
+<p>Full working examples are in <a href="https://github.com/DualSenseClient/VIIPER/tree/main/examples/libVIIPER"><code>examples/libVIIPER/</code></a>.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">C</label><label for="__tabbed_1_2">C#</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">USBServerConfig</span><span class="w"> </span><span class="n">conf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">.</span><span class="n">addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"localhost:3245"</span><span class="w"> </span><span class="p">};</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">USBServerHandle</span><span class="w"> </span><span class="n">serverHandle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">NewUSBServer</span><span class="p">(</span><span class="o">&amp;</span><span class="n">conf</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="n">logCallback</span><span class="p">);</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="kt">uint32_t</span><span class="w"> </span><span class="n">busID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">CreateUSBBus</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">busID</span><span class="p">);</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">Xbox360DeviceHandle</span><span class="w"> </span><span class="n">deviceHandle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="n">CreateXbox360Device</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">busID</span><span class="p">,</span><span class="w"> </span><span class="cm">/*autoAttach=*/</span><span class="nb">true</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="n">SetXbox360RumbleCallback</span><span class="p">(</span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">rumbleCallback</span><span class="p">);</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="n">Xbox360DeviceState</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="p">};</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">running</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">    </span><span class="c1">// only required when an actual change occurs</span>
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">Buttons</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">XBOX360_BUTTON_A</span><span class="p">;</span>
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">LT</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="mi">128</span><span class="p">;</span>
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">LX</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="mi">20000</span><span class="p">;</span>
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="w">    </span><span class="n">SetXbox360DeviceState</span><span class="p">(</span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">);</span>
+<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="w">    </span><span class="n">_sleep</span><span class="p">(</span><span class="mi">16</span><span class="p">);</span>
+<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a><span class="p">}</span>
+<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>
+<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="n">CloseUSBServer</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">);</span>
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">USBServerConfig</span><span class="w"> </span><span class="n">conf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"localhost:3245"</span><span class="w"> </span><span class="p">};</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">NewUSBServer</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">conf</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="k">nuint</span><span class="w"> </span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="n">logCb</span><span class="p">);</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="kt">uint</span><span class="w"> </span><span class="n">busID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">CreateUSBBus</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">busID</span><span class="p">);</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">CreateXbox360Device</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="k">nuint</span><span class="w"> </span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">busID</span><span class="p">,</span><span class="w"> </span><span class="n">autoAttachLocalhost</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">Xbox360RumbleCallbackDelegate</span><span class="w"> </span><span class="n">rumbleCb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RumbleCallback</span><span class="p">;</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">SetXbox360RumbleCallback</span><span class="p">(</span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">rumbleCb</span><span class="p">);</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="n">Xbox360DeviceState</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="p">();</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">running</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">    </span><span class="c1">// only required when an actual change occurs</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">Buttons</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Xbox360Buttons</span><span class="p">.</span><span class="n">A</span><span class="p">;</span>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">LT</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="mi">128</span><span class="p">;</span>
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">LX</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="mi">20000</span><span class="p">;</span>
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">    </span><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">SetXbox360DeviceState</span><span class="p">(</span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">);</span>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">    </span><span class="n">Thread</span><span class="p">.</span><span class="n">Sleep</span><span class="p">(</span><span class="mi">16</span><span class="p">);</span>
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="p">}</span>
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">CloseUSBServer</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">);</span>
+</code></pre></div>
+<p>See <a href="https://github.com/DualSenseClient/VIIPER/tree/main/examples/libVIIPER/csharp"><code>examples/libVIIPER/csharp/</code></a> for the full project including P/Invoke declarations.</p>
+<p>For a complete C# reference (all functions, structs, enums and callbacks), see
+the <a href="../csharp/">C# Bindings</a> page. If you prefer a managed TCP client instead of
+P/Invoke, see <a href="../client-libraries/">Client Libraries</a>.</p>
+</div>
+</div>
+</div>
+<h2 id="c-interop-notes">C# Interop Notes</h2>
+<p>When calling from C#, keep the delegate instances alive for the lifetime of the
+device/server they are registered on — the garbage collector cannot see references
+held by native code:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">Xbox360RumbleCallbackDelegate</span><span class="w"> </span><span class="n">rumbleCb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RumbleCallback</span><span class="p">;</span><span class="w"> </span><span class="c1">// keep in a field</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">VIIPERLogCallbackDelegate</span><span class="w"> </span><span class="n">logCb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">LogCallback</span><span class="p">;</span><span class="w">            </span><span class="c1">// keep in a field</span>
+</code></pre></div>
+<ul>
+<li><code>[StructLayout(LayoutKind.Sequential)]</code> structs must mirror the C layout exactly
+  (see the example project).</li>
+<li><code>[UnmanagedFunctionPointer(CallingConvention.Cdecl)]</code> is required on callback delegates.</li>
+<li><code>[DllImport("libVIIPER", CallingConvention = CallingConvention.Cdecl)]</code> on all functions.</li>
+<li><code>bool</code> returns need <code>[return: MarshalAs(UnmanagedType.I1)]</code>.</li>
+<li>String members of config/meta structs are marshaled with <code>[MarshalAs(UnmanagedType.LPStr)]</code>.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4M12 16V8"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"../..","features":["navigation.instant","navigation.tracking","navigation.tabs","navigation.sections","navigation.expand","navigation.top","search.suggest","search.highlight","content.code.copy"],"search":"../../assets/javascripts/workers/search.7d14d953.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.49251538.min.js"></script>
+      
+    
+  </body>
+</html>
