@@ -149,10 +149,7 @@ func releaseDualSenseIdentity(devPtr *usb.Device, deviceName string) {
 	serial := dse.metaState.SerialNumber
 	mac := dse.metaState.MACAddress
 	dse.metaMu.Unlock()
-	identityMu.Lock()
-	delete(serials, serial)
-	delete(macs, mac)
-	identityMu.Unlock()
+	releaseIdentitySlots(serial, mac)
 	slog.Debug(deviceName+" disconnected, serial/mac released", "serial", serial, "mac", mac)
 }
 

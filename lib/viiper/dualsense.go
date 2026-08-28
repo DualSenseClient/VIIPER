@@ -110,6 +110,18 @@ typedef struct {
 	uint8_t     ConnectionStatus;   // 0 = use default (DS_CONNECTION_* flags)
 } DSMetaState;
 
+// Physical raw-input metadata accompanying the legacy 33-byte input state;
+// together they form the 53-byte ...v5rawinput... wire payload.
+#define DS_RAW_INPUT_METADATA_SIZE 15
+
+typedef struct {
+	uint8_t  Valid;      // 0 = metadata invalid/ignored
+	uint8_t  EdgeLayout; // non-zero = metadata normalized from an Edge-layout report
+	uint8_t  Reserved[2];
+	uint32_t SensorTimestamp; // physical input report bytes 28:32
+	uint8_t  PhysicalMetadata[DS_RAW_INPUT_METADATA_SIZE]; // normalized physical report metadata
+} DSRawInputMetadata;
+
 typedef void (*DSOutputCallback)(DSDeviceHandle handle, uint8_t rumbleSmall, uint8_t rumbleLarge, uint8_t ledRed, uint8_t ledGreen, uint8_t ledBlue, uint8_t playerLeds);
 
 static void viiper_call_ds_output(DSOutputCallback fn, DSDeviceHandle handle, uint8_t rumbleSmall, uint8_t rumbleLarge, uint8_t ledRed, uint8_t ledGreen, uint8_t ledBlue, uint8_t playerLeds) {
@@ -185,6 +197,7 @@ import (
 	"log/slog"
 	"runtime/cgo"
 	"slices"
+	"strings"
 	"time"
 	"unsafe"
 
@@ -212,7 +225,7 @@ func CreateDualSenseDevice(
 	idProduct uint16,
 	meta *C.DSMetaState,
 ) bool {
-	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, dualsense.New, false)
+	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, buildFromConstructor(dualsense.New, false))
 }
 
 // CreateDualSenseEdgeDevice creates a new DualSense Edge device on the bus with the given ID on the server associated with the given handle.
@@ -234,7 +247,7 @@ func CreateDualSenseEdgeDevice(
 	idProduct uint16,
 	meta *C.DSMetaState,
 ) bool {
-	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, dualsense.NewEdge, true)
+	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, buildFromConstructor(dualsense.NewEdge, true))
 }
 
 // CreateDualSenseAudioOnlyDevice creates a DualSense exposing only the audio
@@ -257,7 +270,7 @@ func CreateDualSenseAudioOnlyDevice(
 	idProduct uint16,
 	meta *C.DSMetaState,
 ) bool {
-	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, dualsense.NewAudioOnly, false)
+	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, buildFromConstructor(dualsense.NewAudioOnly, false))
 }
 
 // CreateDualSenseEdgeAudioOnlyDevice creates a DualSense Edge exposing only the audio
@@ -280,7 +293,7 @@ func CreateDualSenseEdgeAudioOnlyDevice(
 	idProduct uint16,
 	meta *C.DSMetaState,
 ) bool {
-	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, dualsense.NewEdgeAudioOnly, true)
+	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, buildFromConstructor(dualsense.NewEdgeAudioOnly, true))
 }
 
 // CreateDualSenseGamepadOnlyDevice creates a DualSense exposing only the HID gamepad interface.
@@ -302,7 +315,7 @@ func CreateDualSenseGamepadOnlyDevice(
 	idProduct uint16,
 	meta *C.DSMetaState,
 ) bool {
-	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, dualsense.NewGamepadOnly, false)
+	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, buildFromConstructor(dualsense.NewGamepadOnly, false))
 }
 
 // CreateDualSenseEdgeGamepadOnlyDevice creates a DualSense Edge exposing only the HID gamepad interface.
@@ -324,7 +337,7 @@ func CreateDualSenseEdgeGamepadOnlyDevice(
 	idProduct uint16,
 	meta *C.DSMetaState,
 ) bool {
-	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, dualsense.NewEdgeGamepadOnly, true)
+	return createDualSenseDevice(serverHandle, outDeviceHandle, busID, autoAttachLocalhost, idVendor, idProduct, meta, buildFromConstructor(dualsense.NewEdgeGamepadOnly, true))
 }
 
 func createDualSenseDevice(
@@ -335,8 +348,7 @@ func createDualSenseDevice(
 	idVendor uint16,
 	idProduct uint16,
 	meta *C.DSMetaState,
-	ctor func(*device.CreateOptions) (*dualsense.DualSense, error),
-	edge bool,
+	build dsBuildFunc,
 ) bool {
 	sh := cgo.Handle(serverHandle)
 	shw, ok := sh.Value().(*usbServerHandleWrapper)
@@ -376,24 +388,18 @@ func createDualSenseDevice(
 		opts.DeviceSpecific = string(b)
 	}
 
-	lease, err := dualsense.AcquireIdentity(opts, edge)
+	d, releaseIdentity, err := build(opts)
 	if err != nil {
-		return false
-	}
-
-	d, err := ctor(opts)
-	if err != nil {
-		lease.Release()
 		return false
 	}
 	devCtx, err := bus.Add(d)
 	if err != nil {
-		lease.Release()
+		releaseIdentity()
 		return false
 	}
 	exportMeta := device.GetDeviceMeta(devCtx)
 	if exportMeta == nil {
-		lease.Release()
+		releaseIdentity()
 		return false
 	}
 
@@ -407,7 +413,7 @@ func createDualSenseDevice(
 		)
 		if err != nil {
 			slog.Error("failed to auto-attach localhost client", "error", err)
-			lease.Release()
+			releaseIdentity()
 			return false
 		}
 	}
@@ -416,7 +422,7 @@ func createDualSenseDevice(
 		device:          d,
 		exportMeta:      exportMeta,
 		usbServer:       shw,
-		releaseIdentity: lease.Release,
+		releaseIdentity: releaseIdentity,
 	}
 	*outDeviceHandle = C.DSDeviceHandle(cgo.NewHandle(handleWrapper))
 
@@ -426,22 +432,129 @@ func createDualSenseDevice(
 	return true
 }
 
+// dsBuildFunc constructs a DualSense device plus the release hook for the
+// identity registration reserved during construction.
+type dsBuildFunc func(opts *device.CreateOptions) (*dualsense.DualSense, func(), error)
+
+func buildFromConstructor(ctor func(*device.CreateOptions) (*dualsense.DualSense, error),
+	edge bool) dsBuildFunc {
+	return func(opts *device.CreateOptions) (*dualsense.DualSense, func(), error) {
+		lease, err := dualsense.AcquireIdentity(opts, edge)
+		if err != nil {
+			return nil, nil, err
+		}
+		d, err := ctor(opts)
+		if err != nil {
+			lease.Release()
+			return nil, nil, err
+		}
+		return d, lease.Release, nil
+	}
+}
+
+func buildFromRegistry(deviceType string) dsBuildFunc {
+	return func(opts *device.CreateOptions) (*dualsense.DualSense, func(), error) {
+		reg := api.GetRegistration(deviceType)
+		if reg == nil {
+			return nil, nil, fmt.Errorf("unknown device type %q", deviceType)
+		}
+		dev, err := reg.CreateDevice(opts)
+		if err != nil {
+			return nil, nil, err
+		}
+		ds, ok := dev.(*dualsense.DualSense)
+		if !ok {
+			dualsense.ReleaseDeviceIdentity(dev)
+			return nil, nil, fmt.Errorf("device type %q is not a DualSense variant", deviceType)
+		}
+		return ds, func() { dualsense.ReleaseDeviceIdentity(ds) }, nil
+	}
+}
+
+// CreateDualSenseDeviceByType creates a DualSense family device selected by a
+// registered device type name. In addition to the classic variants covered by
+// the dedicated Create* functions, this reaches the events and raw-input
+// aliases (e.g. "dualsensecombinedaudioduplexv5rawinputevents").
+// @param serverHandle Handle to the USB server.
+// @param outDeviceHandle Output parameter for the created device handle.
+// @param busID ID of the bus to add the device to.
+// @param autoAttachLocalhost If true, the device will be automatically attached to a USBIP-Client/Driver running on THIS machine.
+// @param idVendor Optional USB vendor ID (0 = default).
+// @param idProduct Optional USB product ID (0 = default).
+// @param meta Optional pointer to initial device metadata. Pass NULL to use defaults.
+// @param deviceType Registered DualSense device type name (case-insensitive).
+//
+//export CreateDualSenseDeviceByType
+func CreateDualSenseDeviceByType(
+	serverHandle C.USBServerHandle,
+	outDeviceHandle *C.DSDeviceHandle,
+	busID uint32,
+	autoAttachLocalhost bool,
+	idVendor uint16,
+	idProduct uint16,
+	meta *C.DSMetaState,
+	deviceType *C.char,
+) bool {
+	name := goStringOrEmpty(deviceType)
+	if !isRegisteredDualSenseType(name) {
+		return false
+	}
+	return createDualSenseDevice(serverHandle, outDeviceHandle, busID,
+		autoAttachLocalhost, idVendor, idProduct, meta,
+		buildFromRegistry(strings.ToLower(name)))
+}
+
+func isRegisteredDualSenseType(name string) bool {
+	name = strings.ToLower(name)
+	return strings.HasPrefix(name, "dualsense") && api.GetRegistration(name) != nil
+}
+
 // SetDualSenseDeviceState updates the input state of the DualSense device associated with the given handle.
 // @param handle Handle to the DualSense device.
 // @param state New input state to set on the device.
 //
 //export SetDualSenseDeviceState
 func SetDualSenseDeviceState(handle C.DSDeviceHandle, state C.DSDeviceState) bool {
-	dh := cgo.Handle(handle)
-	dhw, ok := dh.Value().(*deviceHandleWrapper)
-	if !ok {
-		return false
+	return setDualSenseInputState(handle, toGoInputState(state))
+}
+
+// SetDualSenseDeviceStateRaw updates the input state together with physical
+// raw-input metadata, mirroring the 53-byte ...v5rawinput... wire payload as
+// one atomic unit. Pass NULL (or a struct with Valid = 0) to behave exactly
+// like SetDualSenseDeviceState; the presented USB input report then carries
+// the neutral metadata fallback.
+// @param handle Handle to the DualSense device.
+// @param state New input state to set on the device.
+// @param raw Optional physical metadata accompanying the state.
+//
+//export SetDualSenseDeviceStateRaw
+func SetDualSenseDeviceStateRaw(handle C.DSDeviceHandle, state C.DSDeviceState,
+	raw *C.DSRawInputMetadata) bool {
+	s := toGoInputState(state)
+	if raw != nil {
+		metadata := make([]byte, len(raw.PhysicalMetadata))
+		for i, b := range raw.PhysicalMetadata {
+			metadata[i] = byte(b)
+		}
+		applyRawInputMetadata(s, raw.Valid != 0, raw.EdgeLayout != 0,
+			uint32(raw.SensorTimestamp), metadata)
 	}
-	dsDevice, ok := dhw.device.(*dualsense.DualSense)
-	if !ok {
-		return false
+	return setDualSenseInputState(handle, s)
+}
+
+func applyRawInputMetadata(s *dualsense.InputState, valid, edgeLayout bool,
+	sensorTimestamp uint32, physicalMetadata []byte) {
+	if !valid {
+		return
 	}
-	s := &dualsense.InputState{
+	s.PhysicalMetadataValid = true
+	s.PhysicalMetadataEdgeLayout = edgeLayout
+	s.PhysicalSensorTimestamp = sensorTimestamp
+	copy(s.PhysicalInputMetadata[:], physicalMetadata)
+}
+
+func toGoInputState(state C.DSDeviceState) *dualsense.InputState {
+	return &dualsense.InputState{
 		LX:             int8(state.LX),
 		LY:             int8(state.LY),
 		RX:             int8(state.RX),
@@ -464,6 +577,18 @@ func SetDualSenseDeviceState(handle C.DSDeviceHandle, state C.DSDeviceState) boo
 		AccelX:         int16(state.AccelX),
 		AccelY:         int16(state.AccelY),
 		AccelZ:         int16(state.AccelZ),
+	}
+}
+
+func setDualSenseInputState(handle C.DSDeviceHandle, s *dualsense.InputState) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	dsDevice, ok := dhw.device.(*dualsense.DualSense)
+	if !ok {
+		return false
 	}
 	dsDevice.UpdateInputState(s)
 	return true

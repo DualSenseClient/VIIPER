@@ -410,6 +410,20 @@ struct DSDeviceState
     public short  AccelX, AccelY, AccelZ;
 }
 
+// Physical raw-input metadata accompanying DSDeviceState; together they form
+// the 53-byte ...v5rawinput... wire payload. Zero-init (Valid = 0) disables.
+[StructLayout(LayoutKind.Sequential)]
+struct DSRawInputMetadata
+{
+    public byte Valid;      // 0 = metadata invalid/ignored
+    public byte EdgeLayout; // non-zero = metadata normalized from an Edge-layout report
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
+    public byte[] Reserved;
+    public uint SensorTimestamp; // physical input report bytes 28:32
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 15)]
+    public byte[] PhysicalMetadata; // normalized physical report metadata
+}
+
 [StructLayout(LayoutKind.Sequential)]
 struct NS2ProDeviceState
 {
@@ -634,6 +648,16 @@ LibVIIPER.GetDeviceTelemetry(dsHandle, json, size);
 string telemetry = System.Text.Encoding.UTF8.GetString(json, 0, (int)size - 1);
 ```
 
+### Server diagnostics
+
+```csharp
+    // Aggregate USB/IP endpoint scheduling diagnostics for all attached
+    // connections as JSON. Same two-call buffer pattern as GetDeviceTelemetry;
+    // returns 0 for an invalid handle.
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    public static extern nuint GetUSBEndpointDiagnostics(nuint serverHandle, byte[]? buffer, nuint bufferSize);
+```
+
 ### Xbox 360
 
 ```csharp
@@ -741,9 +765,27 @@ string telemetry = System.Text.Encoding.UTF8.GetString(json, 0, (int)size - 1);
         uint busID, [MarshalAs(UnmanagedType.I1)] bool autoAttachLocalhost,
         ushort idVendor, ushort idProduct, ref DSMetaState meta);
 
+    // Creates any registered DualSense variant by its device type name,
+    // including the events and raw-input aliases, e.g.
+    // "dualsensecombinedaudioduplexv5rawinputevents" (case-insensitive).
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool CreateDualSenseDeviceByType(nuint serverHandle, out nuint outDeviceHandle,
+        uint busID, [MarshalAs(UnmanagedType.I1)] bool autoAttachLocalhost,
+        ushort idVendor, ushort idProduct, ref DSMetaState meta,
+        [MarshalAs(UnmanagedType.LPStr)] string deviceType);
+
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool SetDualSenseDeviceState(nuint deviceHandle, DSDeviceState state);
+
+    // Atomic input state + physical raw-input metadata update. Pass a
+    // zero-initialized raw struct (Valid = 0) to behave exactly like
+    // SetDualSenseDeviceState.
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool SetDualSenseDeviceStateRaw(nuint deviceHandle, DSDeviceState state,
+        ref DSRawInputMetadata raw);
 
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.I1)]

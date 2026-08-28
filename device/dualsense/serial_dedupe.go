@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/DualSenseClient/VIIPER/device"
+	"github.com/DualSenseClient/VIIPER/usb"
 )
 
 var (
@@ -26,9 +27,29 @@ func (l *IdentityLease) Release() {
 	if l == nil {
 		return
 	}
+	releaseIdentitySlots(l.serial, l.mac)
+}
+
+// ReleaseDeviceIdentity frees the identity slots currently reserved for dev.
+// It exists for creators that construct devices through the registered device
+// handlers (which acquire identity internally without returning a lease), such
+// as libVIIPER.
+func ReleaseDeviceIdentity(dev usb.Device) {
+	dse, ok := dev.(*DualSense)
+	if !ok {
+		return
+	}
+	dse.metaMu.Lock()
+	serial := dse.metaState.SerialNumber
+	mac := dse.metaState.MACAddress
+	dse.metaMu.Unlock()
+	releaseIdentitySlots(serial, mac)
+}
+
+func releaseIdentitySlots(serial, mac string) {
 	identityMu.Lock()
-	delete(serials, l.serial)
-	delete(macs, l.mac)
+	delete(serials, serial)
+	delete(macs, mac)
 	identityMu.Unlock()
 }
 
@@ -106,10 +127,7 @@ func AcquireIdentity(o *device.CreateOptions, edge bool) (*IdentityLease, error)
 
 	b, err := json.Marshal(metaState)
 	if err != nil {
-		identityMu.Lock()
-		delete(serials, serial)
-		delete(macs, mac)
-		identityMu.Unlock()
+		releaseIdentitySlots(serial, mac)
 		return nil, fmt.Errorf("marshal meta state: %w", err)
 	}
 	o.DeviceSpecific = string(b)

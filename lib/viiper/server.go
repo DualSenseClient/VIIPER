@@ -29,6 +29,7 @@ static void viiper_call_log(VIIPERLogCallback fn, VIIPERLogLevel level, const ch
 import "C"
 
 import (
+	"encoding/json"
 	"log/slog"
 	"runtime/cgo"
 	"time"
@@ -123,6 +124,34 @@ func SetUSBAutoAttachWindowsNative(serverHandle C.USBServerHandle, useNativeIOCT
 	}
 	shw.useNativeIOCTL.Store(useNativeIOCTL)
 	return true
+}
+
+// GetUSBEndpointDiagnostics writes aggregate USB/IP endpoint scheduling
+// diagnostics for all currently attached connections to buffer as a JSON
+// object. Call it once with buffer = NULL to obtain the required size
+// including the null terminator, then again with an adequately sized buffer;
+// nothing is written when the buffer is NULL or too small. Returns 0 for an
+// invalid handle.
+// @param handle Handle to the USB server.
+// @param buffer Output buffer for the null-terminated JSON. Pass NULL to query the required size.
+// @param bufferSize Size of the output buffer in bytes.
+//
+//export GetUSBEndpointDiagnostics
+func GetUSBEndpointDiagnostics(handle C.USBServerHandle, buffer *C.char, bufferSize C.size_t) C.size_t {
+	h := cgo.Handle(handle)
+	hw, ok := h.Value().(*usbServerHandleWrapper)
+	if !ok {
+		return 0
+	}
+	payload, err := json.Marshal(hw.s.EndpointDiagnosticsSnapshot())
+	if err != nil {
+		return 0
+	}
+	var dst []byte
+	if buffer != nil {
+		dst = unsafe.Slice((*byte)(unsafe.Pointer(buffer)), bufferSize)
+	}
+	return C.size_t(writeTelemetry(dst, payload))
 }
 
 // CloseUSBServer closes the USB server associated with the given handle.

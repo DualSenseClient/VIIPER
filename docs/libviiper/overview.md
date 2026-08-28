@@ -98,10 +98,12 @@ Each device family has its own create/state/callback functions documented on its
 | Function | Description |
 | --- | --- |
 | `GetDeviceTelemetry(handle, buffer, bufferSize)` | Read live device telemetry (stream health, buffers) as JSON |
+| `GetUSBEndpointDiagnostics(serverHandle, buffer, bufferSize)` | Read aggregate USB/IP endpoint scheduling diagnostics as JSON |
 
-Works with any device handle from any family. Call it once with `buffer = NULL`
+Both work with the two-call buffer pattern: call once with `buffer = NULL`
 to obtain the required size in bytes (including the null terminator), then
 again with an adequately sized buffer. Returns `0` for an invalid handle.
+`GetDeviceTelemetry` accepts any device handle from any family.
 
 ### Common device API
 
@@ -138,7 +140,9 @@ again with an adequately sized buffer. Returns `0` for an invalid handle.
 | `CreateDualSenseEdgeAudioOnlyDevice(...)` | Create an audio-only DualSense Edge sidecar |
 | `CreateDualSenseGamepadOnlyDevice(...)` | Create a gamepad-only DualSense (no audio) |
 | `CreateDualSenseEdgeGamepadOnlyDevice(...)` | Create a gamepad-only DualSense Edge |
+| `CreateDualSenseDeviceByType(..., deviceType)` | Create any registered DualSense variant by name (incl. `...v5events` / `...v5rawinput...` aliases) |
 | `SetDualSenseDeviceState(handle, state)` | Push an input state to the device |
+| `SetDualSenseDeviceStateRaw(handle, state, raw)` | Push an input state with physical raw-input metadata (53-byte payload) |
 | `SetDualSenseMetaState(handle, meta)` | Merge-update identity/battery/state at runtime |
 | `SetDualSenseOutputCallback(handle, cb)` | Register a callback for rumble, LEDs and player LEDs |
 | `SetDualSenseOutputStateCallback(handle, cb)` | Register a callback for the full output state (incl. adaptive triggers) |
