@@ -1520,11 +1520,16 @@ Pass <code>NULL</code> to discard all log output.</p>
 <td><code>GetDeviceTelemetry(handle, buffer, bufferSize)</code></td>
 <td>Read live device telemetry (stream health, buffers) as JSON</td>
 </tr>
+<tr>
+<td><code>GetUSBEndpointDiagnostics(serverHandle, buffer, bufferSize)</code></td>
+<td>Read aggregate USB/IP endpoint scheduling diagnostics as JSON</td>
+</tr>
 </tbody>
 </table>
-<p>Works with any device handle from any family. Call it once with <code>buffer = NULL</code>
+<p>Both work with the two-call buffer pattern: call once with <code>buffer = NULL</code>
 to obtain the required size in bytes (including the null terminator), then
-again with an adequately sized buffer. Returns <code>0</code> for an invalid handle.</p>
+again with an adequately sized buffer. Returns <code>0</code> for an invalid handle.
+<code>GetDeviceTelemetry</code> accepts any device handle from any family.</p>
 <h3 id="common-device-api">Common device API</h3>
 <h4 id="xbox-360">Xbox 360</h4>
 <table>
@@ -1634,8 +1639,16 @@ again with an adequately sized buffer. Returns <code>0</code> for an invalid han
 <td>Create a gamepad-only DualSense Edge</td>
 </tr>
 <tr>
+<td><code>CreateDualSenseDeviceByType(..., deviceType)</code></td>
+<td>Create any registered DualSense variant by name (incl. <code>...v5events</code> / <code>...v5rawinput...</code> aliases)</td>
+</tr>
+<tr>
 <td><code>SetDualSenseDeviceState(handle, state)</code></td>
 <td>Push an input state to the device</td>
+</tr>
+<tr>
+<td><code>SetDualSenseDeviceStateRaw(handle, state, raw)</code></td>
+<td>Push an input state with physical raw-input metadata (53-byte payload)</td>
 </tr>
 <tr>
 <td><code>SetDualSenseMetaState(handle, meta)</code></td>
