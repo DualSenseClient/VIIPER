@@ -8,40 +8,21 @@ theme:
   name: material
   logo: viiper.svg
   palette:
-  # Light mode
-  - media: "(prefers-color-scheme: light)"
-    scheme: default
-    primary: custom
-    accent: custom
-    toggle:
-      icon: material/brightness-7
-      name: Switch to dark mode
-  # Dark mode
-  - media: "(prefers-color-scheme: dark)"
-    scheme: slate
-    primary: custom
-    accent: custom
-    toggle:
-      icon: material/brightness-4
-      name: Switch to light mode
+    - scheme: slate
+      primary: blue
+      accent: light blue
   features:
-  - navigation.instant
-  - navigation.tracking
-  - navigation.tabs
-  - navigation.sections
-  - navigation.expand
-  - navigation.top
-  - search.suggest
-  - search.highlight
-  - content.code.copy
-
-extra:
-  version:
-    provider: mike
-    default: stable
-
-extra_css:
-- stylesheets/extra.css
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/github
 
 markdown_extensions:
 - pymdownx.highlight:

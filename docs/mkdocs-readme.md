@@ -1,13 +1,15 @@
-# MkDocs Documentation
+# Zensical Documentation
 
-This directory contains the MkDocs-based documentation for VIIPER.
+This directory contains the Zensical-based documentation for VIIPER (drop-in MkDocs replacement, see `mkdocs.yml`).
 
 ## Setup
 
-Install MkDocs with Material theme:
+Install Zensical (bundles the Material theme):
 
 ```bash
-pip install mkdocs-material
+pip install -r requirements.txt
+# or
+pip install zensical
 ```
 
 ## Development
@@ -15,8 +17,7 @@ pip install mkdocs-material
 Run the documentation server locally:
 
 ```bash
-cd doc
-mkdocs serve
+zensical serve
 ```
 
 Then open http://127.0.0.1:8000/ in your browser.
@@ -26,20 +27,20 @@ Then open http://127.0.0.1:8000/ in your browser.
 Build the static documentation site:
 
 ```bash
-cd doc
-mkdocs build
+zensical build --strict
 ```
 
 The built site will be in the `site/` directory.
 
 ## Deployment
 
-Deploy to GitHub Pages:
+Deployment is automated via GitHub Actions (`.github/workflows/docs-deploy.yml`):
 
 ```bash
-cd doc
-mkdocs gh-deploy
+zensical build --strict
 ```
+
+The `site/` directory is uploaded as a Pages artifact and deployed to GitHub Pages.
 
 ## Documentation Structure
 
