@@ -130,6 +130,20 @@ func (vb *VirtualBus) GetAllDeviceMetas() []DeviceMeta {
 	return out
 }
 
+// GetDeviceByID performs a direct, allocation-free lookup for narrow status
+// endpoints. The returned interface remains owned by the bus; callers must not
+// retain it across device lifecycle operations.
+func (vb *VirtualBus) GetDeviceByID(deviceID uint32) (usb.Device, bool) {
+	vb.mtx.Lock()
+	defer vb.mtx.Unlock()
+	for i := range vb.devices {
+		if vb.devices[i].meta.DevID == deviceID {
+			return vb.devices[i].dev, true
+		}
+	}
+	return nil, false
+}
+
 // BusID returns the bus number for this VirtualBus.
 func (vb *VirtualBus) BusID() uint32 {
 	vb.mtx.Lock()

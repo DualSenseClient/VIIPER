@@ -22,39 +22,41 @@ const (
 )
 
 type dualSenseSpeakerStreamTelemetry struct {
-	receivedPayloads atomic.Uint64
-	receivedBytes    atomic.Uint64
-	enqueuedPayloads atomic.Uint64
-	enqueuedBytes    atomic.Uint64
-	droppedPayloads  atomic.Uint64
-	droppedBytes     atomic.Uint64
-	writtenPayloads  atomic.Uint64
-	writtenBytes     atomic.Uint64
-	writeFailures    atomic.Uint64
-	queueDepth       atomic.Uint64
-	queueHighWater   atomic.Uint64
-	lastEnqueueNS    atomic.Int64
-	maxEnqueueGapNS  atomic.Int64
-	lastWriteNS      atomic.Int64
-	maxWriteGapNS    atomic.Int64
-	active           atomic.Bool
+	receivedPayloads             atomic.Uint64
+	receivedBytes                atomic.Uint64
+	enqueuedPayloads             atomic.Uint64
+	enqueuedBytes                atomic.Uint64
+	droppedPayloads              atomic.Uint64
+	droppedBytes                 atomic.Uint64
+	writtenPayloads              atomic.Uint64
+	writtenBytes                 atomic.Uint64
+	writeFailures                atomic.Uint64
+	queueDepth                   atomic.Uint64
+	queueHighWater               atomic.Uint64
+	lastEnqueueNS                atomic.Int64
+	maxEnqueueGapNS              atomic.Int64
+	lastWriteNS                  atomic.Int64
+	maxWriteGapNS                atomic.Int64
+	microphoneInterfaceOverflows atomic.Uint64
+	active                       atomic.Bool
 }
 
 type dualSenseSpeakerStreamSnapshot struct {
-	ReceivedPayloads uint64
-	ReceivedBytes    uint64
-	EnqueuedPayloads uint64
-	EnqueuedBytes    uint64
-	DroppedPayloads  uint64
-	DroppedBytes     uint64
-	WrittenPayloads  uint64
-	WrittenBytes     uint64
-	WriteFailures    uint64
-	QueueDepth       uint64
-	QueueHighWater   uint64
-	MaxEnqueueGapUS  int64
-	MaxWriteGapUS    int64
-	Active           bool
+	ReceivedPayloads             uint64
+	ReceivedBytes                uint64
+	EnqueuedPayloads             uint64
+	EnqueuedBytes                uint64
+	DroppedPayloads              uint64
+	DroppedBytes                 uint64
+	WrittenPayloads              uint64
+	WrittenBytes                 uint64
+	WriteFailures                uint64
+	QueueDepth                   uint64
+	QueueHighWater               uint64
+	MaxEnqueueGapUS              int64
+	MaxWriteGapUS                int64
+	MicrophoneInterfaceOverflows uint64
+	Active                       bool
 }
 
 func (s *dualSenseSpeakerStreamTelemetry) snapshot() dualSenseSpeakerStreamSnapshot {
@@ -62,20 +64,21 @@ func (s *dualSenseSpeakerStreamTelemetry) snapshot() dualSenseSpeakerStreamSnaps
 		return dualSenseSpeakerStreamSnapshot{}
 	}
 	return dualSenseSpeakerStreamSnapshot{
-		ReceivedPayloads: s.receivedPayloads.Load(),
-		ReceivedBytes:    s.receivedBytes.Load(),
-		EnqueuedPayloads: s.enqueuedPayloads.Load(),
-		EnqueuedBytes:    s.enqueuedBytes.Load(),
-		DroppedPayloads:  s.droppedPayloads.Load(),
-		DroppedBytes:     s.droppedBytes.Load(),
-		WrittenPayloads:  s.writtenPayloads.Load(),
-		WrittenBytes:     s.writtenBytes.Load(),
-		WriteFailures:    s.writeFailures.Load(),
-		QueueDepth:       s.queueDepth.Load(),
-		QueueHighWater:   s.queueHighWater.Load(),
-		MaxEnqueueGapUS:  s.maxEnqueueGapNS.Load() / int64(time.Microsecond),
-		MaxWriteGapUS:    s.maxWriteGapNS.Load() / int64(time.Microsecond),
-		Active:           s.active.Load(),
+		ReceivedPayloads:             s.receivedPayloads.Load(),
+		ReceivedBytes:                s.receivedBytes.Load(),
+		EnqueuedPayloads:             s.enqueuedPayloads.Load(),
+		EnqueuedBytes:                s.enqueuedBytes.Load(),
+		DroppedPayloads:              s.droppedPayloads.Load(),
+		DroppedBytes:                 s.droppedBytes.Load(),
+		WrittenPayloads:              s.writtenPayloads.Load(),
+		WrittenBytes:                 s.writtenBytes.Load(),
+		WriteFailures:                s.writeFailures.Load(),
+		QueueDepth:                   s.queueDepth.Load(),
+		QueueHighWater:               s.queueHighWater.Load(),
+		MaxEnqueueGapUS:              s.maxEnqueueGapNS.Load() / int64(time.Microsecond),
+		MaxWriteGapUS:                s.maxWriteGapNS.Load() / int64(time.Microsecond),
+		MicrophoneInterfaceOverflows: s.microphoneInterfaceOverflows.Load(),
+		Active:                       s.active.Load(),
 	}
 }
 
@@ -98,35 +101,61 @@ func recordMaximumUint64(target *atomic.Uint64, value uint64) {
 }
 
 type dualSenseOutputFrame struct {
-	frameType  byte
-	payload    []byte
-	audio      bool
-	generation uint64
+	frameType        byte
+	payload          []byte
+	audio            bool
+	generationTagged bool
+	pool             byte
+	generation       uint64
 }
+
+const (
+	dualSenseOutputPoolNone byte = iota
+	dualSenseOutputPoolControl
+	dualSenseOutputPoolRealtime
+	dualSenseOutputPoolLatest
+	dualSenseOutputPoolMicrophoneRecovery
+)
 
 // dualSenseOutputWriter serializes controller feedback and virtual speaker
 // PCM on one framed stream. USB isochronous completion must never wait for TCP
 // backpressure, so speaker extraction uses a fixed pool and a bounded queue.
 type dualSenseOutputWriter struct {
-	conn            net.Conn
-	logger          *slog.Logger
-	telemetry       *dualSenseSpeakerStreamTelemetry
-	control         chan dualSenseOutputFrame
-	realtimeHaptics chan dualSenseOutputFrame
-	audio           chan dualSenseOutputFrame
-	audioFree       chan []byte
-	stop            chan struct{}
-	done            chan struct{}
-	stopOnce        sync.Once
-	enqueueLock     sync.RWMutex
-	audioEnqueue    sync.Mutex
-	audioWrite      sync.Mutex
-	stopped         bool
-	streamViable    atomic.Bool
-	audioGeneration atomic.Uint64
-	sequence        uint32
-	packet          []byte
-	lastTrace       time.Time
+	conn                     net.Conn
+	logger                   *slog.Logger
+	telemetry                *dualSenseSpeakerStreamTelemetry
+	control                  chan dualSenseOutputFrame
+	realtimeHaptics          chan dualSenseOutputFrame
+	audio                    chan dualSenseOutputFrame
+	controlFree              chan []byte
+	realtimeFree             chan []byte
+	latestOutputFree         chan []byte
+	microphoneRecoveryFree   chan []byte
+	audioFree                chan []byte
+	outputSignal             chan struct{}
+	microphoneRecoverySignal chan struct{}
+	stop                     chan struct{}
+	done                     chan struct{}
+	stopOnce                 sync.Once
+	enqueueLock              sync.RWMutex
+	audioEnqueue             sync.Mutex
+	lifecycleWait            sync.Mutex
+	outputStateMu            sync.Mutex
+	latestOutput             dualSenseOutputFrame
+	hasLatestOutput          bool
+	microphoneRecoveryMu     sync.Mutex
+	microphoneRecovery       dualSenseOutputFrame
+	hasMicrophoneRecovery    bool
+	stopped                  bool
+	streamViable             atomic.Bool
+	audioGeneration          atomic.Uint64
+	audioInFlightGeneration  atomic.Uint64
+	audioInFlightSequence    atomic.Uint64
+	audioWriteComplete       chan struct{}
+	lifecycleTimer           *time.Timer
+	sequence                 uint32
+	packet                   []byte
+	lastTrace                time.Time
 }
 
 func newDualSenseOutputWriter(conn net.Conn,
@@ -138,6 +167,10 @@ func newDualSenseOutputWriter(conn net.Conn,
 	telemetry.lastEnqueueNS.Store(0)
 	telemetry.lastWriteNS.Store(0)
 	telemetry.active.Store(true)
+	lifecycleTimer := time.NewTimer(time.Hour)
+	if !lifecycleTimer.Stop() {
+		<-lifecycleTimer.C
+	}
 	w := &dualSenseOutputWriter{
 		conn:      conn,
 		logger:    logger,
@@ -145,14 +178,30 @@ func newDualSenseOutputWriter(conn net.Conn,
 		control:   make(chan dualSenseOutputFrame, dualSenseOutputControlQueueCapacity),
 		realtimeHaptics: make(chan dualSenseOutputFrame,
 			dualSenseOutputControlQueueCapacity),
-		audio:     make(chan dualSenseOutputFrame, dualSenseOutputAudioQueueCapacity),
-		audioFree: make(chan []byte, dualSenseOutputAudioQueueCapacity),
-		stop:      make(chan struct{}),
-		done:      make(chan struct{}),
-		packet:    make([]byte, 0, StreamFrameHeaderSize+dualSenseSpeakerPayloadCapacity),
-		lastTrace: time.Now(),
+		audio:                    make(chan dualSenseOutputFrame, dualSenseOutputAudioQueueCapacity),
+		controlFree:              make(chan []byte, dualSenseOutputControlQueueCapacity),
+		realtimeFree:             make(chan []byte, dualSenseOutputControlQueueCapacity),
+		latestOutputFree:         make(chan []byte, 2),
+		microphoneRecoveryFree:   make(chan []byte, 2),
+		audioFree:                make(chan []byte, dualSenseOutputAudioQueueCapacity),
+		outputSignal:             make(chan struct{}, 1),
+		microphoneRecoverySignal: make(chan struct{}, 1),
+		stop:                     make(chan struct{}),
+		done:                     make(chan struct{}),
+		audioWriteComplete:       make(chan struct{}, 1),
+		lifecycleTimer:           lifecycleTimer,
+		packet:                   make([]byte, 0, StreamFrameHeaderSize+dualSenseSpeakerPayloadCapacity),
+		lastTrace:                time.Now(),
 	}
 	w.streamViable.Store(conn != nil)
+	for range dualSenseOutputControlQueueCapacity {
+		w.controlFree <- make([]byte, OutputStateV5Size)
+		w.realtimeFree <- make([]byte, OutputStateV5Size)
+	}
+	for range 2 {
+		w.latestOutputFree <- make([]byte, OutputStateV5Size)
+		w.microphoneRecoveryFree <- make([]byte, OutputStateV5Size)
+	}
 	for range dualSenseOutputAudioQueueCapacity {
 		w.audioFree <- make([]byte, dualSenseSpeakerPayloadCapacity)
 	}
@@ -163,7 +212,15 @@ func newDualSenseOutputWriter(conn net.Conn,
 // the ordinary state queue. Games can issue dense trigger/LED SET_REPORT
 // traffic; that traffic must never delay or evict the 93.75 Hz haptics clock.
 func (w *dualSenseOutputWriter) EnqueueRealtimeHaptics(payload []byte) {
+	w.enqueueRealtimeHaptics(payload, w.audioGeneration.Load())
+}
+
+func (w *dualSenseOutputWriter) enqueueRealtimeHaptics(payload []byte,
+	generation uint64) {
 	if len(payload) == 0 {
+		return
+	}
+	if !w.prepareMediaGeneration(generation) {
 		return
 	}
 	w.enqueueLock.RLock()
@@ -171,10 +228,9 @@ func (w *dualSenseOutputWriter) EnqueueRealtimeHaptics(payload []byte) {
 	if w.stopped {
 		return
 	}
-	w.enqueueFrameLocked(w.realtimeHaptics, dualSenseOutputFrame{
-		frameType: StreamFrameRealtimeHaptics,
-		payload:   append([]byte(nil), payload...),
-	})
+	w.enqueueCopiedFrameLocked(w.realtimeHaptics, w.realtimeFree,
+		dualSenseOutputPoolRealtime, StreamFrameRealtimeHaptics, payload,
+		generation)
 }
 
 func (w *dualSenseOutputWriter) EnqueueControl(frameType byte, payload []byte) {
@@ -186,21 +242,277 @@ func (w *dualSenseOutputWriter) EnqueueControl(frameType byte, payload []byte) {
 	if w.stopped {
 		return
 	}
-	w.enqueueFrameLocked(w.control, dualSenseOutputFrame{
-		frameType: frameType,
-		payload:   append([]byte(nil), payload...),
-	})
+	w.enqueueCopiedFrameLocked(w.control, w.controlFree,
+		dualSenseOutputPoolControl, frameType, payload, 0)
+}
+
+func (w *dualSenseOutputWriter) enqueueCopiedFrameLocked(
+	queue chan dualSenseOutputFrame, free chan []byte, pool byte,
+	frameType byte, payload []byte, generation uint64) bool {
+	if len(payload) > OutputStateV5Size {
+		return false
+	}
+	buffer := w.acquireCopiedFrameBuffer(queue, free, pool)
+	if buffer == nil {
+		return false
+	}
+	buffer = buffer[:len(payload)]
+	copy(buffer, payload)
+	frame := dualSenseOutputFrame{
+		frameType:        frameType,
+		payload:          buffer,
+		pool:             pool,
+		generation:       generation,
+		generationTagged: generation != 0,
+	}
+	if w.enqueueFrameLocked(queue, frame) {
+		return true
+	}
+	w.release(frame)
+	return false
+}
+
+// acquireCopiedFrameBuffer keeps the ordered control lane loss-bounded while
+// treating realtime haptics as a time-indexed stream. If rear-channel media
+// fills every fixed slot, discard the oldest not-yet-started generation and
+// reuse its storage instead of preserving a stale backlog and dropping the
+// newest sample.
+func (w *dualSenseOutputWriter) acquireCopiedFrameBuffer(
+	queue chan dualSenseOutputFrame, free chan []byte, pool byte) []byte {
+	select {
+	case buffer := <-free:
+		return buffer
+	default:
+	}
+	if pool != dualSenseOutputPoolRealtime {
+		return nil
+	}
+	select {
+	case oldest := <-queue:
+		return oldest.payload[:cap(oldest.payload)]
+	default:
+		return nil
+	}
+}
+
+func (w *dualSenseOutputWriter) enqueueOutputState(frameType byte,
+	feedback OutputState, realtime bool, generation uint64) {
+	if !realtime {
+		w.enqueueLatestOutputState(feedback)
+		return
+	}
+	if realtime && !w.prepareMediaGeneration(generation) {
+		return
+	}
+	w.enqueueLock.RLock()
+	defer w.enqueueLock.RUnlock()
+	if w.stopped {
+		return
+	}
+	queue := w.control
+	free := w.controlFree
+	pool := dualSenseOutputPoolControl
+	if realtime {
+		queue = w.realtimeHaptics
+		free = w.realtimeFree
+		pool = dualSenseOutputPoolRealtime
+	}
+	buffer := w.acquireCopiedFrameBuffer(queue, free, pool)
+	if buffer == nil {
+		return
+	}
+	buffer = buffer[:OutputStateV5Size]
+	if err := feedback.MarshalV5Into(buffer); err != nil {
+		free <- buffer[:cap(buffer)]
+		return
+	}
+	frame := dualSenseOutputFrame{
+		frameType:        frameType,
+		payload:          buffer,
+		pool:             pool,
+		generation:       generation,
+		generationTagged: realtime && generation != 0,
+	}
+	if !w.enqueueFrameLocked(queue, frame) {
+		w.release(frame)
+	}
+}
+
+func (w *dualSenseOutputWriter) enqueueLatestOutputState(feedback OutputState) {
+	w.enqueueLock.RLock()
+	defer w.enqueueLock.RUnlock()
+	if w.stopped {
+		return
+	}
+	w.outputStateMu.Lock()
+	if w.hasLatestOutput {
+		// The unclaimed latch is exclusively producer-owned. Reuse it in place
+		// so ordered lifecycle traffic cannot starve latest state of storage.
+		_ = feedback.MarshalV5Into(w.latestOutput.payload)
+		w.outputStateMu.Unlock()
+		select {
+		case w.outputSignal <- struct{}{}:
+		default:
+		}
+		return
+	}
+	var buffer []byte
+	select {
+	case buffer = <-w.latestOutputFree:
+	default:
+		w.outputStateMu.Unlock()
+		return
+	}
+	buffer = buffer[:OutputStateV5Size]
+	if err := feedback.MarshalV5Into(buffer); err != nil {
+		w.latestOutputFree <- buffer[:cap(buffer)]
+		w.outputStateMu.Unlock()
+		return
+	}
+	frame := dualSenseOutputFrame{
+		frameType: StreamFrameOutputState,
+		payload:   buffer,
+		pool:      dualSenseOutputPoolLatest,
+	}
+	w.latestOutput = frame
+	w.hasLatestOutput = true
+	w.outputStateMu.Unlock()
+	select {
+	case w.outputSignal <- struct{}{}:
+	default:
+	}
+}
+
+func (w *dualSenseOutputWriter) EnqueueOutputState(feedback OutputState) {
+	w.enqueueOutputState(StreamFrameOutputState, feedback, false, 0)
+}
+
+func (w *dualSenseOutputWriter) EnqueueRealtimeHapticsState(feedback OutputState) {
+	w.enqueueOutputState(StreamFrameRealtimeHaptics, feedback, true,
+		w.audioGeneration.Load())
+}
+
+func (w *dualSenseOutputWriter) EnqueueRealtimeHapticsStateGeneration(
+	feedback OutputState, generation uint64) {
+	w.enqueueOutputState(StreamFrameRealtimeHaptics, feedback, true, generation)
+}
+
+func (w *dualSenseOutputWriter) EnqueueMicrophoneInterfaceState(active bool,
+	generation uint64) {
+	var payload [9]byte
+	if active {
+		payload[0] = 1
+	}
+	binary.LittleEndian.PutUint64(payload[1:], generation)
+
+	w.enqueueLock.RLock()
+	defer w.enqueueLock.RUnlock()
+	if w.stopped {
+		return
+	}
+	w.enqueueMicrophoneInterfaceStateLocked(payload[:])
+}
+
+func (w *dualSenseOutputWriter) enqueueMicrophoneInterfaceStateLocked(
+	payload []byte,
+) {
+	w.microphoneRecoveryMu.Lock()
+	if w.hasMicrophoneRecovery {
+		copy(w.microphoneRecovery.payload, payload)
+		w.telemetry.microphoneInterfaceOverflows.Add(1)
+		w.microphoneRecoveryMu.Unlock()
+		w.signalMicrophoneRecovery()
+		return
+	}
+	if w.enqueueCopiedFrameLocked(w.control, w.controlFree,
+		dualSenseOutputPoolControl, StreamFrameMicrophoneInterfaceState,
+		payload, 0) {
+		w.microphoneRecoveryMu.Unlock()
+		return
+	}
+
+	var buffer []byte
+	select {
+	case buffer = <-w.microphoneRecoveryFree:
+	default:
+		// The sole writer can own at most one recovery buffer at a time, so the
+		// second fixed buffer is always available when no pending latch exists.
+		// Keep this guard defensive without allocating or blocking a producer.
+		w.microphoneRecoveryMu.Unlock()
+		return
+	}
+	w.telemetry.microphoneInterfaceOverflows.Add(1)
+	buffer = buffer[:len(payload)]
+	copy(buffer, payload)
+	w.microphoneRecovery = dualSenseOutputFrame{
+		frameType: StreamFrameMicrophoneInterfaceState,
+		payload:   buffer,
+		pool:      dualSenseOutputPoolMicrophoneRecovery,
+	}
+	w.hasMicrophoneRecovery = true
+	w.microphoneRecoveryMu.Unlock()
+	w.signalMicrophoneRecovery()
+}
+
+func (w *dualSenseOutputWriter) signalMicrophoneRecovery() {
+	select {
+	case w.microphoneRecoverySignal <- struct{}{}:
+	default:
+	}
+}
+
+func (w *dualSenseOutputWriter) claimMicrophoneRecovery() (
+	dualSenseOutputFrame, bool,
+) {
+	w.microphoneRecoveryMu.Lock()
+	if !w.hasMicrophoneRecovery {
+		w.microphoneRecoveryMu.Unlock()
+		return dualSenseOutputFrame{}, false
+	}
+	frame := w.microphoneRecovery
+	w.microphoneRecovery = dualSenseOutputFrame{}
+	w.hasMicrophoneRecovery = false
+	w.microphoneRecoveryMu.Unlock()
+	return frame, true
+}
+
+func (w *dualSenseOutputWriter) claimOrderedControl() (
+	dualSenseOutputFrame, bool,
+) {
+	select {
+	case frame := <-w.control:
+		return frame, true
+	default:
+	}
+	return w.claimMicrophoneRecovery()
 }
 
 // EnqueueAtomicAudioHaptics publishes one V5 generation. A little-endian
 // feedback length prefixes the native combined feedback; the remaining bytes
 // are exactly 480 matching stereo PCM frames.
 func (w *dualSenseOutputWriter) EnqueueAtomicAudioHaptics(feedback, speakerPCM []byte) {
-	if len(feedback) == 0 || len(feedback) > int(^uint16(0)) ||
+	w.enqueueAtomicAudioHaptics(feedback, nil, speakerPCM, w.audioGeneration.Load())
+}
+
+func (w *dualSenseOutputWriter) EnqueueAtomicAudioHapticsState(feedback OutputState,
+	speakerPCM []byte, generation uint64) {
+	w.enqueueAtomicAudioHaptics(nil, &feedback, speakerPCM, generation)
+}
+
+func (w *dualSenseOutputWriter) enqueueAtomicAudioHaptics(feedback []byte,
+	feedbackState *OutputState, speakerPCM []byte, generation uint64) {
+	feedbackLength := len(feedback)
+	if feedbackState != nil {
+		feedbackLength = OutputStateV5Size
+	}
+	if feedbackLength == 0 || feedbackLength > int(^uint16(0)) ||
 		len(speakerPCM) == 0 {
 		return
 	}
 	if len(speakerPCM) != dualSenseV5SpeakerPayloadSize {
+		return
+	}
+	if !w.prepareMediaGeneration(generation) {
 		return
 	}
 
@@ -220,7 +532,7 @@ func (w *dualSenseOutputWriter) EnqueueAtomicAudioHaptics(feedback, speakerPCM [
 		return
 	}
 
-	length := dualSenseAtomicFeedbackPrefix + len(feedback) + len(speakerPCM)
+	length := dualSenseAtomicFeedbackPrefix + feedbackLength + len(speakerPCM)
 	if length > cap(buffer) {
 		w.audioFree <- buffer[:cap(buffer)]
 		w.recordSpeakerDrop(len(speakerPCM))
@@ -228,14 +540,25 @@ func (w *dualSenseOutputWriter) EnqueueAtomicAudioHaptics(feedback, speakerPCM [
 	}
 	buffer = buffer[:length]
 	binary.LittleEndian.PutUint16(buffer[:dualSenseAtomicFeedbackPrefix],
-		uint16(len(feedback)))
-	copy(buffer[dualSenseAtomicFeedbackPrefix:], feedback)
-	copy(buffer[dualSenseAtomicFeedbackPrefix+len(feedback):], speakerPCM)
+		uint16(feedbackLength))
+	if feedbackState != nil {
+		if err := feedbackState.MarshalV5Into(
+			buffer[dualSenseAtomicFeedbackPrefix : dualSenseAtomicFeedbackPrefix+feedbackLength],
+		); err != nil {
+			w.audioFree <- buffer[:cap(buffer)]
+			w.recordSpeakerDrop(len(speakerPCM))
+			return
+		}
+	} else {
+		copy(buffer[dualSenseAtomicFeedbackPrefix:], feedback)
+	}
+	copy(buffer[dualSenseAtomicFeedbackPrefix+feedbackLength:], speakerPCM)
 	frame := dualSenseOutputFrame{
-		frameType:  StreamFrameAtomicAudioHaptics,
-		payload:    buffer,
-		audio:      true,
-		generation: w.audioGeneration.Load(),
+		frameType:        StreamFrameAtomicAudioHaptics,
+		payload:          buffer,
+		audio:            true,
+		generationTagged: true,
+		generation:       generation,
 	}
 	if !w.enqueueFrameLocked(w.audio, frame) {
 		w.audioFree <- buffer[:cap(buffer)]
@@ -266,6 +589,38 @@ func (w *dualSenseOutputWriter) acquireAtomicAudioBuffer() []byte {
 		// The sole remaining pool buffer can be owned by an in-flight write.
 		return nil
 	}
+}
+
+// prepareMediaGeneration advances without waiting for an in-flight socket
+// write. It is used only by generation-tagged producers, which must never be
+// delayed by transport backpressure. The lifecycle reset callback performs
+// the corresponding in-flight write barrier before reset returns.
+func (w *dualSenseOutputWriter) prepareMediaGeneration(generation uint64) bool {
+	if generation == 0 {
+		return true
+	}
+	w.enqueueLock.Lock()
+	current := w.audioGeneration.Load()
+	if generation < current {
+		w.enqueueLock.Unlock()
+		return false
+	}
+	if generation > current {
+		w.audioGeneration.Store(generation)
+		w.drainMediaQueues()
+	}
+	w.enqueueLock.Unlock()
+	return true
+}
+
+// SetSpeakerGeneration establishes the device-owned media generation before
+// stream callbacks become visible. It is intentionally nonblocking with
+// respect to socket I/O because no old frame can belong to a fresh writer.
+func (w *dualSenseOutputWriter) SetSpeakerGeneration(generation uint64) {
+	if generation == 0 {
+		return
+	}
+	_ = w.prepareMediaGeneration(generation)
 }
 
 func atomicSpeakerPCMBytes(payload []byte) int {
@@ -329,87 +684,156 @@ func (w *dualSenseOutputWriter) enqueueFrameLocked(queue chan dualSenseOutputFra
 func (w *dualSenseOutputWriter) Run() {
 	defer func() {
 		w.requestStop()
-		w.drainAudioQueue()
+		w.drainOrderedControl()
+		w.drainMediaQueues()
+		w.drainLatestOutput()
 		w.telemetry.queueDepth.Store(0)
 		w.telemetry.active.Store(false)
 		w.traceSpeakerState(true)
 		close(w.done)
 	}()
-	preferAudio := false
+	const laneCount = 4
+	nextLane := 0
 	for {
-		// A complete rear-channel generation has a hard media deadline. It is
-		// small and arrives slightly less often than speaker media, so servicing
-		// it first cannot starve the 100 Hz speaker lane.
-		select {
-		case frame := <-w.realtimeHaptics:
+
+		wrote := false
+		for offset := 0; offset < laneCount; offset++ {
+			lane := (nextLane + offset) % laneCount
+			frame, ok := w.tryOutputLane(lane)
+			if !ok {
+				continue
+			}
 			if !w.writeAndRelease(frame) {
 				return
 			}
-			continue
-		default:
+			nextLane = (lane + 1) % laneCount
+			wrote = true
+			break
 		}
-		// Alternate when both lanes are continuously ready. If the preferred
-		// lane is empty, immediately service whichever frame arrives next.
-		if preferAudio {
-			select {
-			case frame := <-w.audio:
-				if !w.writeAndRelease(frame) {
-					return
-				}
-				preferAudio = false
-				continue
-			default:
-			}
-		} else {
-			select {
-			case frame := <-w.control:
-				if !w.writeAndRelease(frame) {
-					return
-				}
-				preferAudio = true
-				continue
-			default:
-			}
+		if wrote {
+			continue
 		}
 
 		select {
 		case <-w.stop:
 			return
-		case frame := <-w.realtimeHaptics:
-			if !w.writeAndRelease(frame) {
-				return
-			}
 		case frame := <-w.control:
 			if !w.writeAndRelease(frame) {
 				return
 			}
-			preferAudio = true
+			nextLane = 1
+		case <-w.microphoneRecoverySignal:
+			if frame, ok := w.claimOrderedControl(); ok {
+				if !w.writeAndRelease(frame) {
+					return
+				}
+				nextLane = 1
+			}
+		case <-w.outputSignal:
+			if frame, ok := w.claimLatestOutput(); ok {
+				if !w.writeAndRelease(frame) {
+					return
+				}
+				nextLane = 2
+			}
+		case frame := <-w.realtimeHaptics:
+			if !w.writeAndRelease(frame) {
+				return
+			}
+			nextLane = 3
 		case frame := <-w.audio:
 			if !w.writeAndRelease(frame) {
 				return
 			}
-			preferAudio = false
+			nextLane = 0
+		}
+	}
+}
+
+func (w *dualSenseOutputWriter) tryOutputLane(lane int) (dualSenseOutputFrame, bool) {
+	switch lane {
+	case 0:
+		return w.claimOrderedControl()
+	case 1:
+		return w.claimLatestOutput()
+	case 2:
+		select {
+		case frame := <-w.realtimeHaptics:
+			return frame, true
+		default:
+		}
+	case 3:
+		select {
+		case frame := <-w.audio:
+			return frame, true
+		default:
+		}
+	}
+	return dualSenseOutputFrame{}, false
+}
+
+func (w *dualSenseOutputWriter) claimLatestOutput() (dualSenseOutputFrame, bool) {
+	w.outputStateMu.Lock()
+	if !w.hasLatestOutput {
+		w.outputStateMu.Unlock()
+		return dualSenseOutputFrame{}, false
+	}
+	frame := w.latestOutput
+	w.latestOutput = dualSenseOutputFrame{}
+	w.hasLatestOutput = false
+	w.outputStateMu.Unlock()
+	return frame, true
+}
+
+func (w *dualSenseOutputWriter) drainLatestOutput() {
+	if frame, ok := w.claimLatestOutput(); ok {
+		w.release(frame)
+	}
+}
+
+func (w *dualSenseOutputWriter) drainOrderedControl() {
+	for {
+		select {
+		case frame := <-w.control:
+			w.release(frame)
+		default:
+			if frame, ok := w.claimMicrophoneRecovery(); ok {
+				w.release(frame)
+			}
+			return
 		}
 	}
 }
 
 func (w *dualSenseOutputWriter) writeAndRelease(frame dualSenseOutputFrame) bool {
-	if frame.audio {
-		w.audioWrite.Lock()
-		defer w.audioWrite.Unlock()
+	if frame.generationTagged {
+		// The stream writer is the sole owner of the in-flight marker. Publish
+		// it before checking the authoritative generation so reset has two safe
+		// outcomes: it either observes and waits for this write, or its generation
+		// publication wins and this frame is discarded before socket I/O.
+		w.audioInFlightGeneration.Store(frame.generation)
+		w.audioInFlightSequence.Add(1)
 		if frame.generation != w.audioGeneration.Load() {
-			w.recordSpeakerDrop(len(frame.payload))
+			w.completeAudioWrite()
+			if frame.audio {
+				w.recordSpeakerDrop(atomicSpeakerPCMBytes(frame.payload))
+			}
 			w.release(frame)
-			w.telemetry.queueDepth.Store(uint64(len(w.audio)))
+			if frame.audio {
+				w.telemetry.queueDepth.Store(uint64(len(w.audio)))
+			}
 			return true
 		}
 	}
 
 	ok := w.write(frame)
+	if frame.generationTagged {
+		w.completeAudioWrite()
+	}
 	if frame.audio {
 		w.telemetry.queueDepth.Store(uint64(len(w.audio)))
 		if ok {
-			w.recordSpeakerWrite(len(frame.payload))
+			w.recordSpeakerWrite(atomicSpeakerPCMBytes(frame.payload))
 		} else {
 			w.telemetry.writeFailures.Add(1)
 		}
@@ -421,31 +845,115 @@ func (w *dualSenseOutputWriter) writeAndRelease(frame dualSenseOutputFrame) bool
 	return ok
 }
 
+func (w *dualSenseOutputWriter) completeAudioWrite() {
+	// Even sequence values mean idle; odd values mean one generation-tagged
+	// write is in flight. There is exactly one stream writer, so no second
+	// producer can overwrite this marker before completion.
+	w.audioInFlightGeneration.Store(0)
+	w.audioInFlightSequence.Add(1)
+	select {
+	case w.audioWriteComplete <- struct{}{}:
+	default:
+	}
+}
+
 // ResetSpeaker advances the audio generation and flushes every queued frame.
 // It waits for an already-started write before returning, making interface and
 // endpoint resets a hard barrier between USB presentation generations.
 func (w *dualSenseOutputWriter) ResetSpeaker() {
 	w.enqueueLock.Lock()
-	w.audioGeneration.Add(1)
-	w.drainAudioQueue()
+	generation := w.audioGeneration.Load() + 1
+	if generation == 0 {
+		generation = 1
+	}
+	w.audioGeneration.Store(generation)
+	w.drainMediaQueues()
 	w.enqueueLock.Unlock()
+	w.finishSpeakerResetBarrier(generation)
+}
 
-	// A peer that has stopped reading can otherwise hold audioWrite forever.
-	// Bound the old generation's in-flight write; write() closes a timed-out
-	// stream so the owning handler can return and accept a replacement.
-	if w.conn != nil {
-		if err := w.conn.SetWriteDeadline(time.Now().Add(dualSenseSpeakerResetTimeout)); err != nil {
-			w.invalidateStream()
+// ResetSpeakerGeneration invalidates media using the generation captured at
+// the device reset boundary. A stale reset callback cannot drain a newer
+// stream. Equality means a new producer already adopted the generation; its
+// queues remain valid, but the old in-flight write barrier is still required.
+func (w *dualSenseOutputWriter) ResetSpeakerGeneration(generation uint64) {
+	if generation == 0 {
+		return
+	}
+	w.enqueueLock.Lock()
+	current := w.audioGeneration.Load()
+	if generation < current {
+		w.enqueueLock.Unlock()
+		return
+	}
+	if generation > current {
+		w.audioGeneration.Store(generation)
+		w.drainMediaQueues()
+	}
+	w.enqueueLock.Unlock()
+	w.finishSpeakerResetBarrier(generation)
+}
+
+func (w *dualSenseOutputWriter) finishSpeakerResetBarrier(generation uint64) {
+	// Only lifecycle/reset callers serialize on this lock. Queue and generation
+	// ownership was released above, and the stream writer never acquires it, so
+	// socket backpressure cannot block input or output producers.
+	w.lifecycleWait.Lock()
+	defer w.lifecycleWait.Unlock()
+	defer w.telemetry.queueDepth.Store(0)
+
+	w.resetLifecycleTimer(dualSenseSpeakerResetTimeout)
+	defer w.stopLifecycleTimer()
+	for {
+		targetSequence := w.audioInFlightSequence.Load()
+		if targetSequence&1 == 0 {
+			break
+		}
+		inFlightGeneration := w.audioInFlightGeneration.Load()
+		if targetSequence != w.audioInFlightSequence.Load() {
+			continue
+		}
+		// A frame from a later generation is not stale with respect to this
+		// reset. This can occur when a newer producer publishes before an older
+		// reset callback reaches the transport writer. Equality still waits,
+		// preserving the hard barrier when adoption and reset race.
+		if mediaGenerationPrecedes(generation, inFlightGeneration) {
+			break
+		}
+
+		for targetSequence == w.audioInFlightSequence.Load() {
+			select {
+			case <-w.audioWriteComplete:
+				continue
+			case <-w.done:
+				return
+			case <-w.lifecycleTimer.C:
+				// Closing the stream bounds a peer that stopped reading and prevents
+				// any old-generation bytes from being emitted after reset returns.
+				w.invalidateStream()
+				return
+			}
+		}
+		break
+	}
+}
+
+func mediaGenerationPrecedes(first, second uint64) bool {
+	return first != second && int64(first-second) < 0
+}
+
+func (w *dualSenseOutputWriter) resetLifecycleTimer(timeout time.Duration) {
+	w.stopLifecycleTimer()
+	w.lifecycleTimer.Reset(timeout)
+}
+
+func (w *dualSenseOutputWriter) stopLifecycleTimer() {
+	if !w.lifecycleTimer.Stop() {
+		select {
+		case <-w.lifecycleTimer.C:
+		default:
 		}
 	}
-	w.audioWrite.Lock()
-	if w.conn != nil && w.streamViable.Load() {
-		if err := w.conn.SetWriteDeadline(time.Time{}); err != nil {
-			w.invalidateStream()
-		}
-	}
-	w.audioWrite.Unlock()
-	w.telemetry.queueDepth.Store(0)
 }
 
 func (w *dualSenseOutputWriter) drainAudioQueue() {
@@ -457,6 +965,23 @@ func (w *dualSenseOutputWriter) drainAudioQueue() {
 			return
 		}
 	}
+}
+
+func (w *dualSenseOutputWriter) drainRealtimeHapticsQueue() {
+	for {
+		select {
+		case frame := <-w.realtimeHaptics:
+			w.release(frame)
+		default:
+			return
+		}
+	}
+}
+
+func (w *dualSenseOutputWriter) drainMediaQueues() {
+	w.drainAudioQueue()
+	w.drainRealtimeHapticsQueue()
+	w.telemetry.queueDepth.Store(uint64(len(w.audio)))
 }
 
 func (w *dualSenseOutputWriter) traceSpeakerState(final bool) {
@@ -488,7 +1013,8 @@ func (w *dualSenseOutputWriter) traceSpeakerState(final bool) {
 		"queueDepth", state.QueueDepth,
 		"queueHighWater", state.QueueHighWater,
 		"maxEnqueueGapUS", state.MaxEnqueueGapUS,
-		"maxWriteGapUS", state.MaxWriteGapUS)
+		"maxWriteGapUS", state.MaxWriteGapUS,
+		"microphoneInterfaceOverflows", state.MicrophoneInterfaceOverflows)
 }
 
 func (w *dualSenseOutputWriter) write(frame dualSenseOutputFrame) bool {
@@ -530,6 +1056,17 @@ func (w *dualSenseOutputWriter) write(frame dualSenseOutputFrame) bool {
 func (w *dualSenseOutputWriter) release(frame dualSenseOutputFrame) {
 	if frame.audio {
 		w.audioFree <- frame.payload[:cap(frame.payload)]
+		return
+	}
+	switch frame.pool {
+	case dualSenseOutputPoolControl:
+		w.controlFree <- frame.payload[:cap(frame.payload)]
+	case dualSenseOutputPoolRealtime:
+		w.realtimeFree <- frame.payload[:cap(frame.payload)]
+	case dualSenseOutputPoolLatest:
+		w.latestOutputFree <- frame.payload[:cap(frame.payload)]
+	case dualSenseOutputPoolMicrophoneRecovery:
+		w.microphoneRecoveryFree <- frame.payload[:cap(frame.payload)]
 	}
 }
 
@@ -539,9 +1076,13 @@ func (w *dualSenseOutputWriter) Stop() {
 		_ = w.conn.SetWriteDeadline(time.Now().Add(dualSenseSpeakerResetTimeout))
 		_ = w.conn.Close()
 	}
+	w.lifecycleWait.Lock()
+	defer w.lifecycleWait.Unlock()
+	w.resetLifecycleTimer(300 * time.Millisecond)
+	defer w.stopLifecycleTimer()
 	select {
 	case <-w.done:
-	case <-time.After(300 * time.Millisecond):
+	case <-w.lifecycleTimer.C:
 	}
 }
 

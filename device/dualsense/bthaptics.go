@@ -3,6 +3,8 @@ package dualsense
 import (
 	"encoding/binary"
 	"errors"
+	"hash/crc32"
+	"io"
 )
 
 const (
@@ -62,11 +64,29 @@ var defaultBluetoothCombinedState = [BluetoothCombinedStateSize]byte{
 // intentional: fabricated Opus padding can make the controller reject the
 // entire haptics packet.
 func BuildBluetoothCombinedHapticsReport(sequence uint8, packetSequence uint8, sample []byte, rawOutputReport []byte) ([]byte, error) {
-	if len(sample) != BluetoothHapticsSampleSize {
-		return nil, ErrInvalidBluetoothHapticsSample
-	}
-
 	report := make([]byte, BluetoothCombinedHapticsReportSize)
+	if err := BuildBluetoothCombinedHapticsReportInto(
+		sequence, packetSequence, sample, rawOutputReport, report,
+	); err != nil {
+		return nil, err
+	}
+	return report, nil
+}
+
+// BuildBluetoothCombinedHapticsReportInto is the allocation-free media path.
+// The destination remains owned by the caller and may be a field in the
+// complete OutputState snapshot queued to the framed writer.
+func BuildBluetoothCombinedHapticsReportInto(sequence uint8,
+	packetSequence uint8, sample []byte, rawOutputReport []byte,
+	destination []byte) error {
+	if len(sample) != BluetoothHapticsSampleSize {
+		return ErrInvalidBluetoothHapticsSample
+	}
+	if len(destination) < BluetoothCombinedHapticsReportSize {
+		return io.ErrShortBuffer
+	}
+	report := destination[:BluetoothCombinedHapticsReportSize]
+	clear(report)
 	report[0] = BluetoothCombinedHapticsReportID
 	report[1] = (sequence & 0x0F) << 4
 
@@ -104,7 +124,7 @@ func BuildBluetoothCombinedHapticsReport(sequence uint8, packetSequence uint8, s
 	report[BluetoothCombinedSpeakerOffset+1] = 0
 
 	binary.LittleEndian.PutUint32(report[BluetoothCombinedHapticsReportSize-4:], dualSenseBluetoothCRC32(report[:BluetoothCombinedHapticsReportSize-4]))
-	return report, nil
+	return nil
 }
 
 // BuildBluetoothOutputReportFromUSBOutput maps a native USB DualSense output
@@ -115,35 +135,52 @@ func BuildBluetoothCombinedHapticsReport(sequence uint8, packetSequence uint8, s
 // rolling BT tag, byte 2 carrying the BT flag 0x10, and bytes 74-77 carrying a
 // Sony CRC32 over prefix [0xA2, 0x31] plus bytes 1-73.
 func BuildBluetoothOutputReportFromUSBOutput(sequence uint8, usbReport []byte) ([]byte, error) {
-	if len(usbReport) < OutputReportSize || usbReport[0] != ReportIDOutput {
-		return nil, ErrInvalidUSBOutputReport
-	}
-
 	report := make([]byte, BluetoothOutputReportSize)
+	if err := BuildBluetoothOutputReportFromUSBOutputInto(sequence, usbReport,
+		report); err != nil {
+		return nil, err
+	}
+	return report, nil
+}
+
+// BuildBluetoothOutputReportFromUSBOutputInto maps into caller-owned storage
+// and computes the Sony CRC incrementally without assembling a temporary
+// prefix buffer.
+func BuildBluetoothOutputReportFromUSBOutputInto(sequence uint8,
+	usbReport []byte, destination []byte) error {
+	if len(usbReport) < OutputReportSize || usbReport[0] != ReportIDOutput {
+		return ErrInvalidUSBOutputReport
+	}
+	if len(destination) < BluetoothOutputReportSize {
+		return io.ErrShortBuffer
+	}
+	report := destination[:BluetoothOutputReportSize]
+	clear(report)
 	report[0] = BluetoothOutputReportID
 	report[1] = (sequence & 0x0F) << 4
 	report[2] = 0x10
 	copy(report[3:50], usbReport[1:OutputReportSize])
 
-	crcInput := make([]byte, 0, 2+73)
-	crcInput = append(crcInput, 0xA2, BluetoothOutputReportID)
-	crcInput = append(crcInput, report[1:74]...)
-	binary.LittleEndian.PutUint32(report[74:78], dualSenseBluetoothCRC32(crcInput))
-	return report, nil
+	prefix := [...]byte{0xA2, BluetoothOutputReportID}
+	crc := dualSenseBluetoothCRC32Update(bluetoothHapticsCRCSeed, prefix[:])
+	crc = dualSenseBluetoothCRC32Update(crc, report[1:74])
+	binary.LittleEndian.PutUint32(report[74:78], crc)
+	return nil
 }
 
 func dualSenseBluetoothCRC32(data []byte) uint32 {
-	crc := ^uint32(bluetoothHapticsCRCSeed)
-	for _, b := range data {
-		crc ^= uint32(b)
-		for i := 0; i < 8; i++ {
-			mask := uint32(0)
-			if crc&1 != 0 {
-				mask = 0xEDB88320
-			}
-			crc = (crc >> 1) ^ mask
-		}
-	}
+	return dualSenseBluetoothCRC32Update(bluetoothHapticsCRCSeed, data)
+}
 
+// dualSenseBluetoothCRC32Update is the incremental IEEE update used by Sony's
+// seeded Bluetooth CRC. It is table-driven (one lookup per byte) and keeps
+// caller-owned report arrays on the stack or in their preallocated slot; the
+// standard library's architecture dispatch currently makes its byte slice
+// escape under the supported Windows Go toolchain.
+func dualSenseBluetoothCRC32Update(crc uint32, data []byte) uint32 {
+	crc = ^crc
+	for _, value := range data {
+		crc = crc32.IEEETable[byte(crc)^value] ^ (crc >> 8)
+	}
 	return ^crc
 }

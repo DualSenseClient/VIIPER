@@ -8,4 +8,5 @@ type ServerConfig struct {
 	ConnectionTimeout       time.Duration `kong:"-"`
 	BusCleanupTimeout       time.Duration `help:"-"`
 	WriteBatchFlushInterval time.Duration `default:"0" help:"Interval to flush write batches to clients; default: disabled / immediate updates" env:"VIIPER_USB_WRITE_BATCH_FLUSH_INTERVAL"`
+	EndpointDiagnostics     bool          `default:"false" help:"Emit aggregate USB endpoint scheduling diagnostics every five seconds" env:"VIIPER_USB_ENDPOINT_DIAGNOSTICS"`
 }

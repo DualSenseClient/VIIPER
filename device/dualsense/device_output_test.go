@@ -629,40 +629,109 @@ func TestDualSenseTouchTrackingBytes(t *testing.T) {
 	if report[37] != 0x86 {
 		t.Fatalf("unexpected touch 2 report tracking byte: %#x", report[37])
 	}
-	if report[41] == 0 {
-		t.Fatal("expected touch packet counter to be populated")
+	if report[11] != 0 {
+		t.Fatalf("reserved report byte 11 was populated: %#x", report[11])
+	}
+	if report[41] != 0 {
+		t.Fatalf("unsupported touch-timestamp fallback byte 41 was populated: %#x",
+			report[41])
+	}
+	if binary.LittleEndian.Uint32(report[12:16]) != 1 {
+		t.Fatalf("unexpected compatibility packet sequence: % x", report[12:16])
+	}
+	if report[54] != dualSenseUSBConnectStateWired {
+		t.Fatalf("unexpected USB connect state: %#x", report[54])
 	}
 	if report[49] == 0x10 && report[50] == 0 && report[51] == 0 && report[52] == 0 {
 		t.Fatal("unexpected legacy hard-coded status byte in report timestamp area")
 	}
 }
 
-func TestDualSenseTouchTrackingZeroUsesActiveFallback(t *testing.T) {
-	state := &InputState{
-		Touch1Active:   true,
-		Touch1Tracking: 0,
-	}
-	data, err := state.MarshalBinary()
-	if err != nil {
-		t.Fatalf("MarshalBinary returned error: %v", err)
+func TestDualSenseTouchTrackingStatusRoundTripAndHIDEncoding(t *testing.T) {
+	tests := []struct {
+		name                string
+		active              bool
+		tracking            uint8
+		wantStatus          uint8
+		wantDecodedTracking uint8
+	}{
+		{
+			name:                "active-id-zero",
+			active:              true,
+			tracking:            0,
+			wantStatus:          0,
+			wantDecodedTracking: 0,
+		},
+		{
+			name:                "inactive-id-zero",
+			active:              false,
+			tracking:            0,
+			wantStatus:          TouchInactiveMask,
+			wantDecodedTracking: TouchInactiveMask,
+		},
+		{
+			name:                "active-id-five",
+			active:              true,
+			tracking:            5,
+			wantStatus:          5,
+			wantDecodedTracking: 5,
+		},
+		{
+			name:                "inactive-id-six",
+			active:              false,
+			tracking:            6,
+			wantStatus:          0x86,
+			wantDecodedTracking: 0x86,
+		},
 	}
 
-	var decoded InputState
-	if err := decoded.UnmarshalBinary(data); err != nil {
-		t.Fatalf("UnmarshalBinary returned error: %v", err)
-	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			state := InputState{
+				Touch1Active:   test.active,
+				Touch1Tracking: test.tracking,
+				Touch2Active:   test.active,
+				Touch2Tracking: test.tracking,
+			}
+			var data [InputStateSize]byte
+			if err := state.MarshalInto(data[:]); err != nil {
+				t.Fatalf("MarshalInto returned error: %v", err)
+			}
+			if data[15] != test.wantStatus || data[20] != test.wantStatus {
+				t.Fatalf("V5 touch statuses=(%#x,%#x), want %#x",
+					data[15], data[20], test.wantStatus)
+			}
 
-	if !decoded.Touch1Active || decoded.Touch1Tracking != 1 {
-		t.Fatalf("active touch without tracking id should use fallback: active=%v tracking=%#x", decoded.Touch1Active, decoded.Touch1Tracking)
-	}
+			var decoded InputState
+			if err := decoded.UnmarshalBinary(data[:]); err != nil {
+				t.Fatalf("UnmarshalBinary returned error: %v", err)
+			}
+			if decoded.Touch1Active != test.active ||
+				decoded.Touch2Active != test.active ||
+				decoded.Touch1Tracking != test.wantDecodedTracking ||
+				decoded.Touch2Tracking != test.wantDecodedTracking {
+				t.Fatalf("decoded touches=(%v,%#x),(%v,%#x), want active=%v tracking=%#x",
+					decoded.Touch1Active, decoded.Touch1Tracking,
+					decoded.Touch2Active, decoded.Touch2Tracking,
+					test.active, test.wantDecodedTracking)
+			}
 
-	state.Touch1Active = false
-	data, err = state.MarshalBinary()
-	if err != nil {
-		t.Fatalf("MarshalBinary returned error: %v", err)
-	}
-	if data[15] != TouchInactiveMask {
-		t.Fatalf("inactive touch should use inactive mask, got %#x", data[15])
+			dev, err := New(nil)
+			if err != nil {
+				t.Fatalf("New returned error: %v", err)
+			}
+			dev.UpdateInputState(&decoded)
+			var report [InputReportSize]byte
+			n, token := dev.ClaimInputReport(report[:])
+			if n != InputReportSize || token == 0 {
+				t.Fatalf("ClaimInputReport n=%d token=%d", n, token)
+			}
+			if report[33] != test.wantStatus || report[37] != test.wantStatus {
+				t.Fatalf("HID touch statuses=(%#x,%#x), want %#x",
+					report[33], report[37], test.wantStatus)
+			}
+			dev.CompleteInputReport(token, true)
+		})
 	}
 }
 
@@ -685,8 +754,11 @@ func TestDualSenseUSBInputReportPreservesArbitraryMotionBytes(t *testing.T) {
 		report[22] != StreamFrameMagic2 || report[23] != StreamFrameMagic3 {
 		t.Fatalf("expected arbitrary motion bytes to survive: % x", report[16:24])
 	}
-	if dev.corruptUSBInputReports != 0 {
-		t.Fatalf("valid motion was incorrectly rejected, resets=%d", dev.corruptUSBInputReports)
+	dev.input.mu.Lock()
+	corruptReports := dev.input.corruptReports
+	dev.input.mu.Unlock()
+	if corruptReports != 0 {
+		t.Fatalf("valid motion was incorrectly rejected, resets=%d", corruptReports)
 	}
 	if report[1] != 145 || report[4] != 86 || report[5] != 0 || report[6] != 200 ||
 		report[8]&byte(ButtonCross) == 0 {
@@ -704,10 +776,20 @@ func TestDualSenseUSBInputReportNeutralizesInvalidControlBits(t *testing.T) {
 	state.LX = 17
 	state.R2 = 200
 	state.Buttons = 1 << 31
+	state.PhysicalMetadataValid = true
+	state.PhysicalSensorTimestamp = 0xDEADBEEF
+	state.PhysicalInputMetadata[physicalMetadataR2Status] = 0x29
+	state.PhysicalInputMetadata[physicalMetadataL2Status] = 0x29
+	state.PhysicalInputMetadata[physicalMetadataEffectStatus] = 0x22
+	state.PhysicalInputMetadata[physicalMetadataBattery] = 0x11
+	state.PhysicalInputMetadata[physicalMetadataHeadsetStatus] = 0xA5
 	report := dev.buildUSBInputReport(state, &MetaState{BatteryStatus: BatteryFullyCharged})
 
-	if dev.corruptUSBInputReports != 1 {
-		t.Fatalf("expected one invalid-control reset, got %d", dev.corruptUSBInputReports)
+	dev.input.mu.Lock()
+	corruptReports := dev.input.corruptReports
+	dev.input.mu.Unlock()
+	if corruptReports != 1 {
+		t.Fatalf("expected one invalid-control reset, got %d", corruptReports)
 	}
 	if report[1] != 128 || report[2] != 128 || report[3] != 128 || report[4] != 128 ||
 		report[5] != 0 || report[6] != 0 || report[8] != DPadUSBNeutral ||
@@ -716,6 +798,12 @@ func TestDualSenseUSBInputReportNeutralizesInvalidControlBits(t *testing.T) {
 	}
 	if report[53] != BatteryFullyCharged {
 		t.Fatalf("neutral report should preserve battery byte, got %#x", report[53])
+	}
+	if report[42] != dualSenseTriggerStatusNeutral ||
+		report[43] != dualSenseTriggerStatusNeutral || report[48] != 0 ||
+		report[55] != 0 {
+		t.Fatalf("neutralized corrupt controls retained physical effect state: % x",
+			report[41:55])
 	}
 }
 

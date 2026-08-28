@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/DualSenseClient/VIIPER/usbip"
 )
@@ -14,6 +15,19 @@ type capturedV5Generation struct {
 	feedback [BluetoothCombinedHapticsReportSize]byte
 	speaker  []byte
 }
+
+// discardV5MediaConn keeps the production framed writer in allocation tests
+// without introducing net.Pipe scheduling or consumer-side allocations.
+type discardV5MediaConn struct{}
+
+func (discardV5MediaConn) Read([]byte) (int, error)          { return 0, net.ErrClosed }
+func (discardV5MediaConn) Write(payload []byte) (int, error) { return len(payload), nil }
+func (discardV5MediaConn) Close() error                      { return nil }
+func (discardV5MediaConn) LocalAddr() net.Addr               { return nil }
+func (discardV5MediaConn) RemoteAddr() net.Addr              { return nil }
+func (discardV5MediaConn) SetDeadline(time.Time) error       { return nil }
+func (discardV5MediaConn) SetReadDeadline(time.Time) error   { return nil }
+func (discardV5MediaConn) SetWriteDeadline(time.Time) error  { return nil }
 
 func TestAppendDualSenseV5SpeakerPreservesRawFrontPair(t *testing.T) {
 	source := make([]byte, dualSenseV5SpeakerFrames*USBHapticsAudioFrameSize)
@@ -26,10 +40,12 @@ func TestAppendDualSenseV5SpeakerPreservesRawFrontPair(t *testing.T) {
 	}
 	destination := make([]byte, 0, dualSenseV5SpeakerPayloadSize)
 
-	if allocations := testing.AllocsPerRun(1000, func() {
-		destination = appendDualSenseV5Speaker(destination[:0], source)
-	}); allocations != 0 {
-		t.Fatalf("V5 front-channel assembler allocated %.2f objects per generation", allocations)
+	if !raceEnabled {
+		if allocations := testing.AllocsPerRun(1000, func() {
+			destination = appendDualSenseV5Speaker(destination[:0], source)
+		}); allocations != 0 {
+			t.Fatalf("V5 front-channel assembler allocated %.2f objects per generation", allocations)
+		}
 	}
 	destination = appendDualSenseV5Speaker(destination[:0], source)
 	if len(destination) != dualSenseV5SpeakerPayloadSize {
@@ -222,11 +238,11 @@ func TestDualSenseV5MaintainsIndependentGenerationsAcrossArbitraryUSBChunks(t *t
 		t.Fatal("V5 shortage test did not distinguish silence from the prior rear sample")
 	}
 
-	chunkedDevice.mtx.Lock()
-	hapticsRemaining := len(chunkedDevice.hapticsPCM)
-	speakerRemaining := len(chunkedDevice.v5SpeakerPCM)
-	hapticsQueued := len(chunkedDevice.v5HapticsQueue)
-	chunkedDevice.mtx.Unlock()
+	chunkedDevice.mediaMu.Lock()
+	hapticsRemaining := chunkedDevice.hapticsPCMLength
+	speakerRemaining := chunkedDevice.v5SpeakerPCMLength
+	hapticsQueued := chunkedDevice.v5HapticsQueueCount
+	chunkedDevice.mediaMu.Unlock()
 	if want := sourceFrames % 512 * USBHapticsAudioFrameSize; hapticsRemaining != want {
 		t.Fatalf("V5 haptics assembler retained %d bytes, want %d", hapticsRemaining, want)
 	}
@@ -280,10 +296,10 @@ func TestDualSenseV5EndpointResetIsHardBoundaryForBothMediaClocks(t *testing.T) 
 		t.Fatal("post-reset speaker did not carry the fresh complete haptics generation")
 	}
 
-	device.mtx.Lock()
-	hapticsRemaining := len(device.hapticsPCM)
-	speakerRemaining := len(device.v5SpeakerPCM)
-	device.mtx.Unlock()
+	device.mediaMu.Lock()
+	hapticsRemaining := device.hapticsPCMLength
+	speakerRemaining := device.v5SpeakerPCMLength
+	device.mediaMu.Unlock()
 	if hapticsRemaining != (2*dualSenseV5SpeakerFrames-512)*USBHapticsAudioFrameSize ||
 		speakerRemaining != 0 {
 		t.Fatalf("wrong post-reset remainders: haptics=%d speaker=%d",
@@ -426,6 +442,191 @@ func newV5CaptureDevice(t *testing.T) (*DualSense, *[]capturedV5Generation) {
 	device.SetOutputCallback(func(OutputState) {})
 	device.SetInterfaceAltSetting(InterfaceHapticsAudio, 1)
 	return device, &captured
+}
+
+func newV5AllocationPath(b testing.TB) (*DualSense, *dualSenseOutputWriter,
+	[]byte, uint64) {
+	b.Helper()
+	dev, err := New(nil)
+	if err != nil {
+		b.Fatalf("New: %v", err)
+	}
+	dev.SetInterfaceAltSetting(InterfaceHapticsAudio, 1)
+	generation := dev.IsoOutGeneration(EndpointHapticsAudioOut)
+	writer := newDualSenseOutputWriter(nil, nil, nil)
+	writer.SetSpeakerGeneration(generation)
+	dev.setV5OutputCallbacks(1,
+		writer.EnqueueOutputState,
+		writer.EnqueueAtomicAudioHapticsState,
+		writer.EnqueueRealtimeHapticsStateGeneration,
+		writer.ResetSpeakerGeneration)
+	pcm := makeV5USBPCM(0, dualSenseV5SpeakerFrames, 12000)
+	// Warm every fixed buffer, CRC table, callback, and queue path before the
+	// measured region.
+	if !dev.HandleIsoOutTransfer(EndpointHapticsAudioOut, generation, pcm) {
+		b.Fatal("warm media generation was rejected")
+	}
+	writer.drainMediaQueues()
+	return dev, writer, pcm, generation
+}
+
+func TestDualSenseV5LoadedMediaPathAllocations(t *testing.T) {
+	if raceEnabled {
+		t.Skip("race instrumentation allocates; allocation contract is tested without -race")
+	}
+	dev, writer, pcm, generation := newV5AllocationPath(t)
+	allocations := testing.AllocsPerRun(1000, func() {
+		if !dev.HandleIsoOutTransfer(EndpointHapticsAudioOut, generation, pcm) {
+			t.Fatal("media generation was rejected")
+		}
+		writer.drainMediaQueues()
+	})
+	if allocations != 0 {
+		t.Fatalf("media assembly/output enqueue allocated %.2f objects/run",
+			allocations)
+	}
+
+	feedback := OutputState{}
+	allocations = testing.AllocsPerRun(1000, func() {
+		writer.EnqueueOutputState(feedback)
+		writer.drainLatestOutput()
+	})
+	if allocations != 0 {
+		t.Fatalf("latest output-state marshal/enqueue allocated %.2f objects/run",
+			allocations)
+	}
+}
+
+func TestDualSenseV5ActiveAudioGainLoadedPathAllocatesZero(t *testing.T) {
+	if raceEnabled {
+		t.Skip("race instrumentation allocates; allocation contract is tested without -race")
+	}
+
+	tests := []struct {
+		name      string
+		configure func(*audioFeatureState)
+	}{
+		{
+			name: "non-unity volume",
+			configure: func(state *audioFeatureState) {
+				state.setVolume(audioSpeakerVolumeDefault - 6*256)
+				state.resetStreamGain()
+			},
+		},
+		{
+			name: "mute",
+			configure: func(state *audioFeatureState) {
+				state.setMute(true)
+				state.resetStreamGain()
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dev, writer, pcm, generation := newV5AllocationPath(t)
+			writer.conn = discardV5MediaConn{}
+			dev.mediaMu.Lock()
+			test.configure(&dev.speakerAudioFeature)
+			dev.mediaMu.Unlock()
+
+			// Warm the gain scratch lease separately from the neutral setup path.
+			if !dev.HandleIsoOutTransfer(
+				EndpointHapticsAudioOut, generation, pcm,
+			) {
+				t.Fatal("warm active-gain generation was rejected")
+			}
+			frame := <-writer.audio
+			if !writer.writeAndRelease(frame) {
+				t.Fatal("warm active-gain frame write failed")
+			}
+
+			allocations := testing.AllocsPerRun(1000, func() {
+				if !dev.HandleIsoOutTransfer(
+					EndpointHapticsAudioOut, generation, pcm,
+				) {
+					panic("active-gain media generation was rejected")
+				}
+				frame := <-writer.audio
+				if !writer.writeAndRelease(frame) {
+					panic("active-gain frame write failed")
+				}
+			})
+			if allocations != 0 {
+				t.Fatalf("active %s media path allocated %.2f objects/run",
+					test.name, allocations)
+			}
+		})
+	}
+}
+
+func BenchmarkDualSenseV5MediaAssemblyOutputEnqueue(b *testing.B) {
+	dev, writer, pcm, generation := newV5AllocationPath(b)
+	b.ReportAllocs()
+	b.SetBytes(int64(len(pcm)))
+	b.ResetTimer()
+	for range b.N {
+		if !dev.HandleIsoOutTransfer(EndpointHapticsAudioOut, generation, pcm) {
+			b.Fatal("media generation was rejected")
+		}
+		writer.drainMediaQueues()
+	}
+}
+
+func BenchmarkDualSenseV5ActiveAudioGainMediaAssemblyWriter(b *testing.B) {
+	tests := []struct {
+		name      string
+		configure func(*audioFeatureState)
+	}{
+		{
+			name: "non-unity-volume",
+			configure: func(state *audioFeatureState) {
+				state.setVolume(audioSpeakerVolumeDefault - 6*256)
+				state.resetStreamGain()
+			},
+		},
+		{
+			name: "mute",
+			configure: func(state *audioFeatureState) {
+				state.setMute(true)
+				state.resetStreamGain()
+			},
+		},
+	}
+
+	for _, test := range tests {
+		b.Run(test.name, func(b *testing.B) {
+			dev, writer, pcm, generation := newV5AllocationPath(b)
+			writer.conn = discardV5MediaConn{}
+			dev.mediaMu.Lock()
+			test.configure(&dev.speakerAudioFeature)
+			dev.mediaMu.Unlock()
+			if !dev.HandleIsoOutTransfer(
+				EndpointHapticsAudioOut, generation, pcm,
+			) {
+				b.Fatal("warm active-gain generation was rejected")
+			}
+			frame := <-writer.audio
+			if !writer.writeAndRelease(frame) {
+				b.Fatal("warm active-gain frame write failed")
+			}
+
+			b.ReportAllocs()
+			b.SetBytes(int64(len(pcm)))
+			b.ResetTimer()
+			for range b.N {
+				if !dev.HandleIsoOutTransfer(
+					EndpointHapticsAudioOut, generation, pcm,
+				) {
+					b.Fatal("active-gain media generation was rejected")
+				}
+				frame := <-writer.audio
+				if !writer.writeAndRelease(frame) {
+					b.Fatal("active-gain frame write failed")
+				}
+			}
+		})
+	}
 }
 
 func makeV5USBPCM(firstFrame, frames int, rearBias int16) []byte {

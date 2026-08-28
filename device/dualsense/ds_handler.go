@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"time"
 
 	"github.com/DualSenseClient/VIIPER/device"
 	"github.com/DualSenseClient/VIIPER/internal/server/api"
@@ -17,11 +18,24 @@ func init() {
 	api.RegisterDevice(DeviceTypeCombinedAudioDuplexV5, &dshandler{})
 	api.RegisterDevice(DeviceTypeAudioOnlyDuplexV5, &dshandler{audioOnly: true})
 	api.RegisterDevice(DeviceTypeGamepadOnlyV5, &dshandler{gamepadOnly: true})
+	api.RegisterDevice(DeviceTypeCombinedAudioDuplexV5Events,
+		&dshandler{micInterfaceEvents: true})
+	api.RegisterDevice(DeviceTypeAudioOnlyDuplexV5Events,
+		&dshandler{audioOnly: true, micInterfaceEvents: true})
+	api.RegisterDevice(DeviceTypeCombinedAudioDuplexV5RawInputEvents,
+		&dshandler{micInterfaceEvents: true, physicalInputMetadata: true})
+	api.RegisterDevice(DeviceTypeAudioOnlyDuplexV5RawInputEvents,
+		&dshandler{audioOnly: true, micInterfaceEvents: true,
+			physicalInputMetadata: true})
+	api.RegisterDevice(DeviceTypeGamepadOnlyV5RawInput,
+		&dshandler{gamepadOnly: true, physicalInputMetadata: true})
 }
 
 type dshandler struct {
-	audioOnly   bool
-	gamepadOnly bool
+	audioOnly             bool
+	gamepadOnly           bool
+	micInterfaceEvents    bool
+	physicalInputMetadata bool
 }
 
 func (h *dshandler) CreateDevice(o *device.CreateOptions) (usb.Device, error) {
@@ -40,19 +54,35 @@ func (h *dshandler) CreateDevice(o *device.CreateOptions) (usb.Device, error) {
 	}
 	if h.audioOnly {
 		dse.descriptor = makeAudioOnlyDescriptor(false)
-		dse.deviceType = DeviceTypeAudioOnlyDuplexV5
+		if h.physicalInputMetadata {
+			dse.deviceType = DeviceTypeAudioOnlyDuplexV5RawInputEvents
+		} else if h.micInterfaceEvents {
+			dse.deviceType = DeviceTypeAudioOnlyDuplexV5Events
+		} else {
+			dse.deviceType = DeviceTypeAudioOnlyDuplexV5
+		}
 	} else if h.gamepadOnly {
 		dse.descriptor = makeGamepadOnlyDescriptor(false)
-		dse.deviceType = DeviceTypeGamepadOnlyV5
+		if h.physicalInputMetadata {
+			dse.deviceType = DeviceTypeGamepadOnlyV5RawInput
+		} else {
+			dse.deviceType = DeviceTypeGamepadOnlyV5
+		}
+	} else if h.physicalInputMetadata {
+		dse.deviceType = DeviceTypeCombinedAudioDuplexV5RawInputEvents
+	} else if h.micInterfaceEvents {
+		dse.deviceType = DeviceTypeCombinedAudioDuplexV5Events
 	}
 	return dse, nil
 }
 
 func (h *dshandler) StreamHandler() api.StreamHandlerFunc {
-	return dualSenseV5StreamHandler("DualSense")
+	return dualSenseV5StreamHandler("DualSense", h.micInterfaceEvents,
+		h.physicalInputMetadata)
 }
 
-func dualSenseV5StreamHandler(deviceName string) api.StreamHandlerFunc {
+func dualSenseV5StreamHandler(deviceName string,
+	micInterfaceEvents, physicalInputMetadata bool) api.StreamHandlerFunc {
 	return func(conn net.Conn, devPtr *usb.Device, logger *slog.Logger) error {
 		defer releaseDualSenseIdentity(devPtr, deviceName)
 		if devPtr == nil || *devPtr == nil {
@@ -66,47 +96,43 @@ func dualSenseV5StreamHandler(deviceName string) api.StreamHandlerFunc {
 		logger.Info(deviceName+" V5 stream configured",
 			"microphoneInput", true,
 			"speakerOutput", true,
+			"microphoneInterfaceEvents", micInterfaceEvents,
+			"physicalInputMetadata", physicalInputMetadata,
 			"frameVersion", StreamFrameVersionV5)
 
-		marshalFeedback := func(feedback OutputState) ([]byte, error) {
-			return feedback.MarshalV5Binary()
-		}
+		streamGeneration := dse.beginInputStreamGeneration()
 		writer := newDualSenseOutputWriter(conn, dse.beginSpeakerStream(), logger)
 		go writer.Run()
-		dse.SetOutputCallback(func(feedback OutputState) {
-			data, err := marshalFeedback(feedback)
-			if err != nil {
-				logger.Error("failed to marshal V5 feedback", "error", err)
-				return
+		// Capture the media generation at its owning device lock before making
+		// callbacks visible. If a reset lands in the registration window, repeat
+		// until the writer and device agree; subsequent resets use the tagged
+		// callback and cannot relabel old media as new.
+		for {
+			mediaGeneration := dse.currentSpeakerMediaGeneration()
+			writer.SetSpeakerGeneration(mediaGeneration)
+			dse.setV5OutputCallbacks(streamGeneration,
+				writer.EnqueueOutputState,
+				writer.EnqueueAtomicAudioHapticsState,
+				writer.EnqueueRealtimeHapticsStateGeneration,
+				writer.ResetSpeakerGeneration)
+			if dse.currentSpeakerMediaGeneration() == mediaGeneration {
+				break
 			}
-			writer.EnqueueControl(StreamFrameOutputState, data)
-		})
-		dse.SetAtomicAudioHapticsCallback(func(feedback OutputState, speakerPCM []byte) {
-			data, err := marshalFeedback(feedback)
-			if err != nil {
-				logger.Error("failed to marshal V5 atomic audio/haptics feedback", "error", err)
-				return
-			}
-			writer.EnqueueAtomicAudioHaptics(data, speakerPCM)
-		})
-		dse.SetRealtimeHapticsCallback(func(feedback OutputState) {
-			data, err := marshalFeedback(feedback)
-			if err != nil {
-				logger.Error("failed to marshal V5 realtime haptics feedback", "error", err)
-				return
-			}
-			writer.EnqueueRealtimeHaptics(data)
-		})
-		dse.SetSpeakerResetCallback(writer.ResetSpeaker)
+		}
+		if micInterfaceEvents {
+			dse.setMicrophoneInterfaceStateCallback(streamGeneration,
+				writer.EnqueueMicrophoneInterfaceState)
+		}
 		defer func() {
-			dse.SetOutputCallback(nil)
-			dse.SetAtomicAudioHapticsCallback(nil)
-			dse.SetRealtimeHapticsCallback(nil)
-			dse.SetSpeakerResetCallback(nil)
+			if micInterfaceEvents {
+				dse.setMicrophoneInterfaceStateCallback(streamGeneration, nil)
+			}
+			dse.setV5OutputCallbacks(streamGeneration, nil, nil, nil, nil)
 			writer.Stop()
 		}()
 
-		return readDualSenseV5InputStream(conn, dse, logger)
+		return readDualSenseV5InputStreamGeneration(conn, dse, logger,
+			streamGeneration, physicalInputMetadata)
 	}
 }
 
@@ -119,10 +145,10 @@ func releaseDualSenseIdentity(devPtr *usb.Device, deviceName string) {
 		slog.Warn("unexpected device type on disconnect", "expected", deviceName)
 		return
 	}
-	dse.mtx.Lock()
+	dse.metaMu.Lock()
 	serial := dse.metaState.SerialNumber
 	mac := dse.metaState.MACAddress
-	dse.mtx.Unlock()
+	dse.metaMu.Unlock()
 	identityMu.Lock()
 	delete(serials, serial)
 	delete(macs, mac)
@@ -130,10 +156,16 @@ func releaseDualSenseIdentity(devPtr *usb.Device, deviceName string) {
 	slog.Debug(deviceName+" disconnected, serial/mac released", "serial", serial, "mac", mac)
 }
 
-func readDualSenseV5InputStream(conn net.Conn, dse *DualSense, logger *slog.Logger) error {
+func readDualSenseV5InputStreamGeneration(conn net.Conn, dse *DualSense,
+	logger *slog.Logger, streamGeneration uint64,
+	physicalInputMetadata bool) error {
 	header := make([]byte, StreamFrameHeaderSize)
-	input := make([]byte, InputStateSize)
+	input := make([]byte, InputStateRawSize)
 	microphonePCM := make([]byte, USBMicrophoneClientFrameSize)
+	expectedInputSize := InputStateSize
+	if physicalInputMetadata {
+		expectedInputSize = InputStateRawSize
+	}
 	var expectedSequence uint32
 	sequenceInitialized := false
 	for {
@@ -163,10 +195,11 @@ func readDualSenseV5InputStream(conn net.Conn, dse *DualSense, logger *slog.Logg
 		var payload []byte
 		switch frameType {
 		case StreamFrameInputState:
-			if payloadLen != InputStateSize {
-				return fmt.Errorf("invalid framed input state length %d", payloadLen)
+			if payloadLen != expectedInputSize {
+				return fmt.Errorf("invalid framed input state length %d, expected %d",
+					payloadLen, expectedInputSize)
 			}
-			payload = input
+			payload = input[:expectedInputSize]
 		case StreamFrameMicrophonePCM:
 			if payloadLen != USBMicrophoneClientFrameSize {
 				return fmt.Errorf("invalid microphone pcm frame length %d", payloadLen)
@@ -178,6 +211,12 @@ func readDualSenseV5InputStream(conn net.Conn, dse *DualSense, logger *slog.Logg
 
 		if _, err := io.ReadFull(conn, payload); err != nil {
 			return fmt.Errorf("read framed packet type 0x%02X: %w", frameType, err)
+		}
+		measureInput := frameType == StreamFrameInputState &&
+			dse.inputTelemetryEnabled.Load()
+		var frameReadCompleted time.Time
+		if measureInput {
+			frameReadCompleted = time.Now()
 		}
 
 		sequence := binary.LittleEndian.Uint32(header[8:12])
@@ -192,18 +231,31 @@ func readDualSenseV5InputStream(conn net.Conn, dse *DualSense, logger *slog.Logg
 		if receivedCRC != calculatedCRC {
 			return fmt.Errorf("DualSense V5 stream CRC mismatch for sequence %d: got %08X expected %08X", sequence, receivedCRC, calculatedCRC)
 		}
+		dse.inputTransportTelemetry.lastFrameSequence.Store(sequence)
+		dse.inputTransportTelemetry.framesValidated.Add(1)
 
 		switch frameType {
 		case StreamFrameInputState:
-			corruptReason := inputStatePayloadCorruptionReason(input)
+			dse.inputTransportTelemetry.inputFrames.Add(1)
+			corruptReason := inputStatePayloadCorruptionReason(payload)
 			if corruptReason != "" {
 				return fmt.Errorf("invalid framed input state: %s", corruptReason)
 			}
 			var state InputState
-			if err := state.UnmarshalBinary(input); err != nil {
+			if err := state.UnmarshalBinary(payload); err != nil {
 				return fmt.Errorf("unmarshal framed input state: %w", err)
 			}
-			dse.UpdateInputState(&state)
+			var decodeCompleted time.Time
+			if measureInput {
+				decodeCompleted = time.Now()
+				dse.inputTransportTelemetry.frameReadToDecode.record(
+					decodeCompleted.Sub(frameReadCompleted))
+			}
+			dse.updateInputStateForGeneration(streamGeneration, &state)
+			if measureInput {
+				dse.inputTransportTelemetry.decodeToPublish.record(
+					time.Since(decodeCompleted))
+			}
 		case StreamFrameMicrophonePCM:
 			dse.QueueMicrophonePCMFrame(microphonePCM)
 		}
@@ -211,15 +263,26 @@ func readDualSenseV5InputStream(conn net.Conn, dse *DualSense, logger *slog.Logg
 }
 
 func framedStreamCRC(headerFields, payload []byte) uint32 {
-	hash := crc32.NewIEEE()
-	_, _ = hash.Write(headerFields)
-	_, _ = hash.Write(payload)
-	return hash.Sum32()
+	crc := crc32.Update(0, crc32.IEEETable, headerFields)
+	return crc32.Update(crc, crc32.IEEETable, payload)
 }
 
 func inputStatePayloadCorruptionReason(input []byte) string {
-	if len(input) < InputStateSize {
+	if len(input) != InputStateSize && len(input) != InputStateRawSize {
 		return fmt.Sprintf("invalid length %d", len(input))
+	}
+	if len(input) == InputStateRawSize &&
+		input[InputStateRawFlagsOffset]&^inputStateRawKnownFlags != 0 {
+		return fmt.Sprintf("invalid flags 0x%02X",
+			input[InputStateRawFlagsOffset])
+	}
+	if len(input) == InputStateRawSize {
+		flags := input[InputStateRawFlagsOffset]
+		if flags&InputStatePhysicalMetadataEdgeLayout != 0 &&
+			flags&InputStatePhysicalMetadataValid == 0 {
+			return fmt.Sprintf("invalid flags 0x%02X: Edge layout without valid metadata",
+				flags)
+		}
 	}
 
 	buttons := binary.LittleEndian.Uint32(input[4:8])
@@ -230,8 +293,4 @@ func inputStatePayloadCorruptionReason(input []byte) string {
 	}
 
 	return ""
-}
-
-func isPowerOfTwo(value int) bool {
-	return value > 0 && value&(value-1) == 0
 }

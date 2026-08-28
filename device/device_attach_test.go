@@ -28,11 +28,19 @@ func TestDualSenseRegistryOnlyExposesV5Contract(t *testing.T) {
 	sort.Strings(got)
 	assert.Equal(t, []string{
 		"dualsenseaudioonlyduplexv5",
+		"dualsenseaudioonlyduplexv5events",
+		"dualsenseaudioonlyduplexv5rawinputevents",
 		"dualsensecombinedaudioduplexv5",
+		"dualsensecombinedaudioduplexv5events",
+		"dualsensecombinedaudioduplexv5rawinputevents",
 		"dualsenseedgeaudioonlyduplexv5",
 		"dualsenseedgecombinedaudioduplexv5",
+		"dualsenseedgecombinedaudioduplexv5events",
+		"dualsenseedgecombinedaudioduplexv5rawinputevents",
 		"dualsenseedgegamepadv5",
+		"dualsenseedgegamepadv5rawinput",
 		"dualsensegamepadv5",
+		"dualsensegamepadv5rawinput",
 	}, got)
 }
 
