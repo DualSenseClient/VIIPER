@@ -1014,6 +1014,56 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#v5-device-type-registry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V5 device type registry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v5-stream-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V5 stream contract
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="V5 stream contract">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#raw-input-extension" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Raw-input extension
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#feedback-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Feedback state
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1354,6 +1404,56 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v5-device-type-registry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V5 device type registry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v5-stream-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V5 stream contract
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="V5 stream contract">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#raw-input-extension" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Raw-input extension
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#feedback-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Feedback state
+      
+    </span>
+  </a>
   
 </li>
       
@@ -1802,6 +1902,268 @@ generation barrier: flush queued speaker PCM and haptics.</p>
 <p><code>SetDualSenseMicrophonePCM</code> queues a microphone PCM frame captured from the
 host-facing mic stream. The frame must be exactly <strong>1920 bytes</strong> (480 frames of
 two S16LE channels at 48 kHz).</p>
+<h2 id="v5-device-type-registry">V5 device type registry</h2>
+<p>The registry exposes only production V5 contracts. Input size is negotiated by
+the exact device type; there is no per-frame downgrade:</p>
+<table>
+<thead>
+<tr>
+<th>Device type</th>
+<th>Input</th>
+<th>Output event <code>0x85</code></th>
+<th>USB functions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dualsensecombinedaudioduplexv5</code></td>
+<td>33 bytes</td>
+<td>No</td>
+<td>DualSense HID, speaker/haptics OUT, microphone IN</td>
+</tr>
+<tr>
+<td><code>dualsenseaudioonlyduplexv5</code></td>
+<td>33 bytes</td>
+<td>No</td>
+<td>DualSense audio sidecar</td>
+</tr>
+<tr>
+<td><code>dualsensegamepadv5</code></td>
+<td>33 bytes</td>
+<td>No</td>
+<td>DualSense HID only</td>
+</tr>
+<tr>
+<td><code>dualsensecombinedaudioduplexv5events</code></td>
+<td>33 bytes</td>
+<td>Yes</td>
+<td>DualSense HID and audio</td>
+</tr>
+<tr>
+<td><code>dualsenseaudioonlyduplexv5events</code></td>
+<td>33 bytes</td>
+<td>Yes</td>
+<td>DualSense audio sidecar</td>
+</tr>
+<tr>
+<td><code>dualsensecombinedaudioduplexv5rawinputevents</code></td>
+<td>53 bytes</td>
+<td>Yes</td>
+<td>DualSense HID and audio</td>
+</tr>
+<tr>
+<td><code>dualsenseaudioonlyduplexv5rawinputevents</code></td>
+<td>53 bytes</td>
+<td>Yes</td>
+<td>DualSense audio sidecar</td>
+</tr>
+<tr>
+<td><code>dualsensegamepadv5rawinput</code></td>
+<td>53 bytes</td>
+<td>No</td>
+<td>DualSense HID only</td>
+</tr>
+<tr>
+<td><code>dualsenseedgecombinedaudioduplexv5</code></td>
+<td>33 bytes</td>
+<td>No</td>
+<td>DualSense Edge HID and audio</td>
+</tr>
+<tr>
+<td><code>dualsenseedgeaudioonlyduplexv5</code></td>
+<td>33 bytes</td>
+<td>No</td>
+<td>DualSense Edge audio sidecar</td>
+</tr>
+<tr>
+<td><code>dualsenseedgegamepadv5</code></td>
+<td>33 bytes</td>
+<td>No</td>
+<td>DualSense Edge HID only</td>
+</tr>
+<tr>
+<td><code>dualsenseedgecombinedaudioduplexv5events</code></td>
+<td>33 bytes</td>
+<td>Yes</td>
+<td>DualSense Edge HID and audio</td>
+</tr>
+<tr>
+<td><code>dualsenseedgecombinedaudioduplexv5rawinputevents</code></td>
+<td>53 bytes</td>
+<td>Yes</td>
+<td>DualSense Edge HID and audio</td>
+</tr>
+<tr>
+<td><code>dualsenseedgegamepadv5rawinput</code></td>
+<td>53 bytes</td>
+<td>No</td>
+<td>DualSense Edge HID only</td>
+</tr>
+</tbody>
+</table>
+<p>Deprecated pre-V5 raw, extended, V1, V2, V3, and V4 names are intentionally
+not registered. Clients must use an exact V5 alias; VIIPER does not silently
+negotiate an older header or split audio/state transport.</p>
+<h2 id="v5-stream-contract">V5 stream contract</h2>
+<p>Every packet uses a 16-byte header followed by its payload:</p>
+<table>
+<thead>
+<tr>
+<th>Offset</th>
+<th>Size</th>
+<th>Field</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>4</td>
+<td>ASCII <code>VPCM</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>1</td>
+<td>Version <code>0x05</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td>1</td>
+<td>Frame type</td>
+</tr>
+<tr>
+<td>6</td>
+<td>2</td>
+<td>Payload length, little endian</td>
+</tr>
+<tr>
+<td>8</td>
+<td>4</td>
+<td>Monotonic sequence, little endian</td>
+</tr>
+<tr>
+<td>12</td>
+<td>4</td>
+<td>IEEE CRC32, little endian</td>
+</tr>
+</tbody>
+</table>
+<p>The CRC covers header bytes 4 through 11 followed by the payload. Sequence
+numbers are shared by every frame type in one direction. A version mismatch,
+sequence gap, CRC mismatch, invalid payload length, or unknown frame type
+closes the stream instead of changing protocols.</p>
+<table>
+<thead>
+<tr>
+<th>Direction</th>
+<th>Type</th>
+<th>Payload</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Client to VIIPER</td>
+<td><code>0x01</code></td>
+<td>Exact 33- or 53-byte controller input state selected by device alias</td>
+</tr>
+<tr>
+<td>Client to VIIPER</td>
+<td><code>0x02</code></td>
+<td>1,920-byte microphone PCM block: stereo S16LE, 48 kHz, 10 ms</td>
+</tr>
+<tr>
+<td>VIIPER to client</td>
+<td><code>0x81</code></td>
+<td>474-byte current combined controller feedback</td>
+</tr>
+<tr>
+<td>VIIPER to client</td>
+<td><code>0x83</code></td>
+<td>Atomic feedback plus the matching 1,920-byte speaker PCM generation</td>
+</tr>
+<tr>
+<td>VIIPER to client</td>
+<td><code>0x85</code></td>
+<td>Microphone-interface active byte plus 64-bit stream generation, event aliases only</td>
+</tr>
+</tbody>
+</table>
+<p>An atomic <code>0x83</code> payload begins with a little-endian 16-bit feedback length,
+then the 474-byte feedback object, then exactly 480 stereo S16LE speaker
+frames. The four-channel virtual USB source is preserved at 48 kHz: front
+left/right become the speaker generation, while rear left/right independently
+complete the 512-frame advanced-haptics clock. At each 480-frame presentation
+boundary VIIPER consumes one completed rear sample or emits silence for that
+lane, matching the proven V5 cadence without replaying stale haptics.</p>
+<p>Controller state, adaptive triggers, lightbar, rumble, haptics, and speaker
+data are serialized by one V5 writer. Media backpressure is bounded and
+newest-wins; interface resets form a hard generation boundary so stale audio
+cannot cross a stop/reconnect.</p>
+<h3 id="raw-input-extension">Raw-input extension</h3>
+<p>Only exact <code>...v5rawinput...</code> aliases require the 53-byte payload. Existing
+legacy aliases and <code>...v5events</code> aliases remain exactly 33 bytes; the events
+suffix negotiates output lifecycle events, not enhanced input.</p>
+<table>
+<thead>
+<tr>
+<th>Payload bytes</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0:33</code></td>
+<td>mapped state described above</td>
+</tr>
+<tr>
+<td><code>33</code></td>
+<td>flags: bit 0 physical metadata valid; bit 1 physical source uses Edge layout</td>
+</tr>
+<tr>
+<td><code>34:38</code></td>
+<td>physical input report bytes <code>28:32</code>, normalized from USB or Bluetooth</td>
+</tr>
+<tr>
+<td><code>38:53</code></td>
+<td>physical input report bytes <code>41:56</code>, normalized from USB or Bluetooth</td>
+</tr>
+</tbody>
+</table>
+<p>Bit 1 is valid only together with bit 0; unknown bits close the framed stream.
+Legacy decode explicitly clears the extension fields to prevent stale metadata
+after reconnect or alias changes.</p>
+<p>Valid metadata supplies the physical sensor timestamp, trigger mechanism and
+effect status, host timestamp echo, battery, and common headset/filter status.
+VIIPER copies physical report
+bytes 49 through 52 only when the physical source and virtual target both use
+the same base or Edge layout. On a mismatch it synthesizes the target layout:
+base uses its generated device clock, while Edge uses <code>80 00 00 00</code>. The
+virtual connection byte <code>54</code> reports the device's configured connection status
+(USB data and power by default) even when the source report arrived over
+Bluetooth. Without valid metadata, trigger status is the
+confirmed physical off/no-load value <code>09 09</code>, effect status is <code>00</code>, and the
+clock/profile and battery use VIIPER's generated state.</p>
+<p>Physical report bytes 56 through 63 are an eight-byte AES-CMAC. They are
+deliberately excluded: remapping controls and replacing virtual
+counters/connect state invalidates the physical authentication tag, and
+VIIPER cannot recompute it without the controller key. The corresponding
+virtual report tail stays zero.</p>
+<p>Physical metadata is continuous latest-state data and never creates an ordered
+queue entry by itself. A real button, D-pad, touch-contact/ID, or trigger
+zero-crossing transition carries its complete metadata snapshot. In a trigger
+epoch, peak strengthening couples only that trigger's status byte and effect
+nibble; equal-analog settling such as L2 <code>28</code> to <code>29</code> is preserved before
+release without turning normal mechanical progression into a stale FIFO.</p>
+<h2 id="feedback-state">Feedback state</h2>
+<p>The 474-byte V5 feedback object contains:</p>
+<ul>
+<li>Bytes 0 through 5: compatible rumble, lightbar RGB, and player LEDs.</li>
+<li>Bytes 6 through 27: native-spaced R2 and L2 adaptive-trigger blocks.</li>
+<li>Bytes 28 through 75: the native 48-byte USB output report <code>0x02</code>.</li>
+<li>Bytes 76 through 473: the current 398-byte combined Bluetooth carrier.</li>
+</ul>
+<p>The combined carrier keeps state and media on one presentation clock. The
+physical-controller bridge supplies the encoded speaker lane and forwards it
+using its V5 transport.</p>
 
 
 
