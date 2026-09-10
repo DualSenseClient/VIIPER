@@ -764,17 +764,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#xbox-one-authorized-retained-persona" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Xbox One (authorized retained persona)
-      </span>
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -1354,17 +1343,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#xbox-one-authorized-retained-persona" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Xbox One (authorized retained persona)
-      </span>
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -1475,20 +1453,12 @@ See <a href="../../getting-started/installation/#requirements">Installation › 
 </tbody>
 </table>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="kt">char</span><span class="o">*</span><span class="w">    </span><span class="n">addr</span><span class="p">;</span><span class="w">                            </span><span class="c1">// default "127.0.0.1:3241"</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="kt">char</span><span class="o">*</span><span class="w">    </span><span class="n">addr</span><span class="p">;</span><span class="w">                            </span><span class="c1">// default "0.0.0.0:3241"</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="kt">uint64_t</span><span class="w"> </span><span class="n">connection_timeout_ms</span><span class="p">;</span><span class="w">           </span><span class="c1">// default 30000 (30s)</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="kt">uint64_t</span><span class="w"> </span><span class="n">device_handler_connect_timeout_ms</span><span class="p">;</span><span class="w"> </span><span class="c1">// default 5000 (5s)</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">write_batch_flush_interval_ms</span><span class="p">;</span><span class="w">   </span><span class="c1">// default 0 (disabled / immediate updates)</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="c1">// Appended fields (keep last for ABI stability):</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="kt">uint64_t</span><span class="w"> </span><span class="n">retained_import_authority_id</span><span class="p">;</span><span class="w">    </span><span class="c1">// default 0 (retained USB/IP imports disabled)</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="kt">int32_t</span><span class="w">  </span><span class="n">retained_input_service_ms</span><span class="p">;</span><span class="w">       </span><span class="c1">// default 0 (descriptor timing); experimental retained IN only: 1, 2, or 4</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span><span class="kt">uint8_t</span><span class="w">  </span><span class="n">endpoint_diagnostics</span><span class="p">;</span><span class="w">            </span><span class="c1">// default 0 (disabled); non-zero emits diagnostics every five seconds</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="p">}</span><span class="w"> </span><span class="n">USBServerConfig</span><span class="p">;</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">write_batch_flush_interval_ms</span><span class="p">;</span><span class="w">   </span><span class="c1">// default 1 (1ms)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">}</span><span class="w"> </span><span class="n">USBServerConfig</span><span class="p">;</span>
 </code></pre></div>
-<p><code>retained_import_authority_id</code> must be non-zero to create authorized Xbox One
-personas; it mirrors the standalone app's
-<code>--usb.retained-import-authority-id</code> opt-in. <code>retained_input_service_ms</code>
-mirrors <code>--usb.retained-input-service-ms</code> (rejected unless 0, 1, 2, or 4).</p>
 <p><code>NewUSBServer</code> blocks until the server is ready. On <code>localhost</code> the server automatically
 attaches the USBIP client, so devices created with <code>autoAttachLocalhost = true</code> appear on
 your machine without any manual USBIP interaction.</p>
@@ -1508,14 +1478,6 @@ your machine without any manual USBIP interaction.</p>
 <tr>
 <td><code>RemoveUSBBus(serverHandle, busID)</code></td>
 <td>Remove a bus and all its devices</td>
-</tr>
-<tr>
-<td><code>GetBusList(serverHandle, buffer, bufferSize)</code></td>
-<td>List bus IDs as JSON (two-call buffer pattern; <code>0</code> = invalid handle)</td>
-</tr>
-<tr>
-<td><code>GetBusDevices(serverHandle, busID, buffer, bufferSize)</code></td>
-<td>List one bus's devices as JSON (same pattern; <code>0</code> = invalid handle/unknown bus)</td>
 </tr>
 <tr>
 <td><code>SetUSBAutoAttachWindowsNative(serverHandle, useNativeIOCTL)</code></td>
@@ -1752,10 +1714,6 @@ again with an adequately sized buffer. Returns <code>0</code> for an invalid han
 <td>Merge-update identity/battery state at runtime</td>
 </tr>
 <tr>
-<td><code>SetNS2ProRuntimeStatusV1(handle, status)</code></td>
-<td>Push the versioned power snapshot (validated 2500–5000 mV)</td>
-</tr>
-<tr>
 <td><code>SetNS2ProOutputCallback(handle, cb)</code></td>
 <td>Register output (rumble/LED) callback</td>
 </tr>
@@ -1815,105 +1773,59 @@ again with an adequately sized buffer. Returns <code>0</code> for an invalid han
 </tr>
 </tbody>
 </table>
-<h4 id="xbox-one-authorized-retained-persona">Xbox One (authorized retained persona)</h4>
-<p>Mirrors the standalone app's closed <code>add-authorized-xboxone</code> /
-<code>activate-authorized-xboxone</code> factory. Requires a non-zero
-<code>retained_import_authority_id</code> in <code>USBServerConfig</code> and the Windows QPC clock
-(CFBK v1); creation fails on other platforms, exactly like the app.</p>
-<table>
-<thead>
-<tr>
-<th>Function</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>CreateAuthorizedXboxOneDevice(serverHandle, &amp;handle, busID, autoAttach, authGranted, identity, usb, strings, feedback, importDeviceId, localTimeoutMs)</code></td>
-<td>Create a dormant persona. <code>authGranted</code> must be <code>true</code> (caller attests identity ownership); the persona stays invisible until activated</td>
-</tr>
-<tr>
-<td><code>ActivateAuthorizedXboxOneDevice(handle, &amp;port)</code></td>
-<td>Attach the persona to the local USBIP client (requires <code>autoAttach</code> from creation). Failed attaches may be retried; success is one-shot. Pass <code>NULL</code> for <code>port</code> to ignore it</td>
-</tr>
-<tr>
-<td><code>SetXboxOneInputState(handle, state)</code></td>
-<td>Push a semantic input frame (triggers 0–1023). Fails before activation</td>
-</tr>
-<tr>
-<td><code>SetXboxOneRumbleCallback(handle, cb)</code></td>
-<td>Register a callback for host motor output (8-bit body low/high). Pass <code>NULL</code> to clear; frames keep draining while cleared</td>
-</tr>
-<tr>
-<td><code>RemoveAuthorizedXboxOneDevice(handle)</code></td>
-<td>Remove exactly this persona (no numeric-address fallback)</td>
-</tr>
-</tbody>
-</table>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">XboxOneIdentity</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">.</span><span class="n">vendorId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0xf00d</span><span class="p">,</span><span class="w"> </span><span class="p">.</span><span class="n">productId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0xbeef</span><span class="p">,</span><span class="w"> </span><span class="cm">/* ... */</span><span class="w"> </span><span class="p">};</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">XboxOneFeedbackBinding</span><span class="w"> </span><span class="n">fb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">.</span><span class="n">source</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="p">.</span><span class="n">personaGeneration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="p">.</span><span class="n">deviceGeneration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="p">.</span><span class="n">transportGeneration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="p">.</span><span class="n">ownershipEpoch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="p">.</span><span class="n">timeToLiveMicroseconds</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">250000</span><span class="w"> </span><span class="p">};</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">XboxOneDeviceHandle</span><span class="w"> </span><span class="n">xbox</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">CreateAuthorizedXboxOneDevice</span><span class="p">(</span><span class="n">server</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">xbox</span><span class="p">,</span><span class="w"> </span><span class="n">busID</span><span class="p">,</span><span class="w"> </span><span class="nb">true</span><span class="p">,</span><span class="w"> </span><span class="nb">true</span><span class="p">,</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="o">&amp;</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">usb</span><span class="p">,</span><span class="w"> </span><span class="nb">NULL</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">fb</span><span class="p">,</span><span class="w"> </span><span class="n">importDeviceID</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">);</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">SetXboxOneRumbleCallback</span><span class="p">(</span><span class="n">xbox</span><span class="p">,</span><span class="w"> </span><span class="n">rumbleCb</span><span class="p">);</span>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="kt">int32_t</span><span class="w"> </span><span class="n">port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="n">ActivateAuthorizedXboxOneDevice</span><span class="p">(</span><span class="n">xbox</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">port</span><span class="p">);</span>
-</code></pre></div>
 <h2 id="examples">Examples</h2>
 <p>Full working examples are in <a href="https://github.com/DualSenseClient/VIIPER/tree/main/examples/libVIIPER"><code>examples/libVIIPER/</code></a>.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">C</label><label for="__tabbed_1_2">C#</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">USBServerConfig</span><span class="w"> </span><span class="n">conf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">.</span><span class="n">addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"localhost:3245"</span><span class="w"> </span><span class="p">};</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">USBServerHandle</span><span class="w"> </span><span class="n">serverHandle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">NewUSBServer</span><span class="p">(</span><span class="o">&amp;</span><span class="n">conf</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="n">logCallback</span><span class="p">);</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="kt">uint32_t</span><span class="w"> </span><span class="n">busID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">CreateUSBBus</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">busID</span><span class="p">);</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">Xbox360DeviceHandle</span><span class="w"> </span><span class="n">deviceHandle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">CreateXbox360Device</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">busID</span><span class="p">,</span><span class="w"> </span><span class="cm">/*autoAttach=*/</span><span class="nb">true</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="n">SetXbox360RumbleCallback</span><span class="p">(</span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">rumbleCallback</span><span class="p">);</span>
-<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>
-<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="n">Xbox360DeviceState</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="p">};</span>
-<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">running</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">    </span><span class="c1">// only required when an actual change occurs</span>
-<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">Buttons</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">XBOX360_BUTTON_A</span><span class="p">;</span>
-<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">LT</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="mi">128</span><span class="p">;</span>
-<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">LX</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="mi">20000</span><span class="p">;</span>
-<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">    </span><span class="n">SetXbox360DeviceState</span><span class="p">(</span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">);</span>
-<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">    </span><span class="n">_sleep</span><span class="p">(</span><span class="mi">16</span><span class="p">);</span>
-<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="p">}</span>
-<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>
-<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="n">CloseUSBServer</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">);</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">USBServerConfig</span><span class="w"> </span><span class="n">conf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">.</span><span class="n">addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"localhost:3245"</span><span class="w"> </span><span class="p">};</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">USBServerHandle</span><span class="w"> </span><span class="n">serverHandle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">NewUSBServer</span><span class="p">(</span><span class="o">&amp;</span><span class="n">conf</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="n">logCallback</span><span class="p">);</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="kt">uint32_t</span><span class="w"> </span><span class="n">busID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">CreateUSBBus</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">busID</span><span class="p">);</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">Xbox360DeviceHandle</span><span class="w"> </span><span class="n">deviceHandle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="n">CreateXbox360Device</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">busID</span><span class="p">,</span><span class="w"> </span><span class="cm">/*autoAttach=*/</span><span class="nb">true</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="n">SetXbox360RumbleCallback</span><span class="p">(</span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">rumbleCallback</span><span class="p">);</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="n">Xbox360DeviceState</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="p">};</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">running</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">    </span><span class="c1">// only required when an actual change occurs</span>
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">Buttons</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">XBOX360_BUTTON_A</span><span class="p">;</span>
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">LT</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="mi">128</span><span class="p">;</span>
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">LX</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="mi">20000</span><span class="p">;</span>
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="w">    </span><span class="n">SetXbox360DeviceState</span><span class="p">(</span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">);</span>
+<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="w">    </span><span class="n">_sleep</span><span class="p">(</span><span class="mi">16</span><span class="p">);</span>
+<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a><span class="p">}</span>
+<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>
+<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="n">CloseUSBServer</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">);</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">USBServerConfig</span><span class="w"> </span><span class="n">conf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"localhost:3245"</span><span class="w"> </span><span class="p">};</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">NewUSBServer</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">conf</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="k">nuint</span><span class="w"> </span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="n">logCb</span><span class="p">);</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="kt">uint</span><span class="w"> </span><span class="n">busID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">CreateUSBBus</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">busID</span><span class="p">);</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">CreateXbox360Device</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="k">nuint</span><span class="w"> </span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">busID</span><span class="p">,</span><span class="w"> </span><span class="n">autoAttachLocalhost</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="n">Xbox360RumbleCallbackDelegate</span><span class="w"> </span><span class="n">rumbleCb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RumbleCallback</span><span class="p">;</span>
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">SetXbox360RumbleCallback</span><span class="p">(</span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">rumbleCb</span><span class="p">);</span>
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>
-<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="n">Xbox360DeviceState</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="p">();</span>
-<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">running</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">    </span><span class="c1">// only required when an actual change occurs</span>
-<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">Buttons</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Xbox360Buttons</span><span class="p">.</span><span class="n">A</span><span class="p">;</span>
-<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">LT</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="mi">128</span><span class="p">;</span>
-<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">LX</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="mi">20000</span><span class="p">;</span>
-<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">    </span><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">SetXbox360DeviceState</span><span class="p">(</span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">);</span>
-<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">    </span><span class="n">Thread</span><span class="p">.</span><span class="n">Sleep</span><span class="p">(</span><span class="mi">16</span><span class="p">);</span>
-<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="p">}</span>
-<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a>
-<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">CloseUSBServer</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">);</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">USBServerConfig</span><span class="w"> </span><span class="n">conf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"localhost:3245"</span><span class="w"> </span><span class="p">};</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">NewUSBServer</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">conf</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="k">nuint</span><span class="w"> </span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="n">logCb</span><span class="p">);</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="kt">uint</span><span class="w"> </span><span class="n">busID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">CreateUSBBus</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">busID</span><span class="p">);</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">CreateXbox360Device</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="k">nuint</span><span class="w"> </span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">busID</span><span class="p">,</span><span class="w"> </span><span class="n">autoAttachLocalhost</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">Xbox360RumbleCallbackDelegate</span><span class="w"> </span><span class="n">rumbleCb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RumbleCallback</span><span class="p">;</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">SetXbox360RumbleCallback</span><span class="p">(</span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">rumbleCb</span><span class="p">);</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="n">Xbox360DeviceState</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="p">();</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">running</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">    </span><span class="c1">// only required when an actual change occurs</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">Buttons</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Xbox360Buttons</span><span class="p">.</span><span class="n">A</span><span class="p">;</span>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">LT</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="mi">128</span><span class="p">;</span>
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">    </span><span class="n">state</span><span class="p">.</span><span class="n">LX</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="mi">20000</span><span class="p">;</span>
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">    </span><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">SetXbox360DeviceState</span><span class="p">(</span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">);</span>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">    </span><span class="n">Thread</span><span class="p">.</span><span class="n">Sleep</span><span class="p">(</span><span class="mi">16</span><span class="p">);</span>
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="p">}</span>
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">CloseUSBServer</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">);</span>
 </code></pre></div>
 <p>See <a href="https://github.com/DualSenseClient/VIIPER/tree/main/examples/libVIIPER/csharp"><code>examples/libVIIPER/csharp/</code></a> for the full project including P/Invoke declarations.</p>
 <p>For a complete C# reference (all functions, structs, enums and callbacks), see
@@ -1926,8 +1838,8 @@ P/Invoke, see <a href="../client-libraries/">Client Libraries</a>.</p>
 <p>When calling from C#, keep the delegate instances alive for the lifetime of the
 device/server they are registered on — the garbage collector cannot see references
 held by native code:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">Xbox360RumbleCallbackDelegate</span><span class="w"> </span><span class="n">rumbleCb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RumbleCallback</span><span class="p">;</span><span class="w"> </span><span class="c1">// keep in a field</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">VIIPERLogCallbackDelegate</span><span class="w"> </span><span class="n">logCb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">LogCallback</span><span class="p">;</span><span class="w">            </span><span class="c1">// keep in a field</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">Xbox360RumbleCallbackDelegate</span><span class="w"> </span><span class="n">rumbleCb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RumbleCallback</span><span class="p">;</span><span class="w"> </span><span class="c1">// keep in a field</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">VIIPERLogCallbackDelegate</span><span class="w"> </span><span class="n">logCb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">LogCallback</span><span class="p">;</span><span class="w">            </span><span class="c1">// keep in a field</span>
 </code></pre></div>
 <ul>
 <li><code>[StructLayout(LayoutKind.Sequential)]</code> structs must mirror the C layout exactly
