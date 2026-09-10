@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="zensical-0.0.57">
+      <meta name="generator" content="zensical-0.0.60">
     
     
       
@@ -34,7 +34,7 @@
       
         
       
-      <link rel="stylesheet" href="../../assets/stylesheets/modern/main.5da3a30f.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/modern/main.ce62732f.min.css">
       
         
           
@@ -1230,23 +1230,24 @@ system to use the virtual devices.</p>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <p>libVIIPER requires the signed
-<a href="https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.7.7">usbip-win2 0.9.7.7 x64 release</a>.
-Install that exact release before starting VIIPER or an application that
+<a href="https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.8.0">usbip-win2 0.9.8.0 or 0.9.7.7 x64 release</a>.
+Install one of those releases before starting VIIPER or an application that
 embeds it.</p>
 <div class="admonition danger">
 <p class="admonition-title">Do not substitute another USBIP build</p>
-<p>This release is ABI-pinned to <strong>0.9.7.7</strong>. Version 0.9.7.8 reproduced
+<p>VIIPER supports <strong>0.9.8.0</strong> (serial + low-latency receive mode) with
+fallback to <strong>0.9.7.7</strong>. Version 0.9.7.8 reproduced
 kernel pool corruption during controller attachment and is explicitly
 rejected. The installer verifies the version and live ABI before
 allowing VIIPER to start.</p>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">USBIP-Win2 signing certificate</p>
-<p>The upstream 0.9.7.7 installer may add the publicly available USBIP
+<p>The upstream installer may add the publicly available USBIP
 test-signing CA to <strong>Trusted Root Certification Authorities</strong>. After
 installation, you may remove the certificate named <strong>USBIP</strong> with
-<code>certlm.msc</code> (run as administrator). Do not replace 0.9.7.7 with a
-newer or OSSign build: VIIPER validates this exact userspace/driver ABI.</p>
+<code>certlm.msc</code> (run as administrator). Keep the driver and userspace
+files from the same release: VIIPER validates this userspace/driver ABI.</p>
 </div>
 </div>
 <div class="tabbed-block">
@@ -1391,7 +1392,7 @@ On Windows, <a href="https://www.mingw-w64.org/">mingw-w64</a> or MSVC is requir
       <script id="__config" type="application/json">{"annotate":null,"base":"../..","features":["navigation.tabs","navigation.sections","navigation.top","navigation.footer","search.suggest","search.highlight","search.share","content.code.copy","content.tabs.link"],"search":"../../assets/javascripts/workers/search.7d14d953.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.49251538.min.js"></script>
+      <script src="../../assets/javascripts/bundle.88ee1349.min.js"></script>
       
     
   </body>
