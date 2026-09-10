@@ -12,10 +12,20 @@ import (
 	"time"
 )
 
-const (
-	requiredUSBIPVersion = "0.9.7.7"
-	usbipProbeTimeout    = 10 * time.Second
-)
+const usbipProbeTimeout = 10 * time.Second
+
+// Supported native attach ABIs: 0.9.8.0 (serial + wsk_events) with fallback
+// to 0.9.7.7. 0.9.7.8 is explicitly rejected (kernel pool corruption).
+var supportedUSBIPVersions = []string{"0.9.8.0", "0.9.7.7"}
+
+func isSupportedUSBIPVersion(v string) bool {
+	for _, supported := range supportedUSBIPVersions {
+		if v == supported {
+			return true
+		}
+	}
+	return false
+}
 
 type usbipCommandRunner func(context.Context, string, ...string) ([]byte, error)
 
@@ -42,8 +52,8 @@ func canonicalUSBIPExecutable() (string, error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", fmt.Errorf(
-				"USB/IP prerequisite failed: usbip-win2 %s is not installed at %s; install the pinned usbip-win2 release from https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.7.7",
-				requiredUSBIPVersion,
+				"USB/IP prerequisite failed: supported usbip-win2 (%s) is not installed at %s; install usbip-win2 0.9.8.0 or 0.9.7.7 from https://github.com/vadimgrn/usbip-win2/releases",
+				strings.Join(supportedUSBIPVersions, "/"),
 				usbipPath,
 			)
 		}
@@ -79,13 +89,13 @@ func probeUSBIPRuntime(usbipPath string, run usbipCommandRunner) error {
 	}
 
 	installedVersion := strings.TrimSpace(string(versionOutput))
-	if installedVersion != requiredUSBIPVersion {
+	if !isSupportedUSBIPVersion(installedVersion) {
 		if installedVersion == "" {
 			installedVersion = "unknown"
 		}
 		return fmt.Errorf(
-			"USB/IP prerequisite failed: VIIPER requires usbip-win2 %s at %s (found %s); install the pinned usbip-win2 release from https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.7.7",
-			requiredUSBIPVersion,
+			"USB/IP prerequisite failed: VIIPER requires usbip-win2 %s at %s (found %s); install usbip-win2 0.9.8.0 or 0.9.7.7 from https://github.com/vadimgrn/usbip-win2/releases",
+			strings.Join(supportedUSBIPVersions, "/"),
 			usbipPath,
 			installedVersion,
 		)
@@ -101,16 +111,14 @@ func probeUSBIPRuntime(usbipPath string, run usbipCommandRunner) error {
 	}
 	if portErr != nil {
 		return fmt.Errorf(
-			"USB/IP prerequisite failed: usbip-win2 %s driver/CLI probe failed: %w%s",
-			requiredUSBIPVersion,
+			"USB/IP prerequisite failed: usbip-win2 driver/CLI probe failed: %w%s",
 			portErr,
 			formatUSBIPOutput(portOutput),
 		)
 	}
 	if reason := usbipProbeFailure(portOutput); reason != "" {
 		return fmt.Errorf(
-			"USB/IP prerequisite failed: usbip-win2 %s driver/CLI probe reported %s; repair USBIP and reboot before starting VIIPER",
-			requiredUSBIPVersion,
+			"USB/IP prerequisite failed: usbip-win2 driver/CLI probe reported %s; repair USBIP and reboot before starting VIIPER",
 			reason,
 		)
 	}

@@ -98,6 +98,10 @@ type usbServerHandleWrapper struct {
 	// created with autoAttachLocalhost; mirrors the standalone app's
 	// api.auto-attach-windows-native option. Defaults to true.
 	useNativeIOCTL atomic.Bool
+	// useLowLatency selects the 0.9.8.0 low-latency receive mode
+	// (wsk_events) for native auto-attach. Defaults to false (zero-copy).
+	// Ignored on 0.9.7.7 drivers and non-native transports.
+	useLowLatency atomic.Bool
 }
 
 type deviceHandleWrapper struct {

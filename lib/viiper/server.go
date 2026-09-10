@@ -126,6 +126,24 @@ func SetUSBAutoAttachWindowsNative(serverHandle C.USBServerHandle, useNativeIOCT
 	return true
 }
 
+// SetUSBAutoAttachLowLatency selects the usbip-win2 0.9.8.0 receive mode for
+// native auto-attach on Windows: true for low-latency (wsk_events), false
+// for zero-copy (default). Has no effect on 0.9.7.7 drivers, where the flag
+// is ignored, or on non-native transports.
+// @param serverHandle Handle to the USB server.
+// @param useLowLatency True for low-latency receive mode.
+//
+//export SetUSBAutoAttachLowLatency
+func SetUSBAutoAttachLowLatency(serverHandle C.USBServerHandle, useLowLatency bool) bool {
+	sh := cgo.Handle(serverHandle)
+	shw, ok := sh.Value().(*usbServerHandleWrapper)
+	if !ok {
+		return false
+	}
+	shw.useLowLatency.Store(useLowLatency)
+	return true
+}
+
 // GetUSBEndpointDiagnostics writes aggregate USB/IP endpoint scheduling
 // diagnostics for all currently attached connections to buffer as a JSON
 // object. Call it once with buffer = NULL to obtain the required size

@@ -65,6 +65,7 @@ your machine without any manual USBIP interaction.
 | `CreateUSBBus(serverHandle, &busID)` | Create a new USB bus (pass `0` to auto-assign ID) |
 | `RemoveUSBBus(serverHandle, busID)` | Remove a bus and all its devices |
 | `SetUSBAutoAttachWindowsNative(serverHandle, useNativeIOCTL)` | Windows only: attach via native IOCTL (default) or usbip.exe |
+| `SetUSBAutoAttachLowLatency(serverHandle, useLowLatency)` | Windows only: low-latency receive mode on 0.9.8.0+ (default false = zero-copy; ignored on 0.9.7.7) |
 
 ### Logging
 

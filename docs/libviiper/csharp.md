@@ -629,6 +629,11 @@ static class LibVIIPER
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool SetUSBAutoAttachWindowsNative(nuint serverHandle, [MarshalAs(UnmanagedType.I1)] bool useNativeIOCTL);
+
+    // Windows only: low-latency receive mode on usbip-win2 0.9.8.0+ (default false = zero-copy).
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool SetUSBAutoAttachLowLatency(nuint serverHandle, [MarshalAs(UnmanagedType.I1)] bool useLowLatency);
 ```
 
 ### Device telemetry

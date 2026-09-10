@@ -13,28 +13,32 @@ import (
 )
 
 func TestProbeUSBIPRuntimeAcceptsPinnedCompatibleRuntime(t *testing.T) {
-	var calls [][]string
-	run := func(_ context.Context, executable string, args ...string) ([]byte, error) {
-		call := append([]string{executable}, args...)
-		calls = append(calls, call)
-		switch args[0] {
-		case "--version":
-			return []byte("0.9.7.7\r\n"), nil
-		case "port":
-			return []byte("Imported USB devices\r\n====================\r\n"), nil
-		default:
-			t.Fatalf("unexpected arguments: %v", args)
-			return nil, nil
-		}
+	for _, version := range []string{"0.9.8.0", "0.9.7.7"} {
+		t.Run(version, func(t *testing.T) {
+			var calls [][]string
+			run := func(_ context.Context, executable string, args ...string) ([]byte, error) {
+				call := append([]string{executable}, args...)
+				calls = append(calls, call)
+				switch args[0] {
+				case "--version":
+					return []byte(version + "\r\n"), nil
+				case "port":
+					return []byte("Imported USB devices\r\n====================\r\n"), nil
+				default:
+					t.Fatalf("unexpected arguments: %v", args)
+					return nil, nil
+				}
+			}
+
+			err := probeUSBIPRuntime(`C:\Program Files\USBip\usbip.exe`, run)
+
+			require.NoError(t, err)
+			assert.Equal(t, [][]string{
+				{`C:\Program Files\USBip\usbip.exe`, "--version"},
+				{`C:\Program Files\USBip\usbip.exe`, "port"},
+			}, calls)
+		})
 	}
-
-	err := probeUSBIPRuntime(`C:\Program Files\USBip\usbip.exe`, run)
-
-	require.NoError(t, err)
-	assert.Equal(t, [][]string{
-		{`C:\Program Files\USBip\usbip.exe`, "--version"},
-		{`C:\Program Files\USBip\usbip.exe`, "port"},
-	}, calls)
 }
 
 func TestProbeUSBIPRuntimeRejectsEveryOtherVersionBeforeDriverProbe(t *testing.T) {
@@ -49,7 +53,7 @@ func TestProbeUSBIPRuntimeRejectsEveryOtherVersionBeforeDriverProbe(t *testing.T
 	err := probeUSBIPRuntime(`C:\Program Files\USBip\usbip.exe`, run)
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "requires usbip-win2 0.9.7.7")
+	assert.Contains(t, err.Error(), "requires usbip-win2")
 	assert.Contains(t, err.Error(), "found 0.9.7.8")
 	assert.False(t, portCalled)
 }

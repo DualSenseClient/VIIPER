@@ -215,6 +215,7 @@ func createDS4Device(
 			exportMeta,
 			shw.s.GetListenPort(),
 			shw.useNativeIOCTL.Load(),
+			shw.useLowLatency.Load(),
 			slog.Default(),
 		)
 		if err != nil {

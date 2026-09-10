@@ -4,4 +4,5 @@ package api
 
 type PlatformOpts struct {
 	AutoAttachWindowsNative bool `kong:"-"`
+	AutoAttachLowLatency    bool `kong:"-"`
 }

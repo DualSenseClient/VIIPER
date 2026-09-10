@@ -15,13 +15,13 @@ type AutoAttachResult struct {
 	USBIPOwnerSerial string
 }
 
-func AttachLocalhostClient(ctx context.Context, deviceExportMeta *usbip.ExportMeta, usbipServerPort uint16, useNativeIOCTL bool, logger *slog.Logger) error {
-	_, err := AttachLocalhostClientWithResult(ctx, deviceExportMeta, usbipServerPort, useNativeIOCTL, logger)
+func AttachLocalhostClient(ctx context.Context, deviceExportMeta *usbip.ExportMeta, usbipServerPort uint16, useNativeIOCTL bool, wskEvents bool, logger *slog.Logger) error {
+	_, err := AttachLocalhostClientWithResult(ctx, deviceExportMeta, usbipServerPort, useNativeIOCTL, wskEvents, logger)
 	return err
 }
 
 // AttachLocalhostClientWithResult attaches a device and returns the exact
 // USB/IP import metadata when the platform attach mechanism provides it.
-func AttachLocalhostClientWithResult(ctx context.Context, deviceExportMeta *usbip.ExportMeta, usbipServerPort uint16, useNativeIOCTL bool, logger *slog.Logger) (AutoAttachResult, error) {
-	return attachLocalhostClientImpl(ctx, deviceExportMeta, usbipServerPort, useNativeIOCTL, logger)
+func AttachLocalhostClientWithResult(ctx context.Context, deviceExportMeta *usbip.ExportMeta, usbipServerPort uint16, useNativeIOCTL bool, wskEvents bool, logger *slog.Logger) (AutoAttachResult, error) {
+	return attachLocalhostClientImpl(ctx, deviceExportMeta, usbipServerPort, useNativeIOCTL, wskEvents, logger)
 }

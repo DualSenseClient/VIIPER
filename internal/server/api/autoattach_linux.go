@@ -14,7 +14,7 @@ import (
 	"github.com/DualSenseClient/VIIPER/usbip"
 )
 
-func attachLocalhostClientImpl(ctx context.Context, deviceExportMeta *usbip.ExportMeta, usbipServerPort uint16, _ bool, logger *slog.Logger) (AutoAttachResult, error) {
+func attachLocalhostClientImpl(ctx context.Context, deviceExportMeta *usbip.ExportMeta, usbipServerPort uint16, _ bool, _ bool, logger *slog.Logger) (AutoAttachResult, error) {
 	logger.Info("Auto-attaching localhost client", "busID", deviceExportMeta.BusID, "deviceID", deviceExportMeta.DevID)
 
 	cmd := exec.CommandContext(

@@ -3,14 +3,14 @@
 === "Windows"
 
     VIIPER requires signed
-    [usbip-win2 ](https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.7.7).
+    [usbip-win2 0.9.8.0 or 0.9.7.7](https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.8.0).
     Do not install 0.9.7.8 or substitute a different userspace/driver build; VIIPER rejects an incompatible ABI.
 
     !!! warning "USBIP-Win2 signing certificate"
-        The 0.9.7.7 installer may add the publicly available USBIP test-signing
+        The installer may add the publicly available USBIP test-signing
         CA as a trusted root. After installation, you may remove the certificate
         named **USBIP** with `certlm.msc` (run as administrator). Keep the
-        0.9.7.7 driver and userspace files installed together.
+        driver and userspace files from the same release installed together.
 
 === "Linux"
 

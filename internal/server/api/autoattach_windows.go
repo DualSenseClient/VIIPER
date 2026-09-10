@@ -56,8 +56,24 @@ const (
 	niMaxServ = 32
 )
 
-// PLUGIN_HARDWARE structure from usbip-win2
+// PLUGIN_HARDWARE structures from usbip-win2.
+// attachIOCTL matches 0.9.8.0 (serial + wsk_events); attachIOCTL077 matches
+// 0.9.7.7. SERIAL_BUFSZ is 16 in both.
+// Pad covers the C++ imported_device_location tail padding: its 1025-byte
+// host leaves the base at 1093 bytes, padded to 1096, so serial starts at
+// 1100 and the whole 0.9.8.0 struct is 1120 bytes (verified with gcc).
 type attachIOCTL struct {
+	Size       uint32
+	PortOutput int32
+	BusID      [32]byte
+	Service    [niMaxServ]byte
+	Host       [niMaxHost]byte
+	Pad        [3]byte
+	Serial     [16]byte
+	WskEvents  bool
+}
+
+type attachIOCTL077 struct {
 	Size       uint32
 	PortOutput int32
 	BusID      [32]byte
@@ -73,17 +89,17 @@ const (
 	ioctlPluginHardware = (fileDeviceUnknown << 16) | ((fileReadData | fileWriteData) << 14) | (0x800 << 2) | methodBuffered
 )
 
-func attachLocalhostClientImpl(ctx context.Context, deviceExportMeta *usbip.ExportMeta, usbipServerPort uint16, useNativeIOCTL bool, logger *slog.Logger) (AutoAttachResult, error) {
+func attachLocalhostClientImpl(ctx context.Context, deviceExportMeta *usbip.ExportMeta, usbipServerPort uint16, useNativeIOCTL bool, wskEvents bool, logger *slog.Logger) (AutoAttachResult, error) {
 	if useNativeIOCTL {
 		// Never hide a native ABI mismatch behind usbip.exe. A mismatch means
-		// the pinned 0.9.7.7 userspace and loaded driver are not a valid pair and must
+		// the userspace and loaded driver are not a valid pair and must
 		// be repaired/rebooted before VIIPER creates devices.
-		return attachViaIOCTL(ctx, deviceExportMeta, usbipServerPort, logger)
+		return attachViaIOCTL(ctx, deviceExportMeta, usbipServerPort, wskEvents, logger)
 	}
 	return attachViaCommand(ctx, deviceExportMeta, usbipServerPort, logger)
 }
 
-func attachViaIOCTL(_ context.Context, deviceExportMeta *usbip.ExportMeta, usbipServerPort uint16, logger *slog.Logger) (AutoAttachResult, error) {
+func attachViaIOCTL(_ context.Context, deviceExportMeta *usbip.ExportMeta, usbipServerPort uint16, wskEvents bool, logger *slog.Logger) (AutoAttachResult, error) {
 	logger.Info("Auto-attaching localhost client via native IOCTL",
 		"busID", deviceExportMeta.BusID,
 		"deviceID", deviceExportMeta.DevID)
@@ -130,14 +146,30 @@ func attachViaIOCTL(_ context.Context, deviceExportMeta *usbip.ExportMeta, usbip
 
 	logger.Debug("Opened device handle")
 
-	ioctlData := attachIOCTL{Size: uint32(unsafe.Sizeof(attachIOCTL{}))}
+	// 0.9.8.0 first (serial left empty, wsk_events selects zero-copy vs
+	// low-latency); fall back to the 0.9.7.7 layout when the driver rejects
+	// the size. One extra failed IOCTL on version mismatch is negligible.
+	ioctlData := attachIOCTL{Size: uint32(unsafe.Sizeof(attachIOCTL{})), WskEvents: wskEvents}
 	copy(ioctlData.BusID[:], busID)
 	copy(ioctlData.Service[:], service)
 	copy(ioctlData.Host[:], "localhost")
 	port, bytesReturned, err := submitAttachIOCTL(handle,
 		unsafe.Pointer(&ioctlData), ioctlData.Size, &ioctlData.PortOutput)
 	if err != nil {
-		return AutoAttachResult{}, fmt.Errorf("IOControl: usbip-win2 0.9.7.7 native attach failed (repair or reboot USBIP; no command fallback was attempted): %w", err)
+		logger.Debug("0.9.8.0 attach failed, retrying with 0.9.7.7 layout", "error", err)
+		legacy := attachIOCTL077{Size: uint32(unsafe.Sizeof(attachIOCTL077{}))}
+		copy(legacy.BusID[:], busID)
+		copy(legacy.Service[:], service)
+		copy(legacy.Host[:], "localhost")
+		legacyPort, legacyReturned, legacyErr := submitAttachIOCTL(handle,
+			unsafe.Pointer(&legacy), legacy.Size, &legacy.PortOutput)
+		if legacyErr != nil {
+			return AutoAttachResult{}, fmt.Errorf("IOControl: usbip-win2 0.9.8.0/0.9.7.7 native attach failed (repair or reboot USBIP; no command fallback was attempted): %w (legacy: %v)", err, legacyErr)
+		}
+		if wskEvents {
+			logger.Debug("0.9.7.7 driver ignores low-latency receive mode")
+		}
+		port, bytesReturned = legacyPort, legacyReturned
 	}
 
 	logger.Debug("IOCTL completed", "bytesReturned", bytesReturned, "portOutput", port)
@@ -205,7 +237,7 @@ func resolveUsbipExecutable() string {
 	// The usbip-win2 installer does not consistently add its directory to
 	// PATH for already-running services. Prefer the canonical installation so
 	// a stale copy elsewhere cannot pair a different userspace ABI with the
-	// pinned 0.9.7.7 driver.
+	// installed driver.
 	seen := make(map[string]struct{})
 	for _, root := range []string{
 		os.Getenv("ProgramW6432"),
@@ -317,8 +349,8 @@ func CheckAutoAttachPrerequisites(useNativeIOCTL bool, logger *slog.Logger) bool
 		if err != nil {
 			logger.Warn("Native IOCTL auto-attach prerequisites not met", "error", err)
 			logger.Warn("Native IOCTL auto-attach is unavailable until discovery succeeds")
-			logger.Info("Install the exact signed usbip-win2 0.9.7.7 x64 package:")
-			logger.Info("  https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.7.7")
+			logger.Info("Install a supported signed usbip-win2 x64 package (0.9.8.0 or 0.9.7.7):")
+			logger.Info("  https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.8.0")
 			return false
 		}
 		logger.Debug("usbip-win2 driver found")

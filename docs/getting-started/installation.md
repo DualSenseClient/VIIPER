@@ -17,22 +17,23 @@ system to use the virtual devices.
 === "Windows"
 
     libVIIPER requires the signed
-    [usbip-win2 0.9.7.7 x64 release](https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.7.7).
-    Install that exact release before starting VIIPER or an application that
+    [usbip-win2 0.9.8.0 or 0.9.7.7 x64 release](https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.8.0).
+    Install one of those releases before starting VIIPER or an application that
     embeds it.
 
     !!! danger "Do not substitute another USBIP build"
-        This release is ABI-pinned to **0.9.7.7**. Version 0.9.7.8 reproduced
+        VIIPER supports **0.9.8.0** (serial + low-latency receive mode) with
+        fallback to **0.9.7.7**. Version 0.9.7.8 reproduced
         kernel pool corruption during controller attachment and is explicitly
         rejected. The installer verifies the version and live ABI before
         allowing VIIPER to start.
 
     !!! warning "USBIP-Win2 signing certificate"
-        The upstream 0.9.7.7 installer may add the publicly available USBIP
+        The upstream installer may add the publicly available USBIP
         test-signing CA to **Trusted Root Certification Authorities**. After
         installation, you may remove the certificate named **USBIP** with
-        `certlm.msc` (run as administrator). Do not replace 0.9.7.7 with a
-        newer or OSSign build: VIIPER validates this exact userspace/driver ABI.
+        `certlm.msc` (run as administrator). Keep the driver and userspace
+        files from the same release: VIIPER validates this userspace/driver ABI.
 
 === "Linux"
 

@@ -245,7 +245,7 @@ sudo modprobe vhci-hcd
 
 **Windows - USBIP tool not found:**
 
-Install the exact signed [usbip-win2 0.9.7.7 x64 release](https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.7.7).
+Install the signed [usbip-win2 0.9.8.0 or 0.9.7.7 x64 release](https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.8.0).
 Do not mix it with another usbip-win2 userspace or driver version.
 
 ### Device Not Attaching

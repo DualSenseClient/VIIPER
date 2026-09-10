@@ -27,7 +27,7 @@ func TestBusDeviceAddReturnsNativeAutoAttachMetadata(t *testing.T) {
 	attachCalls := make(chan attachCall, 1)
 	originalAutoAttach := attachLocalhostClientWithResult
 	t.Cleanup(func() { attachLocalhostClientWithResult = originalAutoAttach })
-	attachLocalhostClientWithResult = func(_ context.Context, meta *usbip.ExportMeta, _ uint16, native bool, _ *slog.Logger) (api.AutoAttachResult, error) {
+	attachLocalhostClientWithResult = func(_ context.Context, meta *usbip.ExportMeta, _ uint16, native bool, _ bool, _ *slog.Logger) (api.AutoAttachResult, error) {
 		attachCalls <- attachCall{busID: meta.BusID, devID: meta.DevID, native: native}
 		return api.AutoAttachResult{
 			USBIPPort:        7,
