@@ -69,9 +69,9 @@ Key configuration options (see `viiper server --help` for all of them):
 | `bus/{id}/remove <devId>` | Remove a device |
 | `bus/{id}/meta <devId> <meta-json>` | Merge-update a device's metadata (returns updated entry) |
 | `bus/{busId}/{deviceid}` | Open the binary device stream |
-| `bus/{busId}/{deviceid}/audio` | Open the DualSense speaker PCM stream (u16 LE length + PCM; `0xFFFF` = reset barrier). Fails for devices without audio. Streams end on disconnect; removing the device does not close open feeder streams |
+| `bus/{busId}/{deviceid}/audio` | Open the speaker PCM stream (u16 LE length + PCM; `0xFFFF` = reset barrier). DualSense: 4ch S16LE @48kHz up to 392B; DualShock 4: 2ch S16LE @32kHz up to 132B. Fails for devices without audio. Streams end on disconnect; removing the device does not close open feeder streams |
 | `bus/{busId}/{deviceid}/audio/haptics` | Open the DualSense rear-haptics PCM stream (2ch S16LE @48kHz, same framing, barriers included) |
-| `bus/{busId}/{deviceid}/audio/mic` | Write raw 192B DualSense mic frames (2ch S16LE @48kHz) |
+| `bus/{busId}/{deviceid}/audio/mic` | Write raw mic frames: 192B DualSense frames (2ch S16LE @48kHz) or 32B DualShock 4 frames (mono S16LE @16kHz) |
 
 ## C# — `Viiper.Client`
 

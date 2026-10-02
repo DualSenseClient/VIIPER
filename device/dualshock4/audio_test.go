@@ -272,24 +272,22 @@ func TestAudioStream_ServesFrames(t *testing.T) {
 	for i := range frame {
 		frame[i] = byte(i + 1)
 	}
-	// The handler subscribes asynchronously; retry until a frame lands.
-	require.NoError(t, client.SetReadDeadline(time.Now().Add(5*time.Second)))
-	var got []byte
-	for i := 0; i < 50 && got == nil; i++ {
+	// The handler subscribes asynchronously; fire until its subscription
+	// exists (pre-subscription frames are absorbed). Surviving frames are
+	// identical, so any delivered frame matches.
+	for i := 0; i < 50; i++ {
 		d.HandleTransfer(ctx, 1, usbip.DirOut, frame)
-		var hdr [2]byte
-		if _, err := io.ReadFull(client, hdr[:]); err != nil {
-			if ne, ok := err.(net.Error); ok && ne.Timeout() {
-				continue
-			}
-			require.NoError(t, err)
-		}
-		n := binary.LittleEndian.Uint16(hdr[:])
-		require.Equal(t, uint16(132), n)
-		got = make([]byte, n)
-		_, err = io.ReadFull(client, got)
-		require.NoError(t, err)
+		time.Sleep(10 * time.Millisecond)
 	}
+	require.NoError(t, client.SetReadDeadline(time.Now().Add(5*time.Second)))
+	var hdr [2]byte
+	_, err = io.ReadFull(client, hdr[:])
+	require.NoError(t, err)
+	n := binary.LittleEndian.Uint16(hdr[:])
+	require.Equal(t, uint16(132), n)
+	got := make([]byte, n)
+	_, err = io.ReadFull(client, got)
+	require.NoError(t, err)
 	require.Len(t, got, 132)
 	assert.Equal(t, frame, got)
 

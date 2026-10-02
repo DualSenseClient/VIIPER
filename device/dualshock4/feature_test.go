@@ -120,3 +120,33 @@ func TestFeatureBoardInfo(t *testing.T) {
 	assert.Equal(t, []byte{0x00, 0xB4}, b[34:36]) // HardwareVersionMinor
 	assert.Equal(t, uint8(1), b[46])
 }
+
+// Conformance sweep: every feature ID in the HID descriptor either
+// resolves to its exact payload length or stalls by policy (auth range,
+// or IDs the dongle forwards to the controller — with no backing
+// controller there is nothing to serve).
+func TestFeatureDescriptorConformance(t *testing.T) {
+	d, err := New(nil)
+	require.NoError(t, err)
+	resolves := map[byte]int{
+		0x02: 36, 0x10: 4, 0x11: 2, 0x12: 15, 0x81: 6, 0xA3: 48, 0xA4: 13,
+	}
+	// All 48 descriptor feature IDs (see descriptor_test.go).
+	for _, id := range []byte{
+		0x04, 0x02, 0x08, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15,
+		0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89,
+		0x90, 0x91, 0x92, 0x93,
+		0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6,
+		0xF0, 0xF1, 0xF2,
+		0xA7, 0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF,
+		0xB0, 0xB1, 0xB2, 0xE0, 0xB3, 0xB4,
+	} {
+		b, handled := featureGet(t, d, id)
+		if n, ok := resolves[id]; ok {
+			require.True(t, handled, "id=0x%02X should resolve", id)
+			assert.Len(t, b, n, "id=0x%02X", id)
+			continue
+		}
+		assert.False(t, handled, "id=0x%02X should stall", id)
+	}
+}

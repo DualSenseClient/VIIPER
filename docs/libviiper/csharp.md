@@ -623,6 +623,22 @@ static class LibVIIPER
 
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool SetDS4SpeakerCallback(nuint deviceHandle, DSAudioCallbackDelegate? callback);
+
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool SetDS4SpeakerResetCallback(nuint deviceHandle, DSSpeakerResetCallbackDelegate? callback);
+
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool SetDS4MicrophonePCM(nuint deviceHandle, [In] byte[] data, nuint length);
+
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool SetDS4MetaState(nuint deviceHandle, ref DS4MetaState meta);
+
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool RemoveDS4Device(nuint deviceHandle);
 ```
 
@@ -880,6 +896,33 @@ if (!LibVIIPER.CreateDS4Device(serverHandle, out nuint ds4Handle, busID,
     return 1;
 
 LibVIIPER.SetDS4OutputCallback(ds4Handle, outputCb);
+```
+
+### DualShock 4 speaker and microphone
+
+```csharp
+// Keep the delegate alive for the lifetime of the device!
+DSAudioCallbackDelegate ds4AudioCb = (handle, pcm, length) =>
+{
+    // 2ch S16LE @32kHz, up to 132 bytes: the DS4's native rate, no
+    // resampling on either side.
+    var bytes = new byte[(int)length];
+    Marshal.Copy(pcm, bytes, 0, bytes.Length);
+    // hand bytes to your SBC encoder / ring — never block here.
+};
+
+LibVIIPER.SetDS4SpeakerCallback(ds4Handle, ds4AudioCb);
+
+// Flush previous-generation PCM on each barrier.
+DSSpeakerResetCallbackDelegate ds4ResetCb = handle => { /* flush */ };
+LibVIIPER.SetDS4SpeakerResetCallback(ds4Handle, ds4ResetCb);
+
+// Exactly 32 bytes per call (16 frames of mono S16LE @16kHz); anything
+// else returns false, as do calls while the host has not opened the mic
+// (dropped, as on hardware). SBC-decode in your app, queue here.
+var ds4MicFrame = new byte[32];
+// ... fill from capture ...
+LibVIIPER.SetDS4MicrophonePCM(ds4Handle, ds4MicFrame, (nuint)ds4MicFrame.Length);
 ```
 
 !!! warning "Never call into libVIIPER from a callback"
