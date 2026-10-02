@@ -30,6 +30,14 @@ type DualShock4 struct {
 	usbPacketCounter uint32
 	timestampBase    time.Time
 
+	// UAC1 streaming state, guarded by mtx: alt-setting per interface
+	// number plus feature-unit mute/volume.
+	alts    [4]uint8
+	spkMute uint8
+	micMute uint8
+	spkVol  uint16
+	micVol  uint16
+
 	mtx sync.Mutex
 }
 
@@ -93,6 +101,11 @@ func New(o *device.CreateOptions) (*DualShock4, error) {
 	d.inputCh = make(chan *InputState, 1)
 	d.inputCh <- d.inputState
 	d.timestampBase = time.Now()
+
+	// Speaker volume powers up at -1dB (0xFF00), matching DS4Dongle's
+	// config-seeded GET_CUR (speaker_volume 100); mic powers up at 0dB
+	// (zero value, in the advertised -23.25..+24dB range).
+	d.spkVol = uacSpkVolumeDefault
 
 	return d, nil
 }
@@ -158,16 +171,26 @@ func (d *DualShock4) HandleTransfer(ctx context.Context, ep uint32, dir uint32, 
 				d.mtx.Unlock()
 				return d.buildUSBInputReport(is, &ms)
 			}
+		case 2:
+			// Microphone IN: silence until the feeder queue lands
+			// (phase 6). Serving exact 32B frames keeps the host
+			// capture engine rate-locked, as on the dongle.
+			return micSilence
 		default:
 			return nil
 		}
 	}
 
-	if dir == usbip.DirOut && ep == 3 {
-		if len(out) >= 11 && out[0] == ReportIDOutput {
-			if d.outputFunc != nil {
-				d.outputFunc(parseOutputReport(out))
+	if dir == usbip.DirOut {
+		switch ep {
+		case 3:
+			if len(out) >= 11 && out[0] == ReportIDOutput {
+				if d.outputFunc != nil {
+					d.outputFunc(parseOutputReport(out))
+				}
 			}
+		case 1:
+			// Speaker OUT: absorbed until subscribers land (phase 4).
 		}
 	}
 
@@ -177,6 +200,22 @@ func (d *DualShock4) HandleTransfer(ctx context.Context, ep uint32, dir uint32, 
 func (d *DualShock4) HandleControl(bmRequestType, bRequest uint8, wValue, wIndex, wLength uint16, data []byte) ([]byte, bool) {
 	reportType := uint8(wValue >> 8)
 	reportID := uint8(wValue & 0xFF)
+
+	// Standard SET_INTERFACE selects the audio streaming alt-setting.
+	if bmRequestType == usbStdOutIface && bRequest == usbSetInterface {
+		d.setAltSetting(uint8(wIndex), uint8(wValue))
+		return nil, true
+	}
+
+	// UAC1 feature-unit mute/volume (speaker 0x02, mic 0x05).
+	if bmRequestType == usbClassOutIface || bmRequestType == usbClassInIface {
+		if resp, ok := d.handleAudioControl(bmRequestType, bRequest, wValue, wIndex, data); ok {
+			if resp != nil && wLength > 0 && int(wLength) < len(resp) {
+				resp = resp[:wLength]
+			}
+			return resp, true
+		}
+	}
 
 	switch bmRequestType {
 	case hidClassIN:
@@ -206,10 +245,6 @@ func (d *DualShock4) HandleControl(bmRequestType, bRequest uint8, wValue, wIndex
 			return []byte{0x00}, true
 		case hidGetProtocol:
 			return []byte{0x01}, true
-		case 0x81:
-			return []byte{0x00}, true
-		case 0x82, 0x83, 0x84:
-			return []byte{0x00, 0x00}, true
 		}
 	case hidClassOUT:
 		if bRequest == hidSetReport {
@@ -244,6 +279,113 @@ func (d *DualShock4) HandleControl(bmRequestType, bRequest uint8, wValue, wIndex
 		"wLength", wLength,
 		"dataLen", len(data))
 
+	return nil, false
+}
+
+// USB audio plumbing constants.
+const (
+	usbStdOutIface   uint8 = 0x01
+	usbSetInterface  uint8 = 0x0B
+	usbClassOutIface uint8 = 0x21
+	usbClassInIface  uint8 = 0xA1
+
+	uacSetCur uint8 = 0x01
+	uacGetCur uint8 = 0x81
+	uacGetMin uint8 = 0x82
+	uacGetMax uint8 = 0x83
+	uacGetRes uint8 = 0x84
+
+	uacEntitySpeakerFU uint8 = 0x02
+	uacEntityMicFU     uint8 = 0x05
+	uacFUControlMute   uint8 = 0x01
+	uacFUControlVolume uint8 = 0x02
+)
+
+// uacSpkVolumeDefault is the speaker power-up volume (-1dB in 1/256dB
+// units), matching DS4Dongle's config-seeded GET_CUR (speaker_volume 100
+// maps to the top of the advertised -73..-1dB range).
+const uacSpkVolumeDefault uint16 = 0xFF00
+
+// micSilence is one 1ms idle frame: 16 samples of mono S16LE zeros,
+// matching the real DS4 v2's exact-32B-every-frame delivery.
+var micSilence = make([]byte, 32)
+
+func (d *DualShock4) setAltSetting(iface, alt uint8) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	if int(iface) < len(d.alts) {
+		d.alts[iface] = alt
+	}
+}
+
+// handleAudioControl serves UAC1 feature-unit mute/volume for the speaker
+// (entity 0x02) and mic (entity 0x05), mirroring DS4Dongle usb.cpp ranges.
+// The channel number is ignored: the dongle applies every request to the
+// master channel. Anything else (unknown entity or request) is left
+// unhandled so HID class traffic on the same bmRequestType bytes still
+// falls through.
+func (d *DualShock4) handleAudioControl(bm, bRequest uint8, wValue, wIndex uint16, data []byte) ([]byte, bool) {
+	entity := uint8(wIndex >> 8)
+	if entity != uacEntitySpeakerFU && entity != uacEntityMicFU {
+		return nil, false
+	}
+	cs := uint8(wValue >> 8)
+	speaker := entity == uacEntitySpeakerFU
+
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	switch {
+	case bm == usbClassOutIface && bRequest == uacSetCur && cs == uacFUControlMute && len(data) >= 1:
+		if speaker {
+			d.spkMute = data[0]
+		} else {
+			d.micMute = data[0]
+		}
+		return nil, true
+	case bm == usbClassOutIface && bRequest == uacSetCur && cs == uacFUControlVolume && len(data) >= 2:
+		v := binary.LittleEndian.Uint16(data[:2])
+		if speaker {
+			d.spkVol = v
+		} else {
+			d.micVol = v
+		}
+		return nil, true
+	case bm == usbClassInIface && cs == uacFUControlMute:
+		// The dongle answers every mute GET with the mute byte,
+		// regardless of bRequest (no CUR/MIN/MAX/RES switch).
+		if speaker {
+			return []byte{d.spkMute}, true
+		}
+		return []byte{d.micMute}, true
+	case bm == usbClassInIface && cs == uacFUControlVolume:
+		var cur uint16
+		if speaker {
+			cur = d.spkVol
+		} else {
+			cur = d.micVol
+		}
+		switch bRequest {
+		case uacGetCur:
+			b := make([]byte, 2)
+			binary.LittleEndian.PutUint16(b, cur)
+			return b, true
+		case uacGetMin:
+			if speaker {
+				return []byte{0x00, 0xB7}, true // -73dB
+			}
+			return []byte{0xC0, 0xE8}, true // -23.25dB
+		case uacGetMax:
+			if speaker {
+				return []byte{0x00, 0xFF}, true // -1dB
+			}
+			return []byte{0x00, 0x18}, true // +24dB
+		case uacGetRes:
+			if speaker {
+				return []byte{0x00, 0x01}, true // 1dB
+			}
+			return []byte{0xC0, 0x00}, true // 0.75dB
+		}
+	}
 	return nil, false
 }
 
