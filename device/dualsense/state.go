@@ -129,11 +129,20 @@ type OutputState struct {
 
 // Output flag bits (see DS5Dongle SetStateData).
 const (
+	Flag1AllowMuteLight      uint8 = 0x01
 	Flag0UseRumbleNotHaptics uint8 = 0x02
 	Flag0AllowRightTrigger   uint8 = 0x04
 	Flag0AllowLeftTrigger    uint8 = 0x08
 	Flag1AllowLedColor       uint8 = 0x04
 	Flag1AllowPlayerLEDs     uint8 = 0x10
+)
+
+// Mute-light modes (see DS5Dongle MuteLight enum in utils.h).
+const (
+	MuteLightOff       uint8 = 0
+	MuteLightOn        uint8 = 1
+	MuteLightBreathing uint8 = 2
+	MuteLightDoNothing uint8 = 3
 )
 
 // TriggerEffect is the decoded 11-byte adaptive-trigger block at

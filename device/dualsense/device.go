@@ -36,6 +36,11 @@ type DualSense struct {
 	timestampBase time.Time
 	edge          bool
 
+	// Synthesized mute LED state echoed in input report b[54] bit 2,
+	// derived from the last host output (AllowMuteLight-gated modes
+	// 0-2); modes 3-7 leave it unchanged. Guarded by mtx.
+	muteLED bool
+
 	// UAC1 streaming state, guarded by mtx: alt-setting per interface
 	// number plus feature-unit mute/volume.
 	alts    [4]uint8
@@ -479,8 +484,10 @@ func (d *DualSense) HandleTransfer(ctx context.Context, ep uint32, dir uint32, o
 		switch ep {
 		case 3:
 			if len(out) >= 48 && out[0] == ReportIDOutput {
+				fb := parseOutputReport(out)
+				d.noteOutputMuteLight(fb)
 				if d.outputFunc != nil {
-					d.outputFunc(parseOutputReport(out))
+					d.outputFunc(fb)
 				}
 			}
 		case 1:
@@ -570,8 +577,10 @@ func (d *DualSense) HandleControl(bmRequestType, bRequest uint8, wValue, wIndex,
 			case reportType == reportTypeFeature:
 				return nil, true
 			case reportType == reportTypeOutput && reportID == ReportIDOutput && len(data) >= 48:
+				fb := parseOutputReport(data)
+				d.noteOutputMuteLight(fb)
 				if d.outputFunc != nil {
-					d.outputFunc(parseOutputReport(data))
+					d.outputFunc(fb)
 				}
 				return nil, true
 			}
@@ -930,6 +939,26 @@ func (d *DualSense) featureReportCommandResponse() []byte {
 	return report
 }
 
+// noteOutputMuteLight folds a host output report into the synthesized mute
+// LED state echoed in input report b[54] bit 2. Only AllowMuteLight-gated
+// Off/On/Breathing modes update it; DoNothing/NoAction leave the previous
+// state (the real controller ignores those values too).
+func (d *DualSense) noteOutputMuteLight(fb OutputState) {
+	if fb.Flags1&Flag1AllowMuteLight == 0 {
+		return
+	}
+	switch fb.MuteLightMode {
+	case MuteLightOff:
+		d.mtx.Lock()
+		d.muteLED = false
+		d.mtx.Unlock()
+	case MuteLightOn, MuteLightBreathing:
+		d.mtx.Lock()
+		d.muteLED = true
+		d.mtx.Unlock()
+	}
+}
+
 // buildUSBInputReport encodes the 64B USB input report 0x01.
 //
 // Populated from feeder state: sticks, triggers, seq, buttons, gyro/accel,
@@ -938,7 +967,9 @@ func (d *DualSense) featureReportCommandResponse() []byte {
 // Deliberately left zero (need a real-hardware capture to fill correctly,
 // not sample constants): b[11:16] touch timestamps, b[32], b[41:48] trigger
 // effect state echo, b[49] reserved marker (kept at the historical 0x10),
-// b[50:52], b[54:63] audio/headset flags and reserved tail.
+// b[50:52], b[54] except the mute-light bit (bit 0 headset-plugged and
+// bits 1,3-7 stay zero: controller-side knowledge with no feeder
+// channel), b[55:63] audio/headset flags and reserved tail.
 func (d *DualSense) buildUSBInputReport(s *InputState, m *MetaState) []byte {
 	b := make([]byte, InputReportSize)
 
@@ -1008,6 +1039,15 @@ func (d *DualSense) buildUSBInputReport(s *InputState, m *MetaState) []byte {
 
 	b[49] = 0x10
 	b[53] = m.BatteryStatus
+
+	// b[54] bit 2 echoes the host-driven mute LED (synthesized from the
+	// last output report; the dongle forwards the controller bit).
+	d.mtx.Lock()
+	led := d.muteLED
+	d.mtx.Unlock()
+	if led {
+		b[54] |= 0x04
+	}
 
 	return b
 }
