@@ -319,6 +319,46 @@ func (d *DualSense) SetMetaState(meta MetaState) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	d.metaState = &meta
+	if d.descriptor.Strings != nil {
+		d.descriptor.Strings[3] = meta.SerialNumber
+	}
+}
+
+// MergeMetaState applies non-zero metadata fields (create-time merge rules:
+// empty strings and zero numerics keep current values) and refreshes the
+// USB serial string.
+func (d *DualSense) MergeMetaState(delta MetaState) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	m := *d.metaState
+	if delta.SerialNumber != "" {
+		m.SerialNumber = delta.SerialNumber
+	}
+	if delta.MACAddress != "" {
+		m.MACAddress = delta.MACAddress
+	}
+	if delta.Board != "" {
+		m.Board = delta.Board
+	}
+	if !delta.BuildTime.IsZero() {
+		m.BuildTime = delta.BuildTime
+	}
+	if delta.BatteryStatus != 0 {
+		m.BatteryStatus = delta.BatteryStatus
+	}
+	if delta.TemperatureCelsius != 0 {
+		m.TemperatureCelsius = delta.TemperatureCelsius
+	}
+	if delta.BatteryVoltage != 0 {
+		m.BatteryVoltage = delta.BatteryVoltage
+	}
+	if delta.ShellColor != "" {
+		m.ShellColor = delta.ShellColor
+	}
+	d.metaState = &m
+	if d.descriptor.Strings != nil {
+		d.descriptor.Strings[3] = m.SerialNumber
+	}
 }
 
 func (d *DualSense) SetOutputCallback(f func(OutputState)) {

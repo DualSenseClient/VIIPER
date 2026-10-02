@@ -165,6 +165,22 @@ func (c *Client) DevicesListCtx(ctx context.Context, busID uint32) (*viipertypes
 	return parse[viipertypes.DevicesListResponse](raw)
 }
 
+// DeviceMeta merge-updates a device's device-specific metadata JSON
+// (e.g., DualSense serial/battery identity) and returns the updated entry.
+func (c *Client) DeviceMeta(busID uint32, devID string, metaJSON string) (*viipertypes.Device, error) {
+	return c.DeviceMetaCtx(context.Background(), busID, devID, metaJSON)
+}
+
+func (c *Client) DeviceMetaCtx(ctx context.Context, busID uint32, devID string, metaJSON string) (*viipertypes.Device, error) {
+	pathParams := map[string]string{"id": fmt.Sprintf("%d", busID)}
+	const path = "bus/{id}/meta"
+	raw, err := c.transport.DoCtx(ctx, path, devID+" "+metaJSON, pathParams)
+	if err != nil {
+		return nil, err
+	}
+	return parse[viipertypes.Device](raw)
+}
+
 func parse[T any](data string) (*T, error) {
 	if data == "" {
 		return nil, errors.New("empty response")

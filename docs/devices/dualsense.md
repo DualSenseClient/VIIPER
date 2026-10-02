@@ -24,6 +24,7 @@ All functions are part of the [libVIIPER C API](../libviiper/overview.md).
 | `SetDualSenseAudioOutCallback(handle, cb)` | Register a callback for speaker PCM (exact host bytes, 4ch S16LE @48kHz) |
 | `SetDualSenseSpeakerResetCallback(handle, cb)` | Register a callback fired once per streaming generation change (flush PCM) |
 | `SetDualSenseRealtimeHapticsCallback(handle, cb)` | Register a callback for the rear voice-coil pair (2ch S16LE @48kHz, low latency) |
+| `SetDualSenseMetaState(handle, meta)` | Merge-update identity/battery metadata at runtime (USB serial refreshes too) |
 | `RemoveDualSenseDevice(handle)` | Remove the device |
 Only one output callback may be active at a time; pass `NULL` to clear it.
 

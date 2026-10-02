@@ -555,6 +555,36 @@ func trackDSHapticsSub(h deviceHandle, unsub func()) {
 	dsHapticsUnsubs[h] = unsub
 }
 
+// SetDualSenseMetaState merge-updates identity/battery metadata at runtime.
+// Empty strings and zero numerics keep current values (same rules as
+// creation). The USB serial string refreshes when the serial changes.
+//
+//export SetDualSenseMetaState
+func SetDualSenseMetaState(handle C.DSDeviceHandle, meta *C.DSMetaState) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	dsDevice, ok := dhw.device.(*dualsense.DualSense)
+	if !ok {
+		return false
+	}
+	if meta == nil {
+		return false
+	}
+	dsDevice.MergeMetaState(dualsense.MetaState{
+		SerialNumber:       goStringOrEmpty(meta.SerialNumber),
+		MACAddress:         goStringOrEmpty(meta.MACAddress),
+		Board:              goStringOrEmpty(meta.Board),
+		BatteryStatus:      uint8(meta.BatteryStatus),
+		TemperatureCelsius: float64(meta.TemperatureCelsius),
+		BatteryVoltage:     float64(meta.BatteryVoltage),
+		ShellColor:         goStringOrEmpty(meta.ShellColor),
+	})
+	return true
+}
+
 // RemoveDualSenseDevice removes the DualSense device associated with the given handle from the server.
 // @param handle Handle to the DualSense device to remove.
 //

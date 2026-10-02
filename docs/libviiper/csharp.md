@@ -668,6 +668,10 @@ the audio-out callback (mic returns silence until the mic queue lands).
 
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool SetDualSenseMetaState(nuint deviceHandle, ref DSMetaState meta);
+
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool RemoveDualSenseDevice(nuint deviceHandle);
 ```
 

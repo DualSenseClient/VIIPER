@@ -153,6 +153,46 @@ func TestAudioStream_UnsupportedDevice(t *testing.T) {
 	assert.NotEqual(t, context.DeadlineExceeded, err)
 }
 
+// End to end: runtime meta merge over TCP refreshes identity everywhere
+// the host reads it (device list + USB serial string).
+func TestDeviceMeta_RoundTrip(t *testing.T) {
+	s := viiperTesting.NewTestServer(t)
+	defer s.ApiServer.Close() //nolint:errcheck
+	defer s.UsbServer.Close() //nolint:errcheck
+
+	r := s.ApiServer.Router()
+	r.Register("bus/{id}/add", handler.BusDeviceAdd(s.UsbServer, s.ApiServer))
+	r.Register("bus/{id}/meta", handler.BusDeviceMeta(s.UsbServer))
+	r.Register("bus/{id}/list", handler.BusDevicesList(s.UsbServer))
+
+	require.NoError(t, s.ApiServer.Start())
+	time.Sleep(50 * time.Millisecond)
+
+	b, err := virtualbus.NewWithBusID(1)
+	require.NoError(t, err)
+	defer b.Close() //nolint:errcheck
+	require.NoError(t, s.UsbServer.AddBus(b))
+
+	client := viiperclient.New(s.ApiServer.Addr())
+	addResp, err := client.DeviceAdd(b.BusID(), "dualsense", nil)
+	require.NoError(t, err)
+
+	updated, err := client.DeviceMeta(b.BusID(), addResp.DevID, `{"serial_number":"META-UPDATED-01"}`)
+	require.NoError(t, err)
+	assert.Equal(t, addResp.DevID, updated.DevID)
+
+	list, err := client.DevicesList(b.BusID())
+	require.NoError(t, err)
+	require.Len(t, list.Devices, 1)
+	assert.Equal(t, "META-UPDATED-01", list.Devices[0].DeviceSpecific["serial_number"])
+
+	// Unknown device and bad JSON fail cleanly.
+	_, err = client.DeviceMeta(b.BusID(), "999", `{"serial_number":"x"}`)
+	require.Error(t, err)
+	_, err = client.DeviceMeta(b.BusID(), addResp.DevID, `not-json`)
+	require.Error(t, err)
+}
+
 // End to end: host speaker PCM surfaces on the haptics stream as the rear
 // pair only.
 func TestHapticsStream_RearPair(t *testing.T) {

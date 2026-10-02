@@ -123,6 +123,7 @@ Each device family has its own create/state/callback functions documented on its
 | `SetDualSenseAudioOutCallback(handle, cb)` | Register a callback for speaker PCM (exact host bytes, 4ch S16LE @48kHz) |
 | `SetDualSenseSpeakerResetCallback(handle, cb)` | Register a callback fired once per streaming generation change (flush PCM) |
 | `SetDualSenseRealtimeHapticsCallback(handle, cb)` | Register a callback for the rear voice-coil pair (2ch S16LE @48kHz, low latency) |
+| `SetDualSenseMetaState(handle, meta)` | Merge-update identity/battery metadata at runtime |
 | `RemoveDualSenseDevice(handle)` | Remove the device |
 
 #### Switch 2 Pro
