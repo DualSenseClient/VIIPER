@@ -66,7 +66,7 @@ func TestUACVolumeRanges(t *testing.T) {
 	d, err := new(nil, false)
 	require.NoError(t, err)
 
-	// Defaults: 0 dB cur.
+	// Speaker default: 0 dB cur.
 	assert.Equal(t, []byte{0x00, 0x00}, uacGet(t, d, 0xA1, 0x81, 2, 0x02))
 	// Speaker ranges mirror the reference.
 	assert.Equal(t, []byte{0x00, 0x9C}, uacGet(t, d, 0xA1, 0x82, 2, 0x02))
@@ -80,6 +80,29 @@ func TestUACVolumeRanges(t *testing.T) {
 	// SET_CUR round-trips through GET_CUR.
 	uacSet(t, d, 2, 0x02, []byte{0x34, 0x12})
 	assert.Equal(t, []byte{0x34, 0x12}, uacGet(t, d, 0xA1, 0x81, 2, 0x02))
+}
+
+// DS5Dongle parity: mic volume powers up at +48dB, mute answers every GET
+// with the mute byte, and the channel number is ignored (master only).
+func TestUACDongleParity(t *testing.T) {
+	d, err := new(nil, false)
+	require.NoError(t, err)
+
+	// Mic GET_CUR defaults to +48dB (0x3000); speaker to 0dB.
+	assert.Equal(t, []byte{0x00, 0x30}, uacGet(t, d, 0xA1, 0x81, 2, 0x05))
+	assert.Equal(t, []byte{0x00, 0x00}, uacGet(t, d, 0xA1, 0x81, 2, 0x02))
+
+	// Mute answers GET_MIN/MAX/RES with the mute byte, like GET_CUR.
+	uacSet(t, d, 1, 0x02, []byte{0x01})
+	for _, req := range []uint8{0x81, 0x82, 0x83, 0x84} {
+		assert.Equal(t, []byte{0x01}, uacGet(t, d, 0xA1, req, 1, 0x02),
+			"req=0x%02X", req)
+	}
+
+	// Channel number is ignored: channel 1 SET/GET hits the master state.
+	_, handled := d.HandleControl(0x21, 0x01, 0x0101, 0x0500, 1, []byte{0x01})
+	require.True(t, handled)
+	assert.Equal(t, []byte{0x01}, uacGet(t, d, 0xA1, 0x81, 1, 0x05))
 }
 
 func TestUACUnknownEntityStalls(t *testing.T) {

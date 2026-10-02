@@ -355,6 +355,11 @@ func new(o *device.CreateOptions, edge bool) (*DualSense, error) {
 	d.inputCh <- d.inputState
 	d.timestampBase = time.Now()
 
+	// Mic volume powers up at +48dB (0x3000), matching DS5Dongle
+	// volume[1] init (usb.cpp); speaker powers up at 0dB (zero value,
+	// matching the dongle default speaker_volume of 100).
+	d.micVol = uacMicVolumeDefault
+
 	return d, nil
 }
 
@@ -632,6 +637,10 @@ const (
 	uacFUControlVolume uint8 = 0x02
 )
 
+// uacMicVolumeDefault is the mic power-up volume (+48dB in 1/256dB units),
+// matching DS5Dongle volume[1] init (usb.cpp).
+const uacMicVolumeDefault uint16 = 0x3000
+
 // micSilence is one 1ms idle frame: 48 samples of 2ch S16LE zeros.
 var micSilence = make([]byte, 192)
 
@@ -661,17 +670,16 @@ func (d *DualSense) setAltSetting(iface, alt uint8) {
 
 // handleAudioControl serves UAC1 feature-unit mute/volume for the speaker
 // (entity 0x02) and mic (entity 0x05), mirroring DS5Dongle usb.cpp ranges.
-// Anything else (unknown entity, channel, or request) is left unhandled so
-// HID class traffic on the same bmRequestType bytes still falls through.
+// The channel number is ignored: the dongle applies every request to the
+// master channel. Anything else (unknown entity or request) is left
+// unhandled so HID class traffic on the same bmRequestType bytes still
+// falls through.
 func (d *DualSense) handleAudioControl(bm, bRequest uint8, wValue, wIndex uint16, data []byte) ([]byte, bool) {
 	entity := uint8(wIndex >> 8)
 	if entity != uacEntitySpeakerFU && entity != uacEntityMicFU {
 		return nil, false
 	}
 	cs := uint8(wValue >> 8)
-	if uint8(wValue&0xFF) != 0 {
-		return nil, false // master channel only
-	}
 	speaker := entity == uacEntitySpeakerFU
 
 	d.mtx.Lock()
@@ -692,7 +700,9 @@ func (d *DualSense) handleAudioControl(bm, bRequest uint8, wValue, wIndex uint16
 			d.micVol = v
 		}
 		return nil, true
-	case bm == usbClassInIface && bRequest == uacGetCur && cs == uacFUControlMute:
+	case bm == usbClassInIface && cs == uacFUControlMute:
+		// The dongle answers every mute GET with the mute byte,
+		// regardless of bRequest (no CUR/MIN/MAX/RES switch).
 		if speaker {
 			return []byte{d.spkMute}, true
 		}
