@@ -248,15 +248,16 @@ func (d *DualShock4) HandleControl(bmRequestType, bRequest uint8, wValue, wIndex
 }
 
 // featureGetHandlers maps feature report IDs to their builder functions.
+// Builders return the report payload WITHOUT the report ID byte, matching
+// DS4Dongle (main.cpp strips the ID and trailing CRC from BT-forwarded
+// reports; synthesized reports are built ID-less the same way).
 var featureGetHandlers = map[byte]func(*DualShock4) []byte{
 	featureIDStatus:        (*DualShock4).featureReportStatus,
 	featureIDProbeResponse: (*DualShock4).featureReportProbeResponse,
 	featureIDCalibration:   (*DualShock4).featureReportCalibration,
-	featureIDCalibrationBT: (*DualShock4).featureReportCalibrationBT,
-	featureIDCapabilities:  (*DualShock4).featureReportCapabilities,
 	featureIDSerial:        (*DualShock4).featureReportSerial,
 	featureIDTelemetry:     (*DualShock4).featureReportTelemetry,
-	featureIDIdentity:      (*DualShock4).featureReportIdentity,
+	featureIDIdentity:      (*DualShock4).featureReportControllerMAC,
 	featureIDBoardInfo:     (*DualShock4).featureReportBoardInfo,
 }
 
@@ -281,13 +282,11 @@ func (d *DualShock4) featureReportTelemetry() []byte {
 	switch d.telemetrySubcommand {
 	case 0x02:
 		return []byte{
-			featureIDTelemetry,
 			s[3], s[2], s[1], s[0], s[7], s[6], s[5], s[4],
 			0x00, 0x00, 0x00, 0x00, 0x00,
 		}
 	case 0x0B:
 		return []byte{
-			featureIDTelemetry,
 			s[3], s[2], s[1], s[0], s[7], s[6], s[5], s[4],
 			0xAC, 0xA8, 0x1B,
 			0x00, 0x00,
@@ -296,7 +295,7 @@ func (d *DualShock4) featureReportTelemetry() []byte {
 		volts := telemetryVoltageU16(d.metaState.BatteryVoltage)
 		temp := telemetryTemperatureU16(d.metaState.TemperatureCelsius)
 		return []byte{
-			featureIDTelemetry, d.telemetrySubcommand, 0x03, 0x01, 0x00, 0x04,
+			d.telemetrySubcommand, 0x03, 0x01, 0x00, 0x04,
 			byte(volts), byte(volts >> 8),
 			byte(temp), byte(temp >> 8),
 			0x00, 0x00, 0x00, 0x00,
@@ -304,42 +303,33 @@ func (d *DualShock4) featureReportTelemetry() []byte {
 	}
 }
 
-func (d *DualShock4) featureReportIdentity() []byte {
+// featureReportControllerMAC serves USB GET 0x81: the 6-byte controller
+// MAC, LSB first (DS4Dongle main.cpp synthesizes it from the BT layer;
+// the virtual device derives the bytes from the serial).
+func (d *DualShock4) featureReportControllerMAC() []byte {
 	d.mtx.Lock()
-	defer d.mtx.Unlock()
 	serial := serialStringToBytes(d.metaState.SerialNumber)
-	firmware := ds4FirmwareVersionString()
+	d.mtx.Unlock()
 
-	buildDateStr := d.metaState.BuildTime.Format("Jan 02 2006")
-
-	report := make([]byte, 64)
-	report[0] = featureIDIdentity
-	copy(report[1:9], serial[:])
-	copy(report[10:18], serial[:])
-	copy(report[18:34], d.metaState.SerialNumber)
-	copy(report[34:46], d.metaState.Board)
-	copy(report[46:57], buildDateStr)
-	copy(report[57:64], firmware[:7])
-	return report
+	return []byte{serial[7], serial[6], serial[5], serial[4], serial[3], serial[2]}
 }
 
 func (d *DualShock4) featureReportBoardInfo() []byte {
-	report := make([]byte, 49)
-	report[0] = featureIDBoardInfo
+	report := make([]byte, 48)
 
 	d.mtx.Lock()
 	buildDateStr := d.metaState.BuildTime.Format("Jan 02 2006")
 	buildTimeStr := d.metaState.BuildTime.Format("15:04:05")
 	d.mtx.Unlock()
 
-	copy(report[1:16], buildDateStr)
-	copy(report[16:32], buildTimeStr)
-	binary.LittleEndian.PutUint16(report[33:35], HardwareVersionMajor)
-	binary.LittleEndian.PutUint16(report[35:37], HardwareVersionMinor)
-	binary.LittleEndian.PutUint32(report[37:41], SoftwareVersionMajor)
-	binary.LittleEndian.PutUint16(report[41:43], SoftwareVersionMinor)
+	copy(report[0:15], buildDateStr)
+	copy(report[15:31], buildTimeStr)
+	binary.LittleEndian.PutUint16(report[32:34], HardwareVersionMajor)
+	binary.LittleEndian.PutUint16(report[34:36], HardwareVersionMinor)
+	binary.LittleEndian.PutUint32(report[36:40], SoftwareVersionMajor)
+	binary.LittleEndian.PutUint16(report[40:42], SoftwareVersionMinor)
 
-	report[47] = 1
+	report[46] = 1
 
 	return report
 }
@@ -349,16 +339,15 @@ func (d *DualShock4) featureReportSerial() []byte {
 	serial := serialStringToBytes(d.metaState.SerialNumber)
 	d.mtx.Unlock()
 
-	report := make([]byte, 16)
-	report[0] = featureIDSerial
-	report[1] = serial[7]
-	report[2] = serial[6]
-	report[3] = serial[5]
-	report[4] = serial[4]
-	report[5] = serial[3]
-	report[6] = serial[2]
-	report[7] = serial[1]
-	copy(report[8:16], serial[:])
+	report := make([]byte, 15)
+	report[0] = serial[7]
+	report[1] = serial[6]
+	report[2] = serial[5]
+	report[3] = serial[4]
+	report[4] = serial[3]
+	report[5] = serial[2]
+	report[6] = serial[1]
+	copy(report[7:15], serial[:])
 
 	return report
 }
@@ -366,67 +355,40 @@ func (d *DualShock4) featureReportSerial() []byte {
 func (d *DualShock4) featureReportStatus() []byte {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	report := make([]byte, 5)
-	report[0] = featureIDStatus
-	report[1] = d.metaState.BatteryStatus & BatteryLevelMask
-	report[2] = 12
-	binary.LittleEndian.PutUint16(report[3:5], 664)
+	report := make([]byte, 4)
+	report[0] = d.metaState.BatteryStatus & BatteryLevelMask
+	report[1] = 12
+	binary.LittleEndian.PutUint16(report[2:4], 664)
 	return report
 }
 
 func (d *DualShock4) featureReportProbeResponse() []byte {
 	b1 := d.probeSelector[0]
 	b2 := d.probeSelector[1]
-	b3 := d.probeSelector[2]
 
-	report := [4]byte{featureIDProbeResponse, b1, b2, b3}
+	report := [2]byte{b1, b2}
 
-	switch {
-	case b1 == 0xFF && b2 == 0x00 && b3 == 0x0C:
-		report[1] = 0x01
+	if d.probeSelector[0] == 0xFF && d.probeSelector[1] == 0x00 && d.probeSelector[2] == 0x0C {
+		report[0] = 0x01
 	}
 
 	return report[:]
 }
 
-func (d *DualShock4) featureReportCapabilities() []byte {
-	report := make([]byte, 48)
-	report[0] = featureIDCapabilities
-	report[2] = 0x27
-
-	// Sensor + lightbar + vibration + touchpad capability bits.
-	report[4] = 0x02 | 0x04 | 0x08 | 0x40
-	report[5] = 0x00 // gamepad
-
-	binary.LittleEndian.PutUint16(report[10:12], 1)
-	binary.LittleEndian.PutUint16(report[12:14], 16)
-	binary.LittleEndian.PutUint16(report[14:16], 1)
-	binary.LittleEndian.PutUint16(report[16:18], 8192)
-
-	return report
-}
-
 func (d *DualShock4) featureReportCalibration() []byte {
-	return d.buildCalibrationReport(featureIDCalibration)
-}
+	report := make([]byte, 36)
 
-func (d *DualShock4) featureReportCalibrationBT() []byte {
-	return d.buildCalibrationReport(featureIDCalibrationBT)
-}
-
-func (d *DualShock4) buildCalibrationReport(id byte) []byte {
-	report := make([]byte, 37)
-	report[0] = id
-
-	// 17 LE int16 fields packed sequentially from offset 1:
-	// bias(pitch,yaw,roll) | gyro±(x,y,z) | speed(x,y) | accel±(x,y,z)
+	// 17 LE int16 fields packed sequentially: bias(pitch,yaw,roll) |
+	// gyro±(x,y,z) interleaved per axis (USB order; DS4Dongle reorders
+	// the BT all-plus-then-all-minus words into this layout) |
+	// speed(x,y) | accel±(x,y,z).
 	for i, v := range [17]int16{
 		0, 0, 0,
 		1024, -1024, 1024, -1024, 1024, -1024,
 		64, 64,
 		8192, -8192, 8192, -8192, 8192, -8192,
 	} {
-		binary.LittleEndian.PutUint16(report[1+i*2:], uint16(v))
+		binary.LittleEndian.PutUint16(report[i*2:], uint16(v))
 	}
 
 	return report

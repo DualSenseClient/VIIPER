@@ -159,8 +159,6 @@ const (
 
 const (
 	featureIDCalibration   byte = 0x02
-	featureIDCapabilities  byte = 0x03
-	featureIDCalibrationBT byte = 0x05
 	featureIDProbe         byte = 0x08
 	featureIDStatus        byte = 0x10
 	featureIDProbeResponse byte = 0x11

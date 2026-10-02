@@ -2,7 +2,6 @@ package dualshock4
 
 import (
 	"encoding/hex"
-	"fmt"
 	"math"
 )
 
@@ -32,10 +31,6 @@ func AccelRawToMS2(raw int16) float64 {
 // controller lying flat on a table.
 func DefaultAccelRaw() (x, y, z int16) {
 	return DefaultAccelXRaw, DefaultAccelYRaw, DefaultAccelZRaw
-}
-
-func ds4FirmwareVersionString() string {
-	return fmt.Sprintf("%04X.%04X", uint16(SoftwareVersionMajor), SoftwareVersionMinor)
 }
 
 func telemetryVoltageU16(voltage float64) uint16 {
