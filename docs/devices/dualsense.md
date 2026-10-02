@@ -95,18 +95,39 @@ typedef struct {
 
 ## Output callback
 
-The callback reports rumble, lightbar color, and player LEDs:
+The callback delivers the full 0x02 output state: flags, rumble, volumes,
+adaptive trigger effects (11 bytes per trigger: mode + curve parameters),
+lightbar, player LEDs, and mic-mute light. Pointer valid during the call:
 
 ```c
-typedef void (*DSOutputCallback)(
-    DSDeviceHandle handle,
-    uint8_t rumbleSmall,
-    uint8_t rumbleLarge,
-    uint8_t ledRed,
-    uint8_t ledGreen,
-    uint8_t ledBlue,
-    uint8_t playerLeds
-);
+typedef struct {
+    uint8_t  Flags0;
+    uint8_t  Flags1;
+    uint8_t  RumbleSmall;
+    uint8_t  RumbleLarge;
+    uint8_t  VolumeHeadphones;
+    uint8_t  VolumeSpeaker;
+    uint8_t  VolumeMic;
+    uint8_t  AudioControl;
+    uint8_t  MuteLightMode;
+    uint8_t  MuteControl;
+    uint8_t  TriggerRight[11];
+    uint8_t  TriggerLeft[11];
+    uint32_t HostTimestamp;
+    uint8_t  MotorPower;
+    uint8_t  AudioControl2;
+    uint8_t  Flags3;
+    uint8_t  HapticFilter;
+    uint8_t  UnkByte;
+    uint8_t  LightFade;
+    uint8_t  LightBrightness;
+    uint8_t  PlayerLeds;
+    uint8_t  LedRed;
+    uint8_t  LedGreen;
+    uint8_t  LedBlue;
+} DSOutputState;
+
+typedef void (*DSOutputCallback)(DSDeviceHandle handle, const DSOutputState* output);
 ```
 
 Pass `NULL` to `SetDualSenseOutputCallback` to clear a previously registered callback.

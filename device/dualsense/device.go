@@ -299,22 +299,37 @@ var featureGetHandlers = map[byte]func(*DualSense) []byte{
 	featureIDCommandResponse: (*DualSense).featureReportCommandResponse,
 }
 
+// parseOutputReport decodes the 48B USB output report 0x02 (report ID +
+// 47B payload, matching DS5Dongle SetStateData) into feeder semantics.
 func parseOutputReport(out []byte) OutputState {
-	feedback := OutputState{
-		RumbleSmall: out[3],
-		RumbleLarge: out[4],
+	var feedback OutputState
+	if len(out) < 48 {
+		return feedback
 	}
-	if len(out) > 2 {
-		flag1 := out[2]
-		if flag1&0x04 != 0 && len(out) > 47 {
-			feedback.LedRed = out[45]
-			feedback.LedGreen = out[46]
-			feedback.LedBlue = out[47]
-		}
-		if flag1&0x10 != 0 && len(out) > 44 {
-			feedback.PlayerLeds = out[44]
-		}
-	}
+	feedback.Flags0 = out[1]
+	feedback.Flags1 = out[2]
+	feedback.RumbleSmall = out[3]
+	feedback.RumbleLarge = out[4]
+	feedback.VolumeHeadphones = out[5]
+	feedback.VolumeSpeaker = out[6]
+	feedback.VolumeMic = out[7]
+	feedback.AudioControl = out[8]
+	feedback.MuteLightMode = out[9]
+	feedback.MuteControl = out[10]
+	copy(feedback.TriggerRight[:], out[11:22])
+	copy(feedback.TriggerLeft[:], out[22:33])
+	feedback.HostTimestamp = binary.LittleEndian.Uint32(out[33:37])
+	feedback.MotorPower = out[37]
+	feedback.AudioControl2 = out[38]
+	feedback.Flags3 = out[39]
+	feedback.HapticFilter = out[40]
+	feedback.UnkByte = out[41]
+	feedback.LightFade = out[42]
+	feedback.LightBrightness = out[43]
+	feedback.PlayerLeds = out[44]
+	feedback.LedRed = out[45]
+	feedback.LedGreen = out[46]
+	feedback.LedBlue = out[47]
 	return feedback
 }
 

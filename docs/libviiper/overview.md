@@ -119,7 +119,7 @@ Each device family has its own create/state/callback functions documented on its
 | `CreateDualSenseDevice(serverHandle, &handle, busID, autoAttach, vid, pid, meta)` | Create a virtual DualSense |
 | `CreateDualSenseEdgeDevice(...)` | Create a virtual DualSense Edge |
 | `SetDualSenseDeviceState(handle, state)` | Push an input state to the device |
-| `SetDualSenseOutputCallback(handle, cb)` | Register a callback for rumble, lightbar and player LEDs |
+| `SetDualSenseOutputCallback(handle, cb)` | Register a callback for the full output state (rumble, trigger effects, lightbar, player LEDs) |
 | `RemoveDualSenseDevice(handle)` | Remove the device |
 
 #### Switch 2 Pro

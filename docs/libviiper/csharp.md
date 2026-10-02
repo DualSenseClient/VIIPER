@@ -482,6 +482,37 @@ struct NS2ProOutputState
     public byte Flags;        // bit 0 = rumble update, bit 1 = player LED update
     public byte PlayerLedMask;
 }
+
+[StructLayout(LayoutKind.Sequential)]
+struct DSOutputState
+{
+    public byte Flags0;
+    public byte Flags1;
+    public byte RumbleSmall;
+    public byte RumbleLarge;
+    public byte VolumeHeadphones;
+    public byte VolumeSpeaker;
+    public byte VolumeMic;
+    public byte AudioControl;
+    public byte MuteLightMode;
+    public byte MuteControl;
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 11)]
+    public byte[] TriggerRight; // adaptive trigger effect mode + parameters
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 11)]
+    public byte[] TriggerLeft;
+    public uint HostTimestamp;
+    public byte MotorPower;
+    public byte AudioControl2;
+    public byte Flags3;
+    public byte HapticFilter;
+    public byte UnkByte;
+    public byte LightFade;
+    public byte LightBrightness;
+    public byte PlayerLeds;
+    public byte LedRed;
+    public byte LedGreen;
+    public byte LedBlue;
+}
 ```
 
 ## Callback delegates
@@ -501,8 +532,7 @@ delegate void DS4OutputCallbackDelegate(nuint handle, byte updateFlags, byte rum
     byte ledRed, byte ledGreen, byte ledBlue, byte flashOn, byte flashOff);
 
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-delegate void DSOutputCallbackDelegate(nuint handle, byte rumbleSmall, byte rumbleLarge,
-    byte ledRed, byte ledGreen, byte ledBlue, byte playerLeds);
+delegate void DSOutputCallbackDelegate(nuint handle, in DSOutputState output);
 
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 delegate void NS2ProOutputCallbackDelegate(nuint handle, NS2ProOutputState output);
@@ -731,17 +761,18 @@ class Program
 
 ## DualSense output example
 
-The DualSense reports rumble, lightbar color, and player LEDs through a single
-output callback. This branch has no speaker/haptics PCM or microphone APIs.
+The DualSense reports the full output state (rumble, volumes, adaptive
+trigger effects, lightbar, player LEDs) through a single output callback:
 
 ```csharp
 // Keep all delegates alive for the lifetime of the device!
-DSOutputCallbackDelegate outputCb = (handle, rumbleSmall, rumbleLarge,
-    ledRed, ledGreen, ledBlue, playerLeds) =>
+DSOutputCallbackDelegate outputCb = (handle, in DSOutputState output) =>
 {
-    Console.WriteLine($"<- Rumble: {rumbleSmall}/{rumbleLarge}, " +
-        $"LED: #{ledRed:X2}{ledGreen:X2}{ledBlue:X2}, " +
-        $"Players: 0x{playerLeds:X2}");
+    Console.WriteLine($"<- Rumble: {output.RumbleSmall}/{output.RumbleLarge}, " +
+        $"LED: #{output.LedRed:X2}{output.LedGreen:X2}{output.LedBlue:X2}, " +
+        $"Players: 0x{output.PlayerLeds:X2}, " +
+        $"Triggers: R[0]={output.TriggerRight[0]} L[0]={output.TriggerLeft[0]}");
+};
 };
 
 DSMetaState meta = new() { SerialNumber = "MY-DS-0001" };

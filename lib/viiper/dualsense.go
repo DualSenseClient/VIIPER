@@ -91,10 +91,37 @@ typedef struct {
 	const char* ShellColor;     // NULL = use default (2-char code, e.g. "00", "Z1")
 } DSMetaState;
 
-typedef void (*DSOutputCallback)(DSDeviceHandle handle, uint8_t rumbleSmall, uint8_t rumbleLarge, uint8_t ledRed, uint8_t ledGreen, uint8_t ledBlue, uint8_t playerLeds);
+typedef struct {
+	uint8_t  Flags0;
+	uint8_t  Flags1;
+	uint8_t  RumbleSmall;
+	uint8_t  RumbleLarge;
+	uint8_t  VolumeHeadphones;
+	uint8_t  VolumeSpeaker;
+	uint8_t  VolumeMic;
+	uint8_t  AudioControl;
+	uint8_t  MuteLightMode;
+	uint8_t  MuteControl;
+	uint8_t  TriggerRight[11];
+	uint8_t  TriggerLeft[11];
+	uint32_t HostTimestamp;
+	uint8_t  MotorPower;
+	uint8_t  AudioControl2;
+	uint8_t  Flags3;
+	uint8_t  HapticFilter;
+	uint8_t  UnkByte;
+	uint8_t  LightFade;
+	uint8_t  LightBrightness;
+	uint8_t  PlayerLeds;
+	uint8_t  LedRed;
+	uint8_t  LedGreen;
+	uint8_t  LedBlue;
+} DSOutputState;
 
-static void viiper_call_ds_output(DSOutputCallback fn, DSDeviceHandle handle, uint8_t rumbleSmall, uint8_t rumbleLarge, uint8_t ledRed, uint8_t ledGreen, uint8_t ledBlue, uint8_t playerLeds) {
-	fn(handle, rumbleSmall, rumbleLarge, ledRed, ledGreen, ledBlue, playerLeds);
+typedef void (*DSOutputCallback)(DSDeviceHandle handle, const DSOutputState* output);
+
+static void viiper_call_ds_output(DSOutputCallback fn, DSDeviceHandle handle, const DSOutputState* output) {
+	fn(handle, output);
 }
 
 */
@@ -285,9 +312,9 @@ func SetDualSenseDeviceState(handle C.DSDeviceHandle, state C.DSDeviceState) boo
 	return true
 }
 
-// SetDualSenseOutputCallback sets a callback to be invoked when the host sends output (rumble/LED) commands to the device.
+// SetDualSenseOutputCallback sets a callback to be invoked when the host sends output (rumble/triggers/LED) commands to the device.
 // @param handle Handle to the DualSense device.
-// @param callback Callback receiving rumbleSmall, rumbleLarge, ledRed, ledGreen, ledBlue, playerLeds. Pass NULL to clear.
+// @param callback Callback receiving the full output state. Pass NULL to clear.
 //
 //export SetDualSenseOutputCallback
 func SetDualSenseOutputCallback(handle C.DSDeviceHandle, cb C.DSOutputCallback) bool {
@@ -305,14 +332,34 @@ func SetDualSenseOutputCallback(handle C.DSDeviceHandle, cb C.DSOutputCallback) 
 		return true
 	}
 	dsDevice.SetOutputCallback(func(out dualsense.OutputState) {
-		C.viiper_call_ds_output(cb, handle,
-			C.uint8_t(out.RumbleSmall),
-			C.uint8_t(out.RumbleLarge),
-			C.uint8_t(out.LedRed),
-			C.uint8_t(out.LedGreen),
-			C.uint8_t(out.LedBlue),
-			C.uint8_t(out.PlayerLeds),
-		)
+		var cOut C.DSOutputState
+		cOut.Flags0 = C.uint8_t(out.Flags0)
+		cOut.Flags1 = C.uint8_t(out.Flags1)
+		cOut.RumbleSmall = C.uint8_t(out.RumbleSmall)
+		cOut.RumbleLarge = C.uint8_t(out.RumbleLarge)
+		cOut.VolumeHeadphones = C.uint8_t(out.VolumeHeadphones)
+		cOut.VolumeSpeaker = C.uint8_t(out.VolumeSpeaker)
+		cOut.VolumeMic = C.uint8_t(out.VolumeMic)
+		cOut.AudioControl = C.uint8_t(out.AudioControl)
+		cOut.MuteLightMode = C.uint8_t(out.MuteLightMode)
+		cOut.MuteControl = C.uint8_t(out.MuteControl)
+		for i := 0; i < 11; i++ {
+			cOut.TriggerRight[i] = C.uint8_t(out.TriggerRight[i])
+			cOut.TriggerLeft[i] = C.uint8_t(out.TriggerLeft[i])
+		}
+		cOut.HostTimestamp = C.uint32_t(out.HostTimestamp)
+		cOut.MotorPower = C.uint8_t(out.MotorPower)
+		cOut.AudioControl2 = C.uint8_t(out.AudioControl2)
+		cOut.Flags3 = C.uint8_t(out.Flags3)
+		cOut.HapticFilter = C.uint8_t(out.HapticFilter)
+		cOut.UnkByte = C.uint8_t(out.UnkByte)
+		cOut.LightFade = C.uint8_t(out.LightFade)
+		cOut.LightBrightness = C.uint8_t(out.LightBrightness)
+		cOut.PlayerLeds = C.uint8_t(out.PlayerLeds)
+		cOut.LedRed = C.uint8_t(out.LedRed)
+		cOut.LedGreen = C.uint8_t(out.LedGreen)
+		cOut.LedBlue = C.uint8_t(out.LedBlue)
+		C.viiper_call_ds_output(cb, handle, &cOut)
 	})
 	return true
 }

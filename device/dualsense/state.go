@@ -93,37 +93,100 @@ func (s *InputState) UnmarshalBinary(data []byte) error {
 }
 
 // nolint
-// viiper:wire dualsense s2c rumbleSmall:u8 rumbleLarge:u8 ledRed:u8 ledGreen:u8 ledBlue:u8 playerLeds:u8
+// viiper:wire dualsense s2c flags0:u8 flags1:u8 rumbleSmall:u8 rumbleLarge:u8 volumeHeadphones:u8 volumeSpeaker:u8 volumeMic:u8 audioControl:u8 muteLightMode:u8 muteControl:u8 triggerRight:u8*11 triggerLeft:u8*11 hostTimestamp:u32 motorPower:u8 audioControl2:u8 flags3:u8 hapticFilter:u8 unkByte:u8 lightFade:u8 lightBrightness:u8 playerLeds:u8 ledRed:u8 ledGreen:u8 ledBlue:u8
 type OutputState struct {
-	RumbleSmall uint8
-	RumbleLarge uint8
-	LedRed      uint8
-	LedGreen    uint8
-	LedBlue     uint8
-	PlayerLeds  uint8
+	Flags0           uint8
+	Flags1           uint8
+	RumbleSmall      uint8
+	RumbleLarge      uint8
+	VolumeHeadphones uint8
+	VolumeSpeaker    uint8
+	VolumeMic        uint8
+	AudioControl     uint8
+	MuteLightMode    uint8
+	MuteControl      uint8
+	TriggerRight     [11]byte
+	TriggerLeft      [11]byte
+	HostTimestamp    uint32
+	MotorPower       uint8
+	AudioControl2    uint8
+	Flags3           uint8
+	HapticFilter     uint8
+	UnkByte          uint8
+	LightFade        uint8
+	LightBrightness  uint8
+	PlayerLeds       uint8
+	LedRed           uint8
+	LedGreen         uint8
+	LedBlue          uint8
 }
 
+// Output flag bits (see DS5Dongle SetStateData).
+const (
+	Flag0UseRumbleNotHaptics uint8 = 0x02
+	Flag0AllowRightTrigger   uint8 = 0x04
+	Flag0AllowLeftTrigger    uint8 = 0x08
+	Flag1AllowLedColor       uint8 = 0x04
+	Flag1AllowPlayerLEDs     uint8 = 0x10
+)
+
 func (f *OutputState) MarshalBinary() ([]byte, error) {
-	return []byte{
-		f.RumbleSmall,
-		f.RumbleLarge,
-		f.LedRed,
-		f.LedGreen,
-		f.LedBlue,
-		f.PlayerLeds,
-	}, nil
+	b := make([]byte, OutputStateSize)
+	b[0] = f.Flags0
+	b[1] = f.Flags1
+	b[2] = f.RumbleSmall
+	b[3] = f.RumbleLarge
+	b[4] = f.VolumeHeadphones
+	b[5] = f.VolumeSpeaker
+	b[6] = f.VolumeMic
+	b[7] = f.AudioControl
+	b[8] = f.MuteLightMode
+	b[9] = f.MuteControl
+	copy(b[10:21], f.TriggerRight[:])
+	copy(b[21:32], f.TriggerLeft[:])
+	binary.LittleEndian.PutUint32(b[32:36], f.HostTimestamp)
+	b[36] = f.MotorPower
+	b[37] = f.AudioControl2
+	b[38] = f.Flags3
+	b[39] = f.HapticFilter
+	b[40] = f.UnkByte
+	b[41] = f.LightFade
+	b[42] = f.LightBrightness
+	b[43] = f.PlayerLeds
+	b[44] = f.LedRed
+	b[45] = f.LedGreen
+	b[46] = f.LedBlue
+	return b, nil
 }
 
 func (f *OutputState) UnmarshalBinary(data []byte) error {
 	if len(data) < OutputStateSize {
 		return io.ErrUnexpectedEOF
 	}
-	f.RumbleSmall = data[0]
-	f.RumbleLarge = data[1]
-	f.LedRed = data[2]
-	f.LedGreen = data[3]
-	f.LedBlue = data[4]
-	f.PlayerLeds = data[5]
+	f.Flags0 = data[0]
+	f.Flags1 = data[1]
+	f.RumbleSmall = data[2]
+	f.RumbleLarge = data[3]
+	f.VolumeHeadphones = data[4]
+	f.VolumeSpeaker = data[5]
+	f.VolumeMic = data[6]
+	f.AudioControl = data[7]
+	f.MuteLightMode = data[8]
+	f.MuteControl = data[9]
+	copy(f.TriggerRight[:], data[10:21])
+	copy(f.TriggerLeft[:], data[21:32])
+	f.HostTimestamp = binary.LittleEndian.Uint32(data[32:36])
+	f.MotorPower = data[36]
+	f.AudioControl2 = data[37]
+	f.Flags3 = data[38]
+	f.HapticFilter = data[39]
+	f.UnkByte = data[40]
+	f.LightFade = data[41]
+	f.LightBrightness = data[42]
+	f.PlayerLeds = data[43]
+	f.LedRed = data[44]
+	f.LedGreen = data[45]
+	f.LedBlue = data[46]
 	return nil
 }
 
