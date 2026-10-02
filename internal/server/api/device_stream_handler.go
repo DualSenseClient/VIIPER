@@ -25,6 +25,12 @@ type HapticsStreamProvider interface {
 	HapticsStreamHandler() StreamHandlerFunc
 }
 
+// MicStreamProvider is the microphone-ingest counterpart: feeders write
+// fixed 192B PCM frames (2ch S16LE @48kHz) for EP2 IN.
+type MicStreamProvider interface {
+	MicStreamHandler() StreamHandlerFunc
+}
+
 // DeviceAudioStreamHandler dispatches audio streams to device handlers
 // implementing AudioStreamProvider.
 func DeviceAudioStreamHandler(srv *usb.Server) StreamHandlerFunc {
@@ -46,6 +52,18 @@ func DeviceHapticsStreamHandler(srv *usb.Server) StreamHandlerFunc {
 			return nil, false
 		}
 		return provider.HapticsStreamHandler(), true
+	})
+}
+
+// DeviceMicStreamHandler dispatches mic-ingest streams to device handlers
+// implementing MicStreamProvider.
+func DeviceMicStreamHandler(srv *usb.Server) StreamHandlerFunc {
+	return deviceSubStreamHandler(srv, "mic", func(reg DeviceHandler) (StreamHandlerFunc, bool) {
+		provider, ok := reg.(MicStreamProvider)
+		if !ok {
+			return nil, false
+		}
+		return provider.MicStreamHandler(), true
 	})
 }
 

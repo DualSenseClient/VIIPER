@@ -25,6 +25,7 @@ All functions are part of the [libVIIPER C API](../libviiper/overview.md).
 | `SetDualSenseSpeakerResetCallback(handle, cb)` | Register a callback fired once per streaming generation change (flush PCM) |
 | `SetDualSenseRealtimeHapticsCallback(handle, cb)` | Register a callback for the rear voice-coil pair (2ch S16LE @48kHz, low latency) |
 | `SetDualSenseMetaState(handle, meta)` | Merge-update identity/battery metadata at runtime (USB serial refreshes too) |
+| `SetDualSenseMicrophonePCM(handle, data, length)` | Queue one 192B mic frame (2ch S16LE @48kHz) |
 | `RemoveDualSenseDevice(handle)` | Remove the device |
 Only one output callback may be active at a time; pass `NULL` to clear it.
 
@@ -148,8 +149,15 @@ call, so copy it, and never block (audio thread).
 
 Over TCP, open `bus/{busId}/{deviceid}/audio`: each message is a u16 LE
 length followed by that many PCM bytes. Length `0xFFFF` marks a
-speaker-reset barrier (stream generation change) with no payload. The mic
-(`IF2`) returns silence until the microphone queue lands.
+speaker-reset barrier (stream generation change) with no payload.
+
+## Microphone
+
+The mic (`IF2`) streams 2ch S16LE @48kHz, exactly 192 bytes (48 frames)
+per transfer. `SetDualSenseMicrophonePCM` queues one feeder frame;
+anything else is rejected. The queue holds 32 frames drop-oldest;
+underruns serve silence. Over TCP, open `bus/{busId}/{deviceid}/audio/mic`
+and write raw 192B frames.
 
 ## Speaker reset
 

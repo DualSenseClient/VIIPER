@@ -585,6 +585,28 @@ func SetDualSenseMetaState(handle C.DSDeviceHandle, meta *C.DSMetaState) bool {
 	return true
 }
 
+// SetDualSenseMicrophonePCM queues one feeder mic frame (exactly 192B:
+// 48 frames of 2ch S16LE @48kHz) for EP2 IN. Returns false for any other
+// length. Full queues drop oldest first; underruns serve silence.
+//
+//export SetDualSenseMicrophonePCM
+func SetDualSenseMicrophonePCM(handle C.DSDeviceHandle, data *C.uint8_t, length C.size_t) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	dsDevice, ok := dhw.device.(*dualsense.DualSense)
+	if !ok {
+		return false
+	}
+	if data == nil || length != 192 {
+		return false
+	}
+	frame := C.GoBytes(unsafe.Pointer(data), C.int(length))
+	return dsDevice.QueueMicrophonePCM(frame)
+}
+
 // RemoveDualSenseDevice removes the DualSense device associated with the given handle from the server.
 // @param handle Handle to the DualSense device to remove.
 //

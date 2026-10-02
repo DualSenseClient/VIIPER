@@ -71,6 +71,7 @@ Key configuration options (see `viiper server --help` for all of them):
 | `bus/{busId}/{deviceid}` | Open the binary device stream |
 | `bus/{busId}/{deviceid}/audio` | Open the DualSense speaker PCM stream (u16 LE length + PCM; `0xFFFF` = reset barrier). Fails for devices without audio. Streams end on disconnect; removing the device does not close open feeder streams |
 | `bus/{busId}/{deviceid}/audio/haptics` | Open the DualSense rear-haptics PCM stream (2ch S16LE @48kHz, same framing, barriers included) |
+| `bus/{busId}/{deviceid}/audio/mic` | Write raw 192B DualSense mic frames (2ch S16LE @48kHz) |
 
 ## C# — `Viiper.Client`
 

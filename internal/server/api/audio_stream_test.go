@@ -2,6 +2,8 @@ package api_test
 
 import (
 	"context"
+	"log/slog"
+	"net"
 	"testing"
 	"time"
 
@@ -9,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	viiperTesting "github.com/DualSenseClient/VIIPER/_testing"
+	"github.com/DualSenseClient/VIIPER/device/dualsense"
 	"github.com/DualSenseClient/VIIPER/internal/server/api"
 	"github.com/DualSenseClient/VIIPER/internal/server/api/handler"
 	"github.com/DualSenseClient/VIIPER/usbip"
@@ -151,6 +154,45 @@ func TestAudioStream_UnsupportedDevice(t *testing.T) {
 	_, _, err = audio.ReadFrame()
 	require.Error(t, err)
 	assert.NotEqual(t, context.DeadlineExceeded, err)
+}
+
+// Pipe-level: TCP mic ingest lands in the queue EP2 IN serves.
+func TestMicStream_IngestToEndpoint(t *testing.T) {
+	dev, err := dualsense.New(nil)
+	require.NoError(t, err)
+
+	server, client := net.Pipe()
+	done := make(chan error, 1)
+	go func() {
+		done <- dualsense.MicStreamHandler(dev, slog.Default())(server)
+	}()
+
+	frame := make([]byte, 192)
+	for i := range frame {
+		frame[i] = byte(i + 1)
+	}
+	_, err = client.Write(frame)
+	require.NoError(t, err)
+
+	// Poll until the queue delivers (handler runs async).
+	var got []byte
+	for i := 0; i < 50; i++ {
+		got = dev.HandleTransfer(context.Background(), 2, usbip.DirIn, nil)
+		if len(got) == 192 && got[0] == 1 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	require.Len(t, got, 192)
+	assert.Equal(t, frame, got)
+
+	require.NoError(t, client.Close())
+	select {
+	case err := <-done:
+		assert.Error(t, err) // EOF after close
+	case <-time.After(2 * time.Second):
+		t.Fatal("mic handler did not end after close")
+	}
 }
 
 // End to end: runtime meta merge over TCP refreshes identity everywhere

@@ -54,7 +54,45 @@ type DualSense struct {
 	// buffer. They receive the rear voice-coil pair only (see below).
 	hapticsSubs map[*hapticsSub]struct{}
 
+	// Microphone frame queue (2ch S16LE @48kHz, exact 192B frames),
+	// guarded by mtx. Fed by the feeder, drained by EP2 IN; silence on
+	// underrun mirrors the DS5Dongle underrun guard.
+	micQueue [][]byte
+
 	mtx sync.Mutex
+}
+
+// micFrameSize is one 1ms mic frame: 48 samples of 2ch S16LE.
+const micFrameSize = 192
+
+const micQueueDepth = 32
+
+// QueueMicrophonePCM enqueues one feeder mic frame for EP2 IN. Only exact
+// 192B frames are accepted; a full queue drops oldest first.
+func (d *DualSense) QueueMicrophonePCM(frame []byte) bool {
+	if len(frame) != micFrameSize {
+		return false
+	}
+	cp := append([]byte(nil), frame...)
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	d.micQueue = append(d.micQueue, cp)
+	for len(d.micQueue) > micQueueDepth {
+		d.micQueue = d.micQueue[1:]
+	}
+	return true
+}
+
+// popMicrophoneFrame returns the next queued frame or nil on underrun.
+func (d *DualSense) popMicrophoneFrame() []byte {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	if len(d.micQueue) == 0 {
+		return nil
+	}
+	frame := d.micQueue[0]
+	d.micQueue = d.micQueue[1:]
+	return frame
 }
 
 // SpeakerEvent is one speaker-stream item: PCM audio or a generation
@@ -425,7 +463,10 @@ func (d *DualSense) HandleTransfer(ctx context.Context, ep uint32, dir uint32, o
 				return d.buildUSBInputReport(is, &ms)
 			}
 		case 2:
-			// Microphone IN: silence until feeder PCM hooks land.
+			// Microphone IN: queued feeder frames, silence on underrun.
+			if frame := d.popMicrophoneFrame(); frame != nil {
+				return frame
+			}
 			return micSilence
 		default:
 			return nil

@@ -47,6 +47,55 @@ func (c *Client) OpenHapticsStream(ctx context.Context, busID uint32, devID stri
 	return &AudioStream{conn: conn, BusID: busID, DevID: devID}, nil
 }
 
+// OpenMicStream connects to an existing device's microphone ingest stream.
+// The feeder writes exact 192B PCM frames (2ch S16LE @48kHz).
+func (c *Client) OpenMicStream(ctx context.Context, busID uint32, devID string) (*MicStream, error) {
+	conn, err := c.dialStream(ctx, fmt.Sprintf("bus/%d/%s/audio/mic\x00", busID, devID))
+	if err != nil {
+		return nil, err
+	}
+	return &MicStream{conn: conn, BusID: busID, DevID: devID}, nil
+}
+
+// MicStream is a feeder connection pushing mic PCM into a device.
+type MicStream struct {
+	conn   net.Conn
+	BusID  uint32
+	DevID  string
+	closed bool
+}
+
+// WriteFrame writes one exact 192B mic frame.
+func (s *MicStream) WriteFrame(frame []byte) error {
+	if s.closed {
+		return fmt.Errorf("stream closed")
+	}
+	if len(frame) != 192 {
+		return fmt.Errorf("mic frame must be exactly 192 bytes, got %d", len(frame))
+	}
+	_, err := s.conn.Write(frame)
+	return err
+}
+
+// SetReadDeadline sets the read deadline for the underlying connection.
+func (s *MicStream) SetReadDeadline(t time.Time) error {
+	return s.conn.SetReadDeadline(t)
+}
+
+// SetWriteDeadline sets the write deadline for the underlying connection.
+func (s *MicStream) SetWriteDeadline(t time.Time) error {
+	return s.conn.SetWriteDeadline(t)
+}
+
+// Close closes the mic stream connection.
+func (s *MicStream) Close() error {
+	if s.closed {
+		return nil
+	}
+	s.closed = true
+	return s.conn.Close()
+}
+
 // ReadFrame reads one speaker frame. reset is true for barrier events
 // (pcm is nil then). Either a frame or a barrier is returned per call.
 func (s *AudioStream) ReadFrame() (pcm []byte, reset bool, err error) {

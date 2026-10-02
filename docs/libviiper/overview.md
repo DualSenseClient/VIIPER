@@ -124,6 +124,7 @@ Each device family has its own create/state/callback functions documented on its
 | `SetDualSenseSpeakerResetCallback(handle, cb)` | Register a callback fired once per streaming generation change (flush PCM) |
 | `SetDualSenseRealtimeHapticsCallback(handle, cb)` | Register a callback for the rear voice-coil pair (2ch S16LE @48kHz, low latency) |
 | `SetDualSenseMetaState(handle, meta)` | Merge-update identity/battery metadata at runtime |
+| `SetDualSenseMicrophonePCM(handle, data, length)` | Queue one 192B mic frame (2ch S16LE @48kHz) |
 | `RemoveDualSenseDevice(handle)` | Remove the device |
 
 #### Switch 2 Pro

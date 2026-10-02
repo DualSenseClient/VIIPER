@@ -3,6 +3,7 @@ package dualsense
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 )
@@ -60,9 +61,8 @@ func AudioStreamHandler(dev *DualSense, logger *slog.Logger) func(conn net.Conn)
 	}
 }
 
-// HapticsStreamHandler returns a StreamHandlerFunc serving the rear
-// voice-coil pair (2ch S16LE @48kHz) and reset barriers to one feeder.
-// Same framing as the speaker stream.
+// HapticsStreamHandler serves the rear voice-coil pair (2ch S16LE @48kHz)
+// and reset barriers to one feeder. Same framing as the speaker stream.
 func HapticsStreamHandler(dev *DualSense, logger *slog.Logger) func(conn net.Conn) error {
 	return func(conn net.Conn) error {
 		logger.Debug("dualsense haptics stream begin")
@@ -75,5 +75,24 @@ func HapticsStreamHandler(dev *DualSense, logger *slog.Logger) func(conn net.Con
 			}
 		}
 		return nil
+	}
+}
+
+// MicStreamHandler ingests fixed 192B feeder mic frames (2ch S16LE @48kHz)
+// for EP2 IN. Short reads end the stream; malformed sizes are rejected by
+// the queue and counted as errors.
+func MicStreamHandler(dev *DualSense, logger *slog.Logger) func(conn net.Conn) error {
+	return func(conn net.Conn) error {
+		logger.Debug("dualsense mic stream begin")
+		defer logger.Debug("dualsense mic stream end")
+		var frame [micFrameSize]byte
+		for {
+			if _, err := io.ReadFull(conn, frame[:]); err != nil {
+				return err
+			}
+			if !dev.QueueMicrophonePCM(frame[:]) {
+				return fmt.Errorf("mic queue rejected frame")
+			}
+		}
 	}
 }

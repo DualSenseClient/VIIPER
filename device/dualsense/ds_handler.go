@@ -181,3 +181,17 @@ func (h *dshandler) HapticsStreamHandler() api.StreamHandlerFunc {
 		return HapticsStreamHandler(dse, logger)(conn)
 	}
 }
+
+// MicStreamHandler ingests feeder mic frames over TCP.
+func (h *dshandler) MicStreamHandler() api.StreamHandlerFunc {
+	return func(conn net.Conn, devPtr *usb.Device, logger *slog.Logger) error {
+		if devPtr == nil || *devPtr == nil {
+			return fmt.Errorf("nil device")
+		}
+		dse, ok := (*devPtr).(*DualSense)
+		if !ok {
+			return fmt.Errorf("%w: expected DualSense", device.ErrWrongDeviceType)
+		}
+		return MicStreamHandler(dse, logger)(conn)
+	}
+}

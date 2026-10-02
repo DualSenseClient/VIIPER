@@ -627,11 +627,10 @@ static class LibVIIPER
 ### DualSense (and Edge)
 
 Only `Device` and `EdgeDevice` variants exist in this branch
-(no audio-only / gamepad-only / by-type / raw-input / meta-setter /
-realtime-haptics / atomic-audio / speaker-reset /
-microphone PCM-feeder APIs).
+(no audio-only / gamepad-only / by-type / raw-input / atomic-audio
+APIs).
 Output arrives as the full `DSOutputState` struct; speaker PCM streams to
-the audio-out callback (mic returns silence until the mic queue lands).
+the audio-out callback and mic frames queue at 192B.
 
 ```csharp
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
@@ -669,6 +668,10 @@ the audio-out callback (mic returns silence until the mic queue lands).
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool SetDualSenseMetaState(nuint deviceHandle, ref DSMetaState meta);
+
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool SetDualSenseMicrophonePCM(nuint deviceHandle, [In] byte[] data, nuint length);
 
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.I1)]
@@ -842,6 +845,16 @@ DSRealtimeHapticsCallbackDelegate hapticsCb = (handle, pcm, length) =>
     // resample 48kHz -> 3kHz and forward ...
 };
 LibVIIPER.SetDualSenseRealtimeHapticsCallback(dsHandle, hapticsCb);
+```
+
+### Microphone feed
+
+```csharp
+// Exactly 192 bytes per call (48 frames of 2ch S16LE @48kHz); anything
+// else returns false. Opus-decode in your app, queue here.
+var micFrame = new byte[192];
+// ... fill from capture ...
+LibVIIPER.SetDualSenseMicrophonePCM(dsHandle, micFrame, (nuint)micFrame.Length);
 ```
 
 ## DualShock 4 output example

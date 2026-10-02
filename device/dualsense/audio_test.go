@@ -295,3 +295,66 @@ func TestHapticsLaneRearOnly(t *testing.T) {
 		t.Fatal("no haptics barrier delivered")
 	}
 }
+
+func TestMicrophoneQueueExactSize(t *testing.T) {
+	d, err := new(nil, false)
+	require.NoError(t, err)
+
+	assert.False(t, d.QueueMicrophonePCM(nil))
+	assert.False(t, d.QueueMicrophonePCM(make([]byte, 191)))
+	assert.False(t, d.QueueMicrophonePCM(make([]byte, 193)))
+
+	frame := make([]byte, 192)
+	for i := range frame {
+		frame[i] = byte(i)
+	}
+	assert.True(t, d.QueueMicrophonePCM(frame))
+	frame[0] = 0xFF // caller scratch: queue copied
+	assert.Equal(t, byte(0), d.popMicrophoneFrame()[0])
+}
+
+func TestMicrophoneServeOrderAndUnderrun(t *testing.T) {
+	d, err := new(nil, false)
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	// Empty queue serves silence.
+	got := d.HandleTransfer(ctx, 2, usbip.DirIn, nil)
+	require.Len(t, got, 192)
+	for _, b := range got {
+		assert.Zero(t, b)
+	}
+
+	first := make([]byte, 192)
+	second := make([]byte, 192)
+	for i := range first {
+		first[i] = 0x11
+		second[i] = 0x22
+	}
+	require.True(t, d.QueueMicrophonePCM(first))
+	require.True(t, d.QueueMicrophonePCM(second))
+
+	assert.Equal(t, first, d.HandleTransfer(ctx, 2, usbip.DirIn, nil))
+	assert.Equal(t, second, d.HandleTransfer(ctx, 2, usbip.DirIn, nil))
+
+	// Drained queue is silence again.
+	got = d.HandleTransfer(ctx, 2, usbip.DirIn, nil)
+	for _, b := range got {
+		assert.Zero(t, b)
+	}
+}
+
+func TestMicrophoneQueueDropsOldest(t *testing.T) {
+	d, err := new(nil, false)
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	for i := 0; i < 40; i++ {
+		frame := make([]byte, 192)
+		frame[0] = byte(i)
+		require.True(t, d.QueueMicrophonePCM(frame))
+	}
+	// 32 newest survive: first served is frame 8.
+	got := d.HandleTransfer(ctx, 2, usbip.DirIn, nil)
+	assert.Equal(t, byte(8), got[0])
+}
