@@ -173,3 +173,67 @@ func TestSerialStringPerDevice(t *testing.T) {
 	// Per-device maps must not alias: creating an Edge must not rewrite DS strings.
 	assert.Equal(t, "DualSense Wireless Controller", d.GetDescriptor().Strings[2])
 }
+
+// configDescriptorBytes assembles the configuration descriptor in the same
+// order as the USB server (internal/server/usb buildConfigDescriptor), using
+// only exported helpers, so the device-side descriptor data can be parity
+// checked from here.
+func configDescriptorBytes(t *testing.T, d *DualSense) []byte {
+	t.Helper()
+	desc := d.GetDescriptor()
+	var b bytes.Buffer
+	h := usb.ConfigHeader{
+		BNumInterfaces:      desc.NumInterfaces(),
+		BConfigurationValue: desc.Configuration.BConfigurationValue,
+		IConfiguration:      desc.Configuration.IConfiguration,
+		BMAttributes:        desc.Configuration.BMAttributes,
+		BMaxPower:           desc.Configuration.BMaxPower,
+	}
+	h.Write(&b)
+	for _, iface := range desc.Interfaces {
+		iface.Descriptor.Write(&b)
+		if iface.HID != nil {
+			hd, err := iface.HID.DescriptorBytes()
+			require.NoError(t, err)
+			b.Write([]byte(hd))
+		}
+		for _, cd := range iface.ClassDescriptors {
+			b.Write([]byte(cd.Bytes()))
+		}
+		for _, ep := range iface.Endpoints {
+			ep.Write(&b)
+			for _, cd := range ep.ClassDescriptors {
+				b.Write([]byte(cd.Bytes()))
+			}
+		}
+	}
+	out := b.Bytes()
+	require.GreaterOrEqual(t, len(out), 4)
+	out[2] = byte(len(out))
+	out[3] = byte(len(out) >> 8)
+	return out
+}
+
+// The full configuration must stay layout-identical to the DS5Dongle standard
+// build (no serial/wake): 227 bytes (0xE3), audio isochronous endpoints in the
+// 9-byte audio form (bRefresh/bSynchAddress), HID interrupt endpoints in the
+// standard 7-byte form. Regression guard for the config previously being
+// 223 bytes with 7-byte audio endpoints.
+func TestConfigDescriptorMatchesDS5DongleLayout(t *testing.T) {
+	for _, edge := range []bool{false, true} {
+		d, err := new(nil, edge)
+		require.NoError(t, err)
+		got := configDescriptorBytes(t, d)
+
+		require.Len(t, got, 227, "edge=%v", edge)
+		assert.Equal(t, []byte{0xE3, 0x00}, got[2:4], "edge=%v", edge)
+		assert.True(t, bytes.Contains(got, []byte{0x09, 0x05, 0x01, 0x09, 0x88, 0x01, 0x01, 0x00, 0x00}),
+			"speaker EP1 must use the 9-byte audio descriptor (edge=%v)", edge)
+		assert.True(t, bytes.Contains(got, []byte{0x09, 0x05, 0x82, 0x05, 0xC4, 0x00, 0x01, 0x00, 0x00}),
+			"mic EP2 must use the 9-byte audio descriptor (edge=%v)", edge)
+		assert.True(t, bytes.Contains(got, []byte{0x07, 0x05, 0x84, 0x03, 0x40, 0x00, 0x01}),
+			"HID IN EP must keep the 7-byte descriptor (edge=%v)", edge)
+		assert.True(t, bytes.Contains(got, []byte{0x07, 0x05, 0x03, 0x03, 0x40, 0x00, 0x01}),
+			"HID OUT EP must keep the 7-byte descriptor (edge=%v)", edge)
+	}
+}

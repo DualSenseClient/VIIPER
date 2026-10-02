@@ -223,6 +223,7 @@ func audioInterfaces() []usb.InterfaceConfig {
 					BMAttributes:     0x09, // Isochronous, adaptive
 					WMaxPacketSize:   392,
 					BInterval:        1,
+					AudioIso:         true, // DS5Dongle: 9-byte audio EP (bRefresh/bSynchAddress)
 					ClassDescriptors: []usb.ClassSpecificDescriptor{
 						{DescriptorType: 0x25, Payload: []byte{0x01, 0x00, 0x00, 0x00, 0x00}},
 					},
@@ -252,6 +253,7 @@ func audioInterfaces() []usb.InterfaceConfig {
 					BMAttributes:     0x05, // Isochronous, asynchronous
 					WMaxPacketSize:   196,
 					BInterval:        1,
+					AudioIso:         true, // DS5Dongle: 9-byte audio EP (bRefresh/bSynchAddress)
 					ClassDescriptors: []usb.ClassSpecificDescriptor{
 						{DescriptorType: 0x25, Payload: []byte{0x01, 0x00, 0x00, 0x00, 0x00}},
 					},

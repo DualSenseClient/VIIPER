@@ -216,9 +216,69 @@ func (c *TestUsbIpClient) Submit(conn net.Conn, dir uint32, ep uint32, outPayloa
 	return c.SubmitWithTimeout(conn, dir, ep, outPayload, setup, 750*time.Millisecond)
 }
 
-func (c *TestUsbIpClient) SubmitWithTimeout(conn net.Conn, dir uint32, ep uint32, outPayload []byte, setup *[8]byte, timeout time.Duration) error {
+// SubmitIn sends an EP0 IN control transfer (setup only, no OUT payload) and
+// returns the RET_SUBMIT payload up to wantLen bytes.
+func (c *TestUsbIpClient) SubmitIn(conn net.Conn, setup *[8]byte, wantLen uint32) ([]byte, error) {
 	if conn == nil {
-		return io.ErrUnexpectedEOF
+		return nil, io.ErrUnexpectedEOF
+	}
+	var setupBytes [8]byte
+	if setup != nil {
+		setupBytes = *setup
+	}
+	cur := c.nextSeq()
+	cmd := usbip.CmdSubmit{
+		Basic:             usbip.HeaderBasic{Command: usbip.CmdSubmitCode, Seqnum: cur, Devid: 0, Dir: usbip.DirIn, Ep: 0},
+		TransferFlags:     0,
+		TransferBufferLen: wantLen,
+		StartFrame:        0,
+		NumberOfPackets:   0,
+		Interval:          0,
+		Setup:             setupBytes,
+	}
+	_ = conn.SetDeadline(time.Now().Add(750 * time.Millisecond))
+	defer conn.SetDeadline(time.Time{}) //nolint:errcheck
+	if err := cmd.Write(conn); err != nil {
+		return nil, err
+	}
+	var retHdr [48]byte
+	if err := usbip.ReadExactly(conn, retHdr[:]); err != nil {
+		return nil, err
+	}
+	if gotCmd := binary.BigEndian.Uint32(retHdr[0:4]); gotCmd != usbip.RetSubmitCode {
+		return nil, fmt.Errorf("unexpected ret cmd %x", gotCmd)
+	}
+	if status := int32(binary.BigEndian.Uint32(retHdr[20:24])); status != 0 {
+		return nil, fmt.Errorf("ret status %d", status)
+	}
+	actual := binary.BigEndian.Uint32(retHdr[24:28])
+	data := make([]byte, int(actual))
+	if actual > 0 {
+		if err := usbip.ReadExactly(conn, data); err != nil {
+			return nil, err
+		}
+	}
+	return data, nil
+}
+
+func (c *TestUsbIpClient) SubmitWithTimeout(conn net.Conn, dir uint32, ep uint32, outPayload []byte, setup *[8]byte, timeout time.Duration) error {
+	_, _, err := c.submitRaw(conn, dir, ep, outPayload, setup, timeout, 0, nil)
+	return err
+}
+
+// SubmitJunkPackets sends CMD_SUBMIT with an explicit number_of_packets field
+// but no descriptor bytes, modelling peers that leave the field unset on
+// non-isochronous endpoints. Only valid where no descriptors travel.
+func (c *TestUsbIpClient) SubmitJunkPackets(conn net.Conn, dir uint32, ep uint32, outPayload []byte, setup *[8]byte, nPkts uint32) error {
+	_, _, err := c.submitRaw(conn, dir, ep, outPayload, setup, 750*time.Millisecond, nPkts, nil)
+	return err
+}
+
+// submitRaw is the shared CMD_SUBMIT workhorse: nPkts sets the
+// number_of_packets field and isoOut carries the request descriptors.
+func (c *TestUsbIpClient) submitRaw(conn net.Conn, dir uint32, ep uint32, outPayload []byte, setup *[8]byte, timeout time.Duration, nPkts uint32, isoOut []byte) ([]byte, []IsoPacketDesc, error) {
+	if conn == nil {
+		return nil, nil, io.ErrUnexpectedEOF
 	}
 
 	var setupBytes [8]byte
@@ -233,42 +293,99 @@ func (c *TestUsbIpClient) SubmitWithTimeout(conn net.Conn, dir uint32, ep uint32
 		TransferFlags:     0,
 		TransferBufferLen: uint32(len(outPayload)),
 		StartFrame:        0,
-		NumberOfPackets:   0,
+		NumberOfPackets:   nPkts,
 		Interval:          0,
 		Setup:             setupBytes,
 	}
 
 	_ = conn.SetDeadline(time.Now().Add(timeout))
 	if err := cmd.Write(conn); err != nil {
-		return err
+		return nil, nil, err
 	}
 	if len(outPayload) > 0 {
 		if _, err := conn.Write(outPayload); err != nil {
-			return err
+			return nil, nil, err
+		}
+	}
+	if len(isoOut) > 0 {
+		if _, err := conn.Write(isoOut); err != nil {
+			return nil, nil, err
 		}
 	}
 
 	var retHdr [48]byte
 	if err := usbip.ReadExactly(conn, retHdr[:]); err != nil {
-		return err
+		return nil, nil, err
 	}
 	if gotCmd := binary.BigEndian.Uint32(retHdr[0:4]); gotCmd != usbip.RetSubmitCode {
-		return fmt.Errorf("unexpected ret cmd %x", gotCmd)
+		return nil, nil, fmt.Errorf("unexpected ret cmd %x", gotCmd)
 	}
 	status := int32(binary.BigEndian.Uint32(retHdr[20:24]))
 	actual := binary.BigEndian.Uint32(retHdr[24:28])
+	replyPkts := binary.BigEndian.Uint32(retHdr[32:36])
 	if status != 0 {
-		return fmt.Errorf("ret status %d", status)
+		return nil, nil, fmt.Errorf("ret status %d", status)
 	}
 
+	var data []byte
 	if dir == usbip.DirIn && actual > 0 {
-		discard := make([]byte, int(actual))
-		if err := usbip.ReadExactly(conn, discard); err != nil {
-			return err
+		data = make([]byte, int(actual))
+		if err := usbip.ReadExactly(conn, data); err != nil {
+			return nil, nil, err
 		}
 	}
+	var descs []IsoPacketDesc
+	if replyPkts > 0 {
+		raw := make([]byte, int(replyPkts)*16)
+		if err := usbip.ReadExactly(conn, raw); err != nil {
+			return nil, nil, err
+		}
+		descs = decodeIsoDescs(raw)
+	}
 	_ = conn.SetDeadline(time.Time{})
-	return nil
+	return data, descs, nil
+}
+
+// IsoPacketDesc is one 16-byte isochronous packet descriptor (big-endian).
+type IsoPacketDesc struct {
+	Offset       uint32
+	Length       uint32
+	Status       uint32
+	ActualLength uint32
+}
+
+func encodeIsoDescs(lengths []uint32) []byte {
+	var offset uint32
+	out := make([]byte, len(lengths)*16)
+	for i, l := range lengths {
+		o := i * 16
+		binary.BigEndian.PutUint32(out[o:o+4], offset)
+		binary.BigEndian.PutUint32(out[o+4:o+8], l)
+		offset += l
+	}
+	return out
+}
+
+func decodeIsoDescs(b []byte) []IsoPacketDesc {
+	n := len(b) / 16
+	out := make([]IsoPacketDesc, 0, n)
+	for i := 0; i < n; i++ {
+		o := i * 16
+		out = append(out, IsoPacketDesc{
+			Offset:       binary.BigEndian.Uint32(b[o : o+4]),
+			Length:       binary.BigEndian.Uint32(b[o+4 : o+8]),
+			Status:       binary.BigEndian.Uint32(b[o+8 : o+12]),
+			ActualLength: binary.BigEndian.Uint32(b[o+12 : o+16]),
+		})
+	}
+	return out
+}
+
+// SubmitIso sends a CMD_SUBMIT carrying isochronous packet descriptors
+// (lengths sets one descriptor per entry) and reads the full RET_SUBMIT,
+// including reply descriptors. It returns the reply payload and descriptors.
+func (c *TestUsbIpClient) SubmitIso(conn net.Conn, dir uint32, ep uint32, outPayload []byte, lengths []uint32) ([]byte, []IsoPacketDesc, error) {
+	return c.submitRaw(conn, dir, ep, outPayload, nil, 750*time.Millisecond, uint32(len(lengths)), encodeIsoDescs(lengths))
 }
 
 func (c *TestUsbIpClient) ReadInputReport(conn net.Conn) ([]byte, error) {

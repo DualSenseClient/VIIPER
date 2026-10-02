@@ -28,7 +28,11 @@ const (
 	IADDescLen       = 8
 	InterfaceDescLen = 9
 	EndpointDescLen  = 7
-	HIDDescLen       = 9
+	// EndpointDescLenAudio is the audio-class endpoint descriptor length: the
+	// standard 7-byte endpoint descriptor plus bRefresh and bSynchAddress
+	// (USB Audio Class 1.0, standard AS isochronous endpoints).
+	EndpointDescLenAudio = 9
+	HIDDescLen           = 9
 )
 
 type Data []uint8
@@ -330,25 +334,47 @@ func (i InterfaceDescriptor) Write(b *bytes.Buffer) {
 
 }
 
-// EndpointDescriptor (7 bytes) for each endpoint.
+// EndpointDescriptor is a standard 7-byte endpoint descriptor. Audio-class
+// isochronous endpoints set AudioIso, which selects the 9-byte form with
+// bRefresh/bSynchAddress (USB Audio Class 1.0) required by the reference
+// DualSense descriptors.
 type EndpointDescriptor struct {
 	BEndpointAddress uint8
 	BMAttributes     uint8
 	WMaxPacketSize   uint16 // LE
 	BInterval        uint8
 
+	// AudioIso emits the 9-byte audio-class descriptor form; BRefresh and
+	// BSynchAddress are appended after BInterval. Only meaningful together
+	// with an isochronous BMAttributes.
+	AudioIso      bool
+	BRefresh      uint8
+	BSynchAddress uint8
+
 	// ClassDescriptors are optional endpoint-level class-specific descriptors
 	// emitted immediately after this endpoint descriptor.
 	ClassDescriptors []ClassSpecificDescriptor
 }
 
+// DescLen returns the descriptor length in bytes (7, or 9 when AudioIso).
+func (e EndpointDescriptor) DescLen() uint8 {
+	if e.AudioIso {
+		return EndpointDescLenAudio
+	}
+	return EndpointDescLen
+}
+
 func (e EndpointDescriptor) Write(b *bytes.Buffer) {
-	b.WriteByte(EndpointDescLen)
+	b.WriteByte(e.DescLen())
 	b.WriteByte(EndpointDescType)
 	b.WriteByte(e.BEndpointAddress)
 	b.WriteByte(e.BMAttributes)
 	_ = binary.Write(b, binary.LittleEndian, e.WMaxPacketSize)
 	b.WriteByte(e.BInterval)
+	if e.AudioIso {
+		b.WriteByte(e.BRefresh)
+		b.WriteByte(e.BSynchAddress)
+	}
 
 }
 

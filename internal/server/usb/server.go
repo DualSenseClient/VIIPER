@@ -175,7 +175,16 @@ const (
 	urbHdrOffsetUnlink  = 0x14
 	urbHdrOffsetFlags   = 0x14
 	urbHdrOffsetLength  = 0x18
+	urbHdrOffsetPackets = 0x20
 	urbHdrOffsetSetup   = 0x28
+
+	// Isochronous packet descriptor framing (usbip protocol): each packet is
+	// 16 bytes (offset, length, status, actual_length, big-endian) trailing
+	// the transfer buffer in both CMD_SUBMIT and RET_SUBMIT.
+	isoDescSize = 16
+	// Upper bound for isochronous packets per URB. Full-speed 1ms audio uses
+	// 1; this cap only rejects garbage before it can desync the stream.
+	maxIsoPackets = 64
 
 	// Standard header peek size
 	headerPeekSize = 8
@@ -602,7 +611,7 @@ func (s *Server) handleUrbStream(conn net.Conn, dev usb.Device) error {
 	var writeMu sync.Mutex
 	var retOut bytes.Buffer
 	retOut.Grow(retSubmitHeaderSize)
-	writeRet := func(seq, actualLen uint32, respData []byte, flush bool) error {
+	writeRet := func(seq, actualLen uint32, respData []byte, flush bool, nPkts uint32, isoReq []byte, isoActualTotal uint32) error {
 		writeMu.Lock()
 		defer writeMu.Unlock()
 		ret := usbip.RetSubmit{
@@ -610,7 +619,7 @@ func (s *Server) handleUrbStream(conn net.Conn, dev usb.Device) error {
 			Status:          0,
 			ActualLength:    actualLen,
 			StartFrame:      0,
-			NumberOfPackets: 0,
+			NumberOfPackets: nPkts,
 			ErrorCount:      0,
 		}
 		retOut.Reset()
@@ -623,6 +632,11 @@ func (s *Server) handleUrbStream(conn net.Conn, dev usb.Device) error {
 		if len(respData) > 0 {
 			if _, err := writer.Write(respData); err != nil {
 				return fmt.Errorf("write RET_SUBMIT payload: %w", err)
+			}
+		}
+		if nPkts > 0 {
+			if _, err := writer.Write(buildIsoReply(isoReq, nPkts, isoActualTotal)); err != nil {
+				return fmt.Errorf("write RET_SUBMIT iso descriptors: %w", err)
 			}
 		}
 		if flush && bw != nil {
@@ -725,6 +739,16 @@ func (s *Server) handleUrbStream(conn net.Conn, dev usb.Device) error {
 			return fmt.Errorf("unsupported cmd %d (seq=%d, devid=%d)", cmd, seq, devid)
 		}
 		xferLen := binary.BigEndian.Uint32(hdr[urbHdrOffsetLength : urbHdrOffsetLength+4])
+		nPkts := binary.BigEndian.Uint32(hdr[urbHdrOffsetPackets : urbHdrOffsetPackets+4])
+		// Packet descriptors only exist on the wire for isochronous
+		// endpoints. Other endpoints may carry arbitrary values in the
+		// number_of_packets field (usbip-win2 sends 0xFFFFFFFF on control
+		// traffic); the field must be ignored there to stay in sync.
+		if !isIsochronousEndpoint(dev.GetDescriptor(), ep, dir) {
+			nPkts = 0
+		} else if nPkts > maxIsoPackets {
+			return fmt.Errorf("isoc packet count %d exceeds limit %d (seq=%d)", nPkts, maxIsoPackets, seq)
+		}
 		setup := hdr[urbHdrOffsetSetup:urbHdrSize]
 
 		var outPayload []byte
@@ -738,6 +762,18 @@ func (s *Server) handleUrbStream(conn net.Conn, dev usb.Device) error {
 			}
 		}
 
+		// Isochronous transfers append one 16-byte packet descriptor per
+		// packet after the transfer buffer in both directions. They must be
+		// consumed here: leaving them unread desyncs the stream and the next
+		// header parses as garbage (observed as "unsupported cmd 0").
+		var isoReq []byte
+		if nPkts > 0 {
+			isoReq = make([]byte, nPkts*isoDescSize)
+			if err := usbip.ReadExactly(conn, isoReq); err != nil {
+				return fmt.Errorf("read iso descriptors: %w", err)
+			}
+		}
+
 		if dir == usbip.DirIn && ep != 0 {
 			urbCtx, urbCancel := context.WithCancel(ctx)
 			pendingMu.Lock()
@@ -745,7 +781,7 @@ func (s *Server) handleUrbStream(conn net.Conn, dev usb.Device) error {
 			pendingMu.Unlock()
 			interval := endpointInterval(dev.GetDescriptor(), ep)
 
-			go func(seq, ep, dir uint32) {
+			go func(seq, ep, dir uint32, nPkts uint32, isoReq []byte) {
 				defer urbCancel()
 				var respData []byte
 				for {
@@ -785,28 +821,74 @@ func (s *Server) handleUrbStream(conn net.Conn, dev usb.Device) error {
 				delete(pending, seq)
 				pendingMu.Unlock()
 
-				if err := writeRet(seq, uint32(len(respData)), respData, true); err != nil {
+				if err := writeRet(seq, uint32(len(respData)), respData, true, nPkts, isoReq, uint32(len(respData))); err != nil {
 					if isClientDisconnect(err) {
 						s.logger.Debug("URB completion after disconnect", "seq", seq, "error", err)
 					} else {
 						s.logger.Error("write async RET_SUBMIT", "seq", seq, "error", err)
 					}
 				}
-			}(seq, ep, dir)
+			}(seq, ep, dir, nPkts, isoReq)
 			continue
 		}
 
 		// EP0 and OUT transfers never block and are handled in order.
 		respData := s.processSubmit(ctx, dev, ep, dir, setup, outPayload)
 		actualLen := uint32(len(respData))
+		isoActual := uint32(len(respData))
 		if dir == usbip.DirOut {
 			actualLen = uint32(len(outPayload))
+			isoActual = uint32(len(outPayload))
 			respData = nil
 		}
-		if err := writeRet(seq, actualLen, respData, ep == 0); err != nil {
+		if err := writeRet(seq, actualLen, respData, ep == 0, nPkts, isoReq, isoActual); err != nil {
 			return err
 		}
 	}
+}
+
+// buildIsoReply encodes the isochronous packet descriptors for RET_SUBMIT:
+// offset/length echoed from the request template, status forced to 0, and
+// actual_length set from actualTotal distributed across packets in request
+// order (each capped at its requested length, remainder flows downstream).
+func buildIsoReply(tmpl []byte, nPkts uint32, actualTotal uint32) []byte {
+	out := make([]byte, len(tmpl))
+	copy(out, tmpl)
+	remaining := actualTotal
+	for i := uint32(0); i < nPkts; i++ {
+		o := i * isoDescSize
+		reqLen := binary.BigEndian.Uint32(out[o+4 : o+8])
+		actual := reqLen
+		if actual > remaining {
+			actual = remaining
+		}
+		remaining -= actual
+		binary.BigEndian.PutUint32(out[o+8:o+12], 0)
+		binary.BigEndian.PutUint32(out[o+12:o+16], actual)
+	}
+	return out
+}
+
+// isIsochronousEndpoint reports whether ep (endpoint number; direction from
+// dir) is an isochronous endpoint in desc. Only isochronous transfers carry
+// packet descriptors on the wire.
+func isIsochronousEndpoint(desc *usb.Descriptor, ep uint32, dir uint32) bool {
+	if ep == 0 {
+		return false
+	}
+	addr := uint8(ep)
+	if dir == usbip.DirIn {
+		addr |= 0x80
+	}
+	for i := range desc.Interfaces {
+		for _, epDesc := range desc.Interfaces[i].Endpoints {
+			if epDesc.BEndpointAddress != addr {
+				continue
+			}
+			return epDesc.BMAttributes&0x03 == 0x01
+		}
+	}
+	return false
 }
 
 func endpointInterval(desc *usb.Descriptor, ep uint32) time.Duration {
@@ -873,6 +955,14 @@ func (s *Server) processSubmit(ctx context.Context, dev usb.Device, ep uint32, d
 		return nil
 	}
 	if breq == usbReqSetConfiguration && bm == usbReqTypeStandardToDevice {
+		return nil
+	}
+	// CLEAR_FEATURE(ENDPOINT_HALT) is standard host pipe-reset hygiene, e.g.
+	// usbaudio.sys clearing the speaker isochronous endpoint when a stream
+	// stops. Emulated endpoints never halt (GET_STATUS always reports 0), so
+	// there is no halted state to clear: ACK as a noop. Handling it here keeps
+	// it from falling through to per-device handlers (and their warn logs).
+	if breq == usbReqClearFeature && bm == 0x02 && wValue == 0x00 {
 		return nil
 	}
 	if breq == usbReqGetConfiguration && bm == usbReqTypeStandardFromDevice {
