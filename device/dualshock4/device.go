@@ -38,7 +38,83 @@ type DualShock4 struct {
 	spkVol  uint16
 	micVol  uint16
 
+	// Speaker subscribers, guarded by mtx. Each subscriber drains its own
+	// channel; slow subscribers lose oldest frames first so live bridges
+	// never stall the USB path.
+	speakerSubs map[*speakerSub]struct{}
+
 	mtx sync.Mutex
+}
+
+// SpeakerEvent is one speaker-stream item: PCM audio or a generation
+// barrier. PCM slices are exact host-written EP1 OUT payloads (2ch S16LE
+// @32kHz, up to 132B), read-only and reused after the next event.
+type SpeakerEvent struct {
+	PCM   []byte
+	Reset bool
+}
+
+// speakerSub is one speaker-stream subscription (lib callback or TCP audio
+// stream).
+type speakerSub struct {
+	ch      chan SpeakerEvent
+	dropped uint64
+}
+
+const speakerSubBuffer = 32
+
+// SubscribeSpeaker registers a speaker-stream subscriber. The channel
+// receives PCM frames and reset barriers; call unsubscribe to release.
+// Unsubscribe is idempotent; core closes the channel on unsubscribe, so
+// range loops terminate.
+func (d *DualShock4) SubscribeSpeaker() (<-chan SpeakerEvent, func()) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	if d.speakerSubs == nil {
+		d.speakerSubs = map[*speakerSub]struct{}{}
+	}
+	sub := &speakerSub{ch: make(chan SpeakerEvent, speakerSubBuffer)}
+	d.speakerSubs[sub] = struct{}{}
+	var once bool
+	return sub.ch, func() {
+		d.mtx.Lock()
+		defer d.mtx.Unlock()
+		if once {
+			return
+		}
+		once = true
+		delete(d.speakerSubs, sub)
+		close(sub.ch)
+	}
+}
+
+// fireSpeakerEvent copies the payload (caller scratch) and fans out.
+// No subscribers means absorbed without copying.
+func (d *DualShock4) fireSpeakerEvent(ev SpeakerEvent) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	if len(d.speakerSubs) == 0 {
+		return
+	}
+	if ev.PCM != nil {
+		ev.PCM = append([]byte(nil), ev.PCM...)
+	}
+	for sub := range d.speakerSubs {
+		select {
+		case sub.ch <- ev:
+		default:
+			// Slow subscriber: drop oldest, keep the freshest.
+			select {
+			case <-sub.ch:
+			default:
+			}
+			select {
+			case sub.ch <- ev:
+			default:
+				sub.dropped++
+			}
+		}
+	}
 }
 
 func New(o *device.CreateOptions) (*DualShock4, error) {
@@ -190,7 +266,11 @@ func (d *DualShock4) HandleTransfer(ctx context.Context, ep uint32, dir uint32, 
 				}
 			}
 		case 1:
-			// Speaker OUT: absorbed until subscribers land (phase 4).
+			// Speaker OUT: fan PCM out to subscribers (lib callback,
+			// TCP audio streams). No subscribers means absorbed.
+			if len(out) > 0 {
+				d.fireSpeakerEvent(SpeakerEvent{PCM: out})
+			}
 		}
 	}
 

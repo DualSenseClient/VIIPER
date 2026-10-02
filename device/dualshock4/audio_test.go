@@ -2,7 +2,12 @@ package dualshock4
 
 import (
 	"context"
+	"encoding/binary"
+	"io"
+	"log/slog"
+	"net"
 	"testing"
+	"time"
 
 	"github.com/DualSenseClient/VIIPER/usbip"
 	"github.com/stretchr/testify/assert"
@@ -123,4 +128,126 @@ func TestIsochronousTransfers(t *testing.T) {
 
 	// Speaker OUT is absorbed.
 	assert.Nil(t, d.HandleTransfer(ctx, 1, usbip.DirOut, make([]byte, 132)))
+}
+
+func TestSpeakerSubscriptionExactBytes(t *testing.T) {
+	d, err := New(nil)
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	ch, unsub := d.SubscribeSpeaker()
+	defer unsub()
+
+	frame := make([]byte, 132)
+	for i := range frame {
+		frame[i] = byte(i)
+	}
+	// HandleTransfer takes caller scratch: mutate afterwards to prove copy.
+	d.HandleTransfer(ctx, 1, usbip.DirOut, frame)
+	for i := range frame {
+		frame[i] = 0xFF
+	}
+
+	select {
+	case ev := <-ch:
+		assert.False(t, ev.Reset)
+		require.Len(t, ev.PCM, 132)
+		for i := range ev.PCM {
+			assert.Equal(t, byte(i), ev.PCM[i])
+		}
+	default:
+		t.Fatal("no speaker frame delivered")
+	}
+}
+
+func TestSpeakerSubscriptionSlowDropsOldest(t *testing.T) {
+	d, err := New(nil)
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	ch, unsub := d.SubscribeSpeaker()
+	defer unsub()
+
+	// Overflow the 32-frame buffer without draining.
+	for i := 0; i < 40; i++ {
+		d.HandleTransfer(ctx, 1, usbip.DirOut, []byte{byte(i), 0xAA})
+	}
+	// Freshest frames survive; count what remains.
+	var last byte
+	n := 0
+drain:
+	for {
+		select {
+		case ev := <-ch:
+			last = ev.PCM[0]
+			n++
+		default:
+			break drain
+		}
+	}
+	assert.Equal(t, 32, n)
+	assert.Equal(t, byte(39), last)
+}
+
+func TestSpeakerUnsubscribeStops(t *testing.T) {
+	d, err := New(nil)
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	ch, unsub := d.SubscribeSpeaker()
+	unsub()
+	unsub() // idempotent
+	d.HandleTransfer(ctx, 1, usbip.DirOut, []byte{0x01})
+	// Closed channel: receives zero value with ok=false, never a frame.
+	_, ok := <-ch
+	assert.False(t, ok)
+}
+
+// Pipe-level: TCP audio ingest serves framed speaker PCM from EP1 OUT.
+func TestAudioStream_ServesFrames(t *testing.T) {
+	d, err := New(nil)
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	server, client := net.Pipe()
+	done := make(chan error, 1)
+	go func() {
+		done <- AudioStreamHandler(d, slog.Default())(server)
+	}()
+
+	frame := make([]byte, 132)
+	for i := range frame {
+		frame[i] = byte(i + 1)
+	}
+	// The handler subscribes asynchronously; retry until a frame lands.
+	require.NoError(t, client.SetReadDeadline(time.Now().Add(5*time.Second)))
+	var got []byte
+	for i := 0; i < 50 && got == nil; i++ {
+		d.HandleTransfer(ctx, 1, usbip.DirOut, frame)
+		var hdr [2]byte
+		if _, err := io.ReadFull(client, hdr[:]); err != nil {
+			if ne, ok := err.(net.Error); ok && ne.Timeout() {
+				continue
+			}
+			require.NoError(t, err)
+		}
+		n := binary.LittleEndian.Uint16(hdr[:])
+		require.Equal(t, uint16(132), n)
+		got = make([]byte, n)
+		_, err = io.ReadFull(client, got)
+		require.NoError(t, err)
+	}
+	require.Len(t, got, 132)
+	assert.Equal(t, frame, got)
+
+	// Closing the client plus one wake-up frame ends the handler: the
+	// write to the closed pipe fails.
+	require.NoError(t, client.Close())
+	d.HandleTransfer(ctx, 1, usbip.DirOut, frame)
+	select {
+	case err := <-done:
+		assert.Error(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("audio handler did not end after close")
+	}
 }

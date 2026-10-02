@@ -70,8 +70,14 @@ typedef struct {
 
 typedef void (*DS4OutputCallback)(DS4DeviceHandle handle,uint8_t updateFlags, uint8_t rumbleSmall, uint8_t rumbleLarge, uint8_t ledRed, uint8_t ledGreen, uint8_t ledBlue, uint8_t flashOn, uint8_t flashOff);
 
+typedef void (*DS4AudioCallback)(DS4DeviceHandle handle, const uint8_t* pcm, size_t length);
+
 static void viiper_call_ds4_output(DS4OutputCallback fn, DS4DeviceHandle handle,uint8_t updateFlags, uint8_t rumbleSmall, uint8_t rumbleLarge, uint8_t ledRed, uint8_t ledGreen, uint8_t ledBlue, uint8_t flashOn, uint8_t flashOff) {
 	fn(handle, updateFlags, rumbleSmall, rumbleLarge, ledRed, ledGreen, ledBlue, flashOn, flashOff);
+}
+
+static void viiper_call_ds4_audio(DS4AudioCallback fn, DS4DeviceHandle handle, const uint8_t* pcm, size_t length) {
+	fn(handle, pcm, length);
 }
 
 */
@@ -83,6 +89,8 @@ import (
 	"log/slog"
 	"runtime/cgo"
 	"slices"
+	"sync"
+	"unsafe"
 
 	"github.com/DualSenseClient/VIIPER/device"
 	"github.com/DualSenseClient/VIIPER/device/dualshock4"
@@ -255,6 +263,65 @@ func SetDS4OutputCallback(handle C.DS4DeviceHandle, cb C.DS4OutputCallback) bool
 	return true
 }
 
+// ds4AudioUnsubs tracks lib speaker-stream subscriptions per device handle
+// so re-registering replaces the old pumps and removal stops them.
+var (
+	ds4AudioUnsubs   = map[deviceHandle]func(){}
+	ds4AudioUnsubsMu sync.Mutex
+)
+
+func clearDS4AudioSub(h deviceHandle) {
+	ds4AudioUnsubsMu.Lock()
+	defer ds4AudioUnsubsMu.Unlock()
+	if unsub, ok := ds4AudioUnsubs[h]; ok {
+		unsub()
+		delete(ds4AudioUnsubs, h)
+	}
+}
+
+func trackDS4AudioSub(h deviceHandle, unsub func()) {
+	ds4AudioUnsubsMu.Lock()
+	defer ds4AudioUnsubsMu.Unlock()
+	ds4AudioUnsubs[h] = unsub
+}
+
+// SetDS4SpeakerCallback sets a callback invoked with the exact bytes the
+// host writes to the speaker endpoint (2ch S16LE @32kHz, up to 132B).
+// The buffer is only valid during the call; copy it. Invoked on the audio
+// thread: never block. Pass NULL to clear.
+//
+//export SetDS4SpeakerCallback
+func SetDS4SpeakerCallback(handle C.DS4DeviceHandle, cb C.DS4AudioCallback) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	ds4device, ok := dhw.device.(*dualshock4.DualShock4)
+	if !ok {
+		return false
+	}
+	clearDS4AudioSub(deviceHandle(handle))
+	if cb == nil {
+		return true
+	}
+	ch, unsub := ds4device.SubscribeSpeaker()
+	trackDS4AudioSub(deviceHandle(handle), unsub)
+	go func() {
+		for ev := range ch {
+			if ev.Reset || len(ev.PCM) == 0 {
+				continue
+			}
+			pcm := ev.PCM
+			C.viiper_call_ds4_audio(cb, handle,
+				(*C.uint8_t)(unsafe.Pointer(&pcm[0])),
+				C.size_t(len(pcm)),
+			)
+		}
+	}()
+	return true
+}
+
 // RemoveDS4Device removes the DualShock 4 device associated with the given handle from the server.
 // @param handle Handle to the DS4 device to remove.
 //
@@ -277,6 +344,7 @@ func RemoveDS4Device(handle C.DS4DeviceHandle) bool {
 	shw.deviceHandles[busID] = slices.DeleteFunc(shw.deviceHandles[busID], func(h deviceHandle) bool {
 		return h == deviceHandle(handle)
 	})
+	clearDS4AudioSub(deviceHandle(handle))
 	dh.Delete()
 
 	return true

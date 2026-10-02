@@ -104,6 +104,20 @@ func (h *handler) StreamHandler() api.StreamHandlerFunc {
 	}
 }
 
+// AudioStreamHandler serves speaker PCM to TCP feeders (see audio_stream.go).
+func (h *handler) AudioStreamHandler() api.StreamHandlerFunc {
+	return func(conn net.Conn, devPtr *usb.Device, logger *slog.Logger) error {
+		if devPtr == nil || *devPtr == nil {
+			return fmt.Errorf("nil device")
+		}
+		ds4, ok := (*devPtr).(*DualShock4)
+		if !ok {
+			return fmt.Errorf("%w: expected DualShock4", device.ErrWrongDeviceType)
+		}
+		return AudioStreamHandler(ds4, logger)(conn)
+	}
+}
+
 func (h *handler) UpdateMetaState(meta string, dev *usb.Device) error {
 	ds4, ok := (*dev).(*DualShock4)
 	if !ok {
