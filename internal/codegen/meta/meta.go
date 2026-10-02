@@ -1,6 +1,6 @@
 package meta
 
-import "github.com/Alia5/VIIPER/internal/codegen/scanner"
+import "github.com/DualSenseClient/VIIPER/internal/codegen/scanner"
 
 // Metadata holds all scanned information needed for code generation
 // Shared between generator orchestrator and language-specific generators.

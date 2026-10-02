@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/Alia5/VIIPER/internal/util"
+	"github.com/DualSenseClient/VIIPER/internal/util"
 )
 
 func init() {

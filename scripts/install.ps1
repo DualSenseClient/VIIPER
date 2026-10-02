@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $viiperVersion = "dev-snapshot"
 
-$repo = "Alia5/VIIPER"
+$repo = "DualSenseClient/VIIPER"
 $apiUrl = "https://api.github.com/repos/$repo/releases/tags/$viiperVersion"
 
 Write-Host "Fetching VIIPER release: $viiperVersion..."

@@ -11,14 +11,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Alia5/VIIPER/internal/configpaths"
-	"github.com/Alia5/VIIPER/internal/log"
-	"github.com/Alia5/VIIPER/internal/server/api"
-	"github.com/Alia5/VIIPER/internal/server/api/auth"
-	"github.com/Alia5/VIIPER/internal/server/api/handler"
-	"github.com/Alia5/VIIPER/internal/server/usb"
-	"github.com/Alia5/VIIPER/internal/tray"
-	"github.com/Alia5/VIIPER/internal/util"
+	"github.com/DualSenseClient/VIIPER/internal/configpaths"
+	"github.com/DualSenseClient/VIIPER/internal/log"
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
+	"github.com/DualSenseClient/VIIPER/internal/server/api/auth"
+	"github.com/DualSenseClient/VIIPER/internal/server/api/handler"
+	"github.com/DualSenseClient/VIIPER/internal/server/usb"
+	"github.com/DualSenseClient/VIIPER/internal/tray"
+	"github.com/DualSenseClient/VIIPER/internal/util"
 )
 
 const keyFileName = "viiper.key.txt"

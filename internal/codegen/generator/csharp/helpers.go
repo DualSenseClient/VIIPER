@@ -3,7 +3,7 @@ package csharp
 import (
 	"strings"
 
-	"github.com/Alia5/VIIPER/internal/codegen/common"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/common"
 )
 
 func toPascalCase(s string) string {

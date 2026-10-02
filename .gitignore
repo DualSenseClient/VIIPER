@@ -39,3 +39,7 @@ logs/
 log/
 !*/internal/log
 *.log
+
+# Generated documentation site (see mkdocs.yml)
+site/
+.cache/

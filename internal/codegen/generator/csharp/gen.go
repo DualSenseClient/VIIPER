@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Alia5/VIIPER/internal/codegen/common"
-	"github.com/Alia5/VIIPER/internal/codegen/meta"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/common"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/meta"
 )
 
 func Generate(logger *slog.Logger, outputDir string, md *meta.Metadata) error {

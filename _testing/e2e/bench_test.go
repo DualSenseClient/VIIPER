@@ -9,16 +9,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Alia5/VIIPER/device/xbox360"
-	"github.com/Alia5/VIIPER/internal/cmd"
-	"github.com/Alia5/VIIPER/internal/server/api"
-	"github.com/Alia5/VIIPER/internal/server/usb"
-	"github.com/Alia5/VIIPER/viiperclient"
-	"github.com/Alia5/VIIPER/viipertypes"
+	"github.com/DualSenseClient/VIIPER/device/xbox360"
+	"github.com/DualSenseClient/VIIPER/internal/cmd"
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
+	"github.com/DualSenseClient/VIIPER/internal/server/usb"
+	"github.com/DualSenseClient/VIIPER/viiperclient"
+	"github.com/DualSenseClient/VIIPER/viipertypes"
 
-	_ "github.com/Alia5/VIIPER/internal/registry" // Register all device handlers
+	_ "github.com/DualSenseClient/VIIPER/internal/registry" // Register all device handlers
 
-	"github.com/Alia5/VIIPER/_testing/e2e/sdl"
+	"github.com/DualSenseClient/VIIPER/_testing/e2e/sdl"
 )
 
 type TimeWhat int

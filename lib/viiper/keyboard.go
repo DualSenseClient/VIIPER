@@ -142,9 +142,9 @@ import (
 	"runtime/cgo"
 	"slices"
 
-	"github.com/Alia5/VIIPER/device"
-	"github.com/Alia5/VIIPER/device/keyboard"
-	"github.com/Alia5/VIIPER/internal/server/api"
+	"github.com/DualSenseClient/VIIPER/device"
+	"github.com/DualSenseClient/VIIPER/device/keyboard"
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
 )
 
 // CreateKeyboardDevice creates a new HID keyboard device on the bus with the given ID on the server associated with the given handle.

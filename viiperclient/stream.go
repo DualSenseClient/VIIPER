@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Alia5/VIIPER/device"
-	"github.com/Alia5/VIIPER/internal/server/api/auth"
-	"github.com/Alia5/VIIPER/viipertypes"
+	"github.com/DualSenseClient/VIIPER/device"
+	"github.com/DualSenseClient/VIIPER/internal/server/api/auth"
+	"github.com/DualSenseClient/VIIPER/viipertypes"
 )
 
 // DeviceStream represents a bidirectional connection to a device stream.

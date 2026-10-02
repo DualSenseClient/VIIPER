@@ -229,7 +229,7 @@ jobs:
                       <summary><b>Windows (PowerShell)</b></summary>
 
                       ```powershell
-                      irm https://alia5.github.io/VIIPER/stable/install.ps1 | iex
+                      irm https://dualsenseclient.github.io/VIIPER/stable/install.ps1 | iex
                       ```
                       Installs / updates to `%LOCALAPPDATA%\VIIPER\viiper.exe`
                       </details>
@@ -238,7 +238,7 @@ jobs:
                       <summary><b>Linux</b></summary>
 
                       ```bash
-                      curl -fsSL https://alia5.github.io/VIIPER/stable/install.sh | sh
+                      curl -fsSL https://dualsenseclient.github.io/VIIPER/stable/install.sh | sh
                       ```
                       Installs / updates to `/usr/local/bin/viiper`
                       </details>

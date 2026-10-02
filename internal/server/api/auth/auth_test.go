@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Alia5/VIIPER/internal/server/api/auth"
+	"github.com/DualSenseClient/VIIPER/internal/server/api/auth"
 	"github.com/stretchr/testify/assert"
 )
 

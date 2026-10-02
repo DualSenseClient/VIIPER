@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"testing"
 
-	usbdesc "github.com/Alia5/VIIPER/usb"
+	usbdesc "github.com/DualSenseClient/VIIPER/usb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

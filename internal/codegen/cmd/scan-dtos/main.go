@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Alia5/VIIPER/internal/codegen/scanner"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/scanner"
 )
 
 func main() {

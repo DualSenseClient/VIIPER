@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Alia5/VIIPER/internal/log"
-	"github.com/Alia5/VIIPER/internal/server/proxy"
+	"github.com/DualSenseClient/VIIPER/internal/log"
+	"github.com/DualSenseClient/VIIPER/internal/server/proxy"
 )
 
 type Proxy struct {

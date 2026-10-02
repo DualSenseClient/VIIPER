@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"log/slog"
 
-	"github.com/Alia5/VIIPER/internal/server/api"
-	"github.com/Alia5/VIIPER/internal/server/usb"
-	"github.com/Alia5/VIIPER/viipertypes"
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
+	"github.com/DualSenseClient/VIIPER/internal/server/usb"
+	"github.com/DualSenseClient/VIIPER/viipertypes"
 )
 
 // BusList returns a handler that lists registered busses.

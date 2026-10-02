@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Alia5/VIIPER/internal/config"
-	"github.com/Alia5/VIIPER/internal/configpaths"
+	"github.com/DualSenseClient/VIIPER/internal/config"
+	"github.com/DualSenseClient/VIIPER/internal/configpaths"
 )
 
 const (
@@ -97,7 +97,7 @@ func CheckUpdate(currentVersion string, notify config.UpdateNotify) {
 
 	var r release
 	if notify == config.UpdateNotifyPrerelease {
-		resp, err := client.Get("https://api.github.com/repos/Alia5/VIIPER/releases?per_page=1")
+		resp, err := client.Get("https://api.github.com/repos/DualSenseClient/VIIPER/releases?per_page=1")
 		if err != nil {
 			slog.Error("failed to fetch releases", "error", err)
 			return
@@ -117,7 +117,7 @@ func CheckUpdate(currentVersion string, notify config.UpdateNotify) {
 		}
 		r = releases[0]
 	} else {
-		resp, err := client.Get("https://api.github.com/repos/Alia5/VIIPER/releases/latest")
+		resp, err := client.Get("https://api.github.com/repos/DualSenseClient/VIIPER/releases/latest")
 		if err != nil {
 			slog.Error("failed to fetch latest release", "error", err)
 			return
@@ -197,7 +197,7 @@ func openBrowser(url string) {
 }
 
 func runInstallScript(channel string) {
-	baseURL := "https://alia5.github.io/VIIPER/" + channel + "/install"
+	baseURL := "https://dualsenseclient.github.io/VIIPER/" + channel + "/install"
 	switch runtime.GOOS {
 	case "windows":
 		url := baseURL + ".ps1"

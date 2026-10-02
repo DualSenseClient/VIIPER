@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Alia5/VIIPER/internal/configpaths"
+	"github.com/DualSenseClient/VIIPER/internal/configpaths"
 
 	toml "github.com/pelletier/go-toml"
 	yaml "gopkg.in/yaml.v3"

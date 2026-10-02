@@ -9,7 +9,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/Alia5/VIIPER/internal/codegen/meta"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/meta"
 )
 
 const dtoTemplate = `{{writeFileHeader}}using System.Collections.Generic;

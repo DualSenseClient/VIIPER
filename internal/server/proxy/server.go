@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Alia5/VIIPER/internal/log"
+	"github.com/DualSenseClient/VIIPER/internal/log"
 )
 
 type Server struct {

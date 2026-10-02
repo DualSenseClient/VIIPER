@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Alia5/VIIPER/internal/codegen/common"
-	"github.com/Alia5/VIIPER/internal/codegen/scanner"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/common"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/scanner"
 )
 
 func goTypeToRust(goType string) string {

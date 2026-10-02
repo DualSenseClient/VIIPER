@@ -7,8 +7,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/Alia5/VIIPER/device"
-	"github.com/Alia5/VIIPER/viipertypes"
+	"github.com/DualSenseClient/VIIPER/device"
+	"github.com/DualSenseClient/VIIPER/viipertypes"
 )
 
 // Client provides a high-level interface to the VIIPER API, handling request

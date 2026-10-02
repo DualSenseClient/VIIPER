@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/Alia5/VIIPER/usbip"
+	"github.com/DualSenseClient/VIIPER/usbip"
 )
 
 // Parser handles USB-IP packet parsing for structured logging.

@@ -10,7 +10,7 @@ import "C"
 import (
 	"runtime/cgo"
 
-	"github.com/Alia5/VIIPER/virtualbus"
+	"github.com/DualSenseClient/VIIPER/virtualbus"
 )
 
 // CreateUSBBus creates a new USB bus on the server associated with the given handle.

@@ -5,7 +5,7 @@ package cmd
 import (
 	"log/slog"
 
-	"github.com/Alia5/VIIPER/internal/codegen/generator"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/generator"
 )
 
 type Codegen struct {

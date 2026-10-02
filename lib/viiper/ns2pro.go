@@ -86,9 +86,9 @@ import (
 	"runtime/cgo"
 	"slices"
 
-	"github.com/Alia5/VIIPER/device"
-	"github.com/Alia5/VIIPER/device/ns2pro"
-	"github.com/Alia5/VIIPER/internal/server/api"
+	"github.com/DualSenseClient/VIIPER/device"
+	"github.com/DualSenseClient/VIIPER/device/ns2pro"
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
 )
 
 // CreateNS2ProDevice creates a new Nintendo Switch 2 Pro Controller device on the bus with the given ID on the server associated with the given handle.

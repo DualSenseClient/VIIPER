@@ -10,15 +10,15 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/Alia5/VIIPER/device"
-	"github.com/Alia5/VIIPER/device/keyboard"
-	htesting "github.com/Alia5/VIIPER/internal/_testing" // nolint
-	th "github.com/Alia5/VIIPER/internal/_testing"       // nolint
-	"github.com/Alia5/VIIPER/internal/log"
-	"github.com/Alia5/VIIPER/internal/server/api"
-	srvusb "github.com/Alia5/VIIPER/internal/server/usb"
-	pusb "github.com/Alia5/VIIPER/usb"
-	"github.com/Alia5/VIIPER/virtualbus"
+	"github.com/DualSenseClient/VIIPER/device"
+	"github.com/DualSenseClient/VIIPER/device/keyboard"
+	htesting "github.com/DualSenseClient/VIIPER/internal/_testing" // nolint
+	th "github.com/DualSenseClient/VIIPER/internal/_testing"       // nolint
+	"github.com/DualSenseClient/VIIPER/internal/log"
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
+	srvusb "github.com/DualSenseClient/VIIPER/internal/server/usb"
+	pusb "github.com/DualSenseClient/VIIPER/usb"
+	"github.com/DualSenseClient/VIIPER/virtualbus"
 )
 
 func TestDeviceStreamHandler_Dispatch(t *testing.T) {

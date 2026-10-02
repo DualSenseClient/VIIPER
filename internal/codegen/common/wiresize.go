@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Alia5/VIIPER/internal/codegen/meta"
-	"github.com/Alia5/VIIPER/internal/codegen/scanner"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/meta"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/scanner"
 )
 
 // WireTypeSize returns the size in bytes of a wire protocol type.

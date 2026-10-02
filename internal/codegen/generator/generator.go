@@ -6,12 +6,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Alia5/VIIPER/internal/codegen/generator/cpp"
-	"github.com/Alia5/VIIPER/internal/codegen/generator/csharp"
-	"github.com/Alia5/VIIPER/internal/codegen/generator/rust"
-	"github.com/Alia5/VIIPER/internal/codegen/generator/typescript"
-	"github.com/Alia5/VIIPER/internal/codegen/meta"
-	"github.com/Alia5/VIIPER/internal/codegen/scanner"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/generator/cpp"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/generator/csharp"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/generator/rust"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/generator/typescript"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/meta"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/scanner"
 )
 
 type Generator struct {

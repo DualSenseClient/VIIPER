@@ -17,10 +17,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Alia5/VIIPER/internal/log"
-	"github.com/Alia5/VIIPER/usb"
-	"github.com/Alia5/VIIPER/usbip"
-	"github.com/Alia5/VIIPER/virtualbus"
+	"github.com/DualSenseClient/VIIPER/internal/log"
+	"github.com/DualSenseClient/VIIPER/usb"
+	"github.com/DualSenseClient/VIIPER/usbip"
+	"github.com/DualSenseClient/VIIPER/virtualbus"
 )
 
 type batchingWriter struct {

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/Alia5/VIIPER/internal/codegen/common"
-	"github.com/Alia5/VIIPER/internal/codegen/meta"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/common"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/meta"
 )
 
 const constantsTemplate = `{{.Header}}

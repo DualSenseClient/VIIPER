@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Alia5/VIIPER/device/mouse"
-	"github.com/Alia5/VIIPER/viiperclient"
+	"github.com/DualSenseClient/VIIPER/device/mouse"
+	"github.com/DualSenseClient/VIIPER/viiperclient"
 )
 
 func main() {

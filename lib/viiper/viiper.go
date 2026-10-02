@@ -9,8 +9,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Alia5/VIIPER/internal/server/usb"
-	"github.com/Alia5/VIIPER/usbip"
+	"github.com/DualSenseClient/VIIPER/internal/server/usb"
+	"github.com/DualSenseClient/VIIPER/usbip"
 )
 
 func main() {}

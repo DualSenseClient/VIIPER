@@ -9,12 +9,12 @@ import (
 
 const readmeTemplate = `# VIIPER Client Library
 
-This is an automatically generated client library for [VIIPER](https://github.com/Alia5/VIIPER) - **Virtual** **I**nput over **IP** **E**mulato**R**
+This is an automatically generated client library for [VIIPER](https://github.com/DualSenseClient/VIIPER) - **Virtual** **I**nput over **IP** **E**mulato**R**
 
 ## Documentation
 
-- **Project Repository**: https://github.com/Alia5/VIIPER
-- **Documentation**: https://alia5.github.io/VIIPER/
+- **Project Repository**: https://github.com/DualSenseClient/VIIPER
+- **Documentation**: https://dualsenseclient.github.io/VIIPER/
 
 ## About VIIPER
 

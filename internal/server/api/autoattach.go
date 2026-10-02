@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/Alia5/VIIPER/usbip"
+	"github.com/DualSenseClient/VIIPER/usbip"
 )
 
 func AttachLocalhostClient(ctx context.Context, deviceExportMeta *usbip.ExportMeta, usbipServerPort uint16, useNativeIOCTL bool, logger *slog.Logger) error {

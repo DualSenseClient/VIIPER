@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"text/template"
 
-	"github.com/Alia5/VIIPER/internal/codegen/common"
-	"github.com/Alia5/VIIPER/internal/codegen/meta"
-	"github.com/Alia5/VIIPER/internal/codegen/scanner"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/common"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/meta"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/scanner"
 )
 
 const clientTemplate = `{{.Header}}

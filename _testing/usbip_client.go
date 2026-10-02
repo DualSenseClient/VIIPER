@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Alia5/VIIPER/usbip"
+	"github.com/DualSenseClient/VIIPER/usbip"
 )
 
 type TestUsbIpClient struct {

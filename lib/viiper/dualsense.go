@@ -107,9 +107,9 @@ import (
 	"runtime/cgo"
 	"slices"
 
-	"github.com/Alia5/VIIPER/device"
-	"github.com/Alia5/VIIPER/device/dualsense"
-	"github.com/Alia5/VIIPER/internal/server/api"
+	"github.com/DualSenseClient/VIIPER/device"
+	"github.com/DualSenseClient/VIIPER/device/dualsense"
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
 )
 
 // CreateDualSenseDevice creates a new DualSense (non-edge) device on the bus with the given ID on the server associated with the given handle.

@@ -3,7 +3,7 @@ package typescript
 import (
 	"strings"
 
-	"github.com/Alia5/VIIPER/internal/codegen/common"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/common"
 )
 
 func goTypeToTS(goType string) string {

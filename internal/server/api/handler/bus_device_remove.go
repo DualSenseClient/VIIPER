@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"strconv"
 
-	"github.com/Alia5/VIIPER/internal/server/api"
-	apierror "github.com/Alia5/VIIPER/internal/server/api/error"
-	"github.com/Alia5/VIIPER/internal/server/usb"
-	"github.com/Alia5/VIIPER/viipertypes"
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
+	apierror "github.com/DualSenseClient/VIIPER/internal/server/api/error"
+	"github.com/DualSenseClient/VIIPER/internal/server/usb"
+	"github.com/DualSenseClient/VIIPER/viipertypes"
 )
 
 // BusDeviceRemove returns a handler that removes a device by device number.

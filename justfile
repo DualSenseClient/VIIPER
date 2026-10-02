@@ -24,12 +24,12 @@ build_path := join(dist_dir, output_name)
 go_licenses_cmd := "go run github.com/google/go-licenses/v2@v2.0.1"
 licenses_template := "scripts/licenses.tpl"
 licenses_template_work := if os_family() == "windows" { join(env_var_or_default("TEMP", "."), "viiper-licenses.rendered.tpl") } else { "/tmp/viiper-licenses.rendered.tpl" }
-licenses_ignore := "github.com/Alia5/VIIPER,github.com/alecthomas/kong-yaml"
+licenses_ignore := "github.com/DualSenseClient/VIIPER,github.com/alecthomas/kong-yaml"
 licenses_dir := join(dist_dir, "libVIIPER")
 licenses_out := join(dist_dir, "licenses.txt")
 lib_licenses_out := join(licenses_dir, "licenses.txt")
 
-ldflags_common := "-X main.Version=" + version + " -X main.Commit=" + commit + " -X main.Date=" + build_time + " -X github.com/Alia5/VIIPER/internal/codegen/common.Version=" + version
+ldflags_common := "-X main.Version=" + version + " -X main.Commit=" + commit + " -X main.Date=" + build_time + " -X github.com/DualSenseClient/VIIPER/internal/codegen/common.Version=" + version
 ldflags_release := "-s -w " + ldflags_common
 
 default:

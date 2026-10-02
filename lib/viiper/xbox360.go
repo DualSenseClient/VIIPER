@@ -54,9 +54,9 @@ import (
 	"runtime/cgo"
 	"slices"
 
-	"github.com/Alia5/VIIPER/device"
-	"github.com/Alia5/VIIPER/device/xbox360"
-	"github.com/Alia5/VIIPER/internal/server/api"
+	"github.com/DualSenseClient/VIIPER/device"
+	"github.com/DualSenseClient/VIIPER/device/xbox360"
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
 )
 
 // CreateXbox360Device creates a new Xbox360 device on the bus with the given ID on the server associated with the given handle.

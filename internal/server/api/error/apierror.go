@@ -1,6 +1,6 @@
 package apierror
 
-import "github.com/Alia5/VIIPER/viipertypes"
+import "github.com/DualSenseClient/VIIPER/viipertypes"
 
 func ErrBadRequest(detail string) viipertypes.APIError {
 	return viipertypes.APIError{Status: 400, Title: "Bad Request", Detail: detail}

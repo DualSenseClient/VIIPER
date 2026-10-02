@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"text/template"
 
-	"github.com/Alia5/VIIPER/internal/codegen/meta"
+	"github.com/DualSenseClient/VIIPER/internal/codegen/meta"
 )
 
 const projectTemplate = `<Project Sdk="Microsoft.NET.Sdk">
@@ -24,8 +24,8 @@ const projectTemplate = `<Project Sdk="Microsoft.NET.Sdk">
     <Authors>Peter Repukat</Authors>
     <Description>VIIPER Client Library for C#</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/Alia5/VIIPER</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/Alia5/VIIPER</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/DualSenseClient/VIIPER</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/DualSenseClient/VIIPER</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>viiper;usbip;virtual-device;input-emulation;hid</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>

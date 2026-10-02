@@ -6,12 +6,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	handlerTest "github.com/Alia5/VIIPER/internal/_testing"
-	"github.com/Alia5/VIIPER/internal/server/api"
-	"github.com/Alia5/VIIPER/internal/server/api/handler"
-	"github.com/Alia5/VIIPER/internal/server/usb"
-	"github.com/Alia5/VIIPER/viiperclient"
-	"github.com/Alia5/VIIPER/viipertypes"
+	handlerTest "github.com/DualSenseClient/VIIPER/internal/_testing"
+	"github.com/DualSenseClient/VIIPER/internal/server/api"
+	"github.com/DualSenseClient/VIIPER/internal/server/api/handler"
+	"github.com/DualSenseClient/VIIPER/internal/server/usb"
+	"github.com/DualSenseClient/VIIPER/viiperclient"
+	"github.com/DualSenseClient/VIIPER/viipertypes"
 )
 
 func TestPing(t *testing.T) {

@@ -12,8 +12,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Alia5/VIIPER/device/ns2pro"
-	"github.com/Alia5/VIIPER/viiperclient"
+	"github.com/DualSenseClient/VIIPER/device/ns2pro"
+	"github.com/DualSenseClient/VIIPER/viiperclient"
 )
 
 func main() {

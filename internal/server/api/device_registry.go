@@ -3,8 +3,8 @@ package api
 import (
 	"sync"
 
-	"github.com/Alia5/VIIPER/device"
-	"github.com/Alia5/VIIPER/usb"
+	"github.com/DualSenseClient/VIIPER/device"
+	"github.com/DualSenseClient/VIIPER/usb"
 )
 
 // DeviceHandler describes a device type, providing both device creation
