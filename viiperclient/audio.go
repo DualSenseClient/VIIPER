@@ -54,7 +54,17 @@ func (c *Client) OpenMicStream(ctx context.Context, busID uint32, devID string) 
 	if err != nil {
 		return nil, err
 	}
-	return &MicStream{conn: conn, BusID: busID, DevID: devID}, nil
+	return &MicStream{conn: conn, BusID: busID, DevID: devID, frameSize: 192}, nil
+}
+
+// OpenDS4MicStream connects to an existing DualShock 4 microphone ingest
+// stream. The feeder writes exact 32B PCM frames (mono S16LE @16kHz).
+func (c *Client) OpenDS4MicStream(ctx context.Context, busID uint32, devID string) (*MicStream, error) {
+	conn, err := c.dialStream(ctx, fmt.Sprintf("bus/%d/%s/audio/mic\x00", busID, devID))
+	if err != nil {
+		return nil, err
+	}
+	return &MicStream{conn: conn, BusID: busID, DevID: devID, frameSize: 32}, nil
 }
 
 // MicStream is a feeder connection pushing mic PCM into a device.
@@ -63,15 +73,18 @@ type MicStream struct {
 	BusID  uint32
 	DevID  string
 	closed bool
+	// frameSize is the exact PCM frame size in bytes (192 DualSense,
+	// 32 DualShock 4).
+	frameSize int
 }
 
-// WriteFrame writes one exact 192B mic frame.
+// WriteFrame writes one exact mic frame (see frameSize).
 func (s *MicStream) WriteFrame(frame []byte) error {
 	if s.closed {
 		return fmt.Errorf("stream closed")
 	}
-	if len(frame) != 192 {
-		return fmt.Errorf("mic frame must be exactly 192 bytes, got %d", len(frame))
+	if len(frame) != s.frameSize {
+		return fmt.Errorf("mic frame must be exactly %d bytes, got %d", s.frameSize, len(frame))
 	}
 	_, err := s.conn.Write(frame)
 	return err

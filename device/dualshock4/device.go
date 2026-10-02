@@ -43,7 +43,52 @@ type DualShock4 struct {
 	// never stall the USB path.
 	speakerSubs map[*speakerSub]struct{}
 
+	// Microphone frame queue (mono S16LE @16kHz, exact 32B frames),
+	// guarded by mtx. Fed by the feeder, drained by EP2 IN; silence on
+	// underrun mirrors the DS4Dongle underrun guard.
+	micQueue [][]byte
+
 	mtx sync.Mutex
+}
+
+// micFrameSize is one 1ms mic frame: 16 samples of mono S16LE, matching
+// the real DS4 v2's exact-32B-every-frame delivery.
+const micFrameSize = 32
+
+const micQueueDepth = 32
+
+// QueueMicrophonePCM enqueues one feeder mic frame for EP2 IN. Only exact
+// 32B frames are accepted, and only while the host has opened the mic
+// interface (IF2 alt != 0); frames arriving while closed are dropped,
+// mirroring DS4Dongle gating on mic_active. A full queue drops oldest
+// first.
+func (d *DualShock4) QueueMicrophonePCM(frame []byte) bool {
+	if len(frame) != micFrameSize {
+		return false
+	}
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	if d.alts[2] == 0 {
+		return false
+	}
+	cp := append([]byte(nil), frame...)
+	d.micQueue = append(d.micQueue, cp)
+	for len(d.micQueue) > micQueueDepth {
+		d.micQueue = d.micQueue[1:]
+	}
+	return true
+}
+
+// popMicrophoneFrame returns the next queued frame or nil on underrun.
+func (d *DualShock4) popMicrophoneFrame() []byte {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	if len(d.micQueue) == 0 {
+		return nil
+	}
+	frame := d.micQueue[0]
+	d.micQueue = d.micQueue[1:]
+	return frame
 }
 
 // SpeakerEvent is one speaker-stream item: PCM audio or a generation
@@ -248,9 +293,10 @@ func (d *DualShock4) HandleTransfer(ctx context.Context, ep uint32, dir uint32, 
 				return d.buildUSBInputReport(is, &ms)
 			}
 		case 2:
-			// Microphone IN: silence until the feeder queue lands
-			// (phase 6). Serving exact 32B frames keeps the host
-			// capture engine rate-locked, as on the dongle.
+			// Microphone IN: queued feeder frames, silence on underrun.
+			if frame := d.popMicrophoneFrame(); frame != nil {
+				return frame
+			}
 			return micSilence
 		default:
 			return nil
@@ -396,6 +442,13 @@ func (d *DualShock4) setAltSetting(iface, alt uint8) {
 	if int(iface) < len(d.alts) {
 		changed = d.alts[iface] != alt
 		d.alts[iface] = alt
+		if changed && iface == 2 {
+			// Mic generation change: drop queued feeder frames so a
+			// reopen never replays stale PCM. DS4Dongle flushes its
+			// SBC/PCM queues and resets the decoder on open for the
+			// same reason.
+			d.micQueue = nil
+		}
 	}
 	d.mtx.Unlock()
 	// Streaming generation change on either audio interface: subscribers

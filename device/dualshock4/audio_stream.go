@@ -3,6 +3,7 @@ package dualshock4
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 )
@@ -56,5 +57,23 @@ func AudioStreamHandler(dev *DualShock4, logger *slog.Logger) func(conn net.Conn
 			}
 		}
 		return nil
+	}
+}
+
+// MicStreamHandler ingests fixed 32B feeder mic frames (mono S16LE @16kHz)
+// for EP2 IN. Short reads end the stream. Frames arriving while the host
+// has not opened the mic interface are dropped (DS4Dongle gates the same
+// way) and the stream stays open.
+func MicStreamHandler(dev *DualShock4, logger *slog.Logger) func(conn net.Conn) error {
+	return func(conn net.Conn) error {
+		logger.Debug("dualshock4 mic stream begin")
+		defer logger.Debug("dualshock4 mic stream end")
+		var frame [micFrameSize]byte
+		for {
+			if _, err := io.ReadFull(conn, frame[:]); err != nil {
+				return err
+			}
+			dev.QueueMicrophonePCM(frame[:])
+		}
 	}
 }

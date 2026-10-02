@@ -12,6 +12,7 @@ import (
 
 	viiperTesting "github.com/DualSenseClient/VIIPER/_testing"
 	"github.com/DualSenseClient/VIIPER/device/dualsense"
+	"github.com/DualSenseClient/VIIPER/device/dualshock4"
 	"github.com/DualSenseClient/VIIPER/internal/server/api"
 	"github.com/DualSenseClient/VIIPER/internal/server/api/handler"
 	"github.com/DualSenseClient/VIIPER/usbip"
@@ -188,6 +189,49 @@ func TestMicStream_IngestToEndpoint(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	require.Len(t, got, 192)
+	assert.Equal(t, frame, got)
+
+	require.NoError(t, client.Close())
+	select {
+	case err := <-done:
+		assert.Error(t, err) // EOF after close
+	case <-time.After(2 * time.Second):
+		t.Fatal("mic handler did not end after close")
+	}
+}
+
+// Pipe-level: TCP DS4 mic ingest lands in the queue EP2 IN serves.
+func TestDS4MicStream_IngestToEndpoint(t *testing.T) {
+	dev, err := dualshock4.New(nil)
+	require.NoError(t, err)
+
+	// The queue gates on the mic interface: host opens capture first.
+	_, handled := dev.HandleControl(0x01, 0x0B, 1, 2, 0, nil)
+	require.True(t, handled)
+
+	server, client := net.Pipe()
+	done := make(chan error, 1)
+	go func() {
+		done <- dualshock4.MicStreamHandler(dev, slog.Default())(server)
+	}()
+
+	frame := make([]byte, 32)
+	for i := range frame {
+		frame[i] = byte(i + 1)
+	}
+	_, err = client.Write(frame)
+	require.NoError(t, err)
+
+	// Poll until the queue delivers (handler runs async).
+	var got []byte
+	for i := 0; i < 50; i++ {
+		got = dev.HandleTransfer(context.Background(), 2, usbip.DirIn, nil)
+		if len(got) == 32 && got[0] == 1 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	require.Len(t, got, 32)
 	assert.Equal(t, frame, got)
 
 	require.NoError(t, client.Close())

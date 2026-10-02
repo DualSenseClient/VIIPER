@@ -132,3 +132,17 @@ func (h *handler) UpdateMetaState(meta string, dev *usb.Device) error {
 
 	return nil
 }
+
+// MicStreamHandler ingests feeder mic frames over TCP.
+func (h *handler) MicStreamHandler() api.StreamHandlerFunc {
+	return func(conn net.Conn, devPtr *usb.Device, logger *slog.Logger) error {
+		if devPtr == nil || *devPtr == nil {
+			return fmt.Errorf("nil device")
+		}
+		ds4, ok := (*devPtr).(*DualShock4)
+		if !ok {
+			return fmt.Errorf("%w: expected DualShock4", device.ErrWrongDeviceType)
+		}
+		return MicStreamHandler(ds4, logger)(conn)
+	}
+}

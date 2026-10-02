@@ -357,6 +357,30 @@ func RemoveDS4Device(handle C.DS4DeviceHandle) bool {
 	return true
 }
 
+// SetDS4MicrophonePCM queues one feeder mic frame (exactly 32B: 16 frames
+// of mono S16LE @16kHz) for EP2 IN. Returns false for any other length,
+// or while the host has not opened the mic interface (frames arriving
+// while closed are dropped, as on DS4Dongle). Full queues drop oldest
+// first; underruns serve silence.
+//
+//export SetDS4MicrophonePCM
+func SetDS4MicrophonePCM(handle C.DS4DeviceHandle, data *C.uint8_t, length C.size_t) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	ds4device, ok := dhw.device.(*dualshock4.DualShock4)
+	if !ok {
+		return false
+	}
+	if data == nil || length != 32 {
+		return false
+	}
+	frame := C.GoBytes(unsafe.Pointer(data), C.int(length))
+	return ds4device.QueueMicrophonePCM(frame)
+}
+
 // ds4ResetUnsubs tracks lib speaker-reset subscriptions per device handle.
 var (
 	ds4ResetUnsubs   = map[deviceHandle]func(){}

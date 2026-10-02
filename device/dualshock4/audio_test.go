@@ -304,3 +304,119 @@ func TestAudioStream_ServesFrames(t *testing.T) {
 		t.Fatal("audio handler did not end after close")
 	}
 }
+
+// openMic selects IF2 alt 1 (SET_INTERFACE), as a host starting capture does.
+func openMic(t *testing.T, d *DualShock4) {
+	t.Helper()
+	_, handled := d.HandleControl(0x01, 0x0B, 1, 2, 0, nil)
+	require.True(t, handled)
+}
+
+func TestMicrophoneQueueExactSize(t *testing.T) {
+	d, err := New(nil)
+	require.NoError(t, err)
+
+	assert.False(t, d.QueueMicrophonePCM(nil))
+	assert.False(t, d.QueueMicrophonePCM(make([]byte, 31)))
+	assert.False(t, d.QueueMicrophonePCM(make([]byte, 33)))
+
+	// Gated while the host has not opened the mic interface.
+	assert.False(t, d.QueueMicrophonePCM(make([]byte, 32)))
+
+	openMic(t, d)
+	frame := make([]byte, 32)
+	for i := range frame {
+		frame[i] = byte(i)
+	}
+	assert.True(t, d.QueueMicrophonePCM(frame))
+	frame[0] = 0xFF // caller scratch: queue copied
+	assert.Equal(t, byte(0), d.popMicrophoneFrame()[0])
+}
+
+func TestMicrophoneServeOrderAndUnderrun(t *testing.T) {
+	d, err := New(nil)
+	require.NoError(t, err)
+	ctx := context.Background()
+	openMic(t, d)
+
+	// Empty queue serves silence.
+	got := d.HandleTransfer(ctx, 2, usbip.DirIn, nil)
+	require.Len(t, got, 32)
+	for _, b := range got {
+		assert.Zero(t, b)
+	}
+
+	first := make([]byte, 32)
+	second := make([]byte, 32)
+	for i := range first {
+		first[i] = 0x11
+		second[i] = 0x22
+	}
+	require.True(t, d.QueueMicrophonePCM(first))
+	require.True(t, d.QueueMicrophonePCM(second))
+
+	assert.Equal(t, first, d.HandleTransfer(ctx, 2, usbip.DirIn, nil))
+	assert.Equal(t, second, d.HandleTransfer(ctx, 2, usbip.DirIn, nil))
+
+	// Drained queue is silence again.
+	got = d.HandleTransfer(ctx, 2, usbip.DirIn, nil)
+	for _, b := range got {
+		assert.Zero(t, b)
+	}
+}
+
+func TestMicrophoneQueueDropsOldest(t *testing.T) {
+	d, err := New(nil)
+	require.NoError(t, err)
+	ctx := context.Background()
+	openMic(t, d)
+
+	for i := 0; i < 40; i++ {
+		frame := make([]byte, 32)
+		frame[0] = byte(i)
+		require.True(t, d.QueueMicrophonePCM(frame))
+	}
+	// 32 newest survive: first served is frame 8.
+	got := d.HandleTransfer(ctx, 2, usbip.DirIn, nil)
+	assert.Equal(t, byte(8), got[0])
+}
+
+// Closing the mic interface flushes queued frames and gates ingest until
+// reopen: a reopen never replays stale PCM.
+func TestMicrophoneFlushOnAltChange(t *testing.T) {
+	d, err := New(nil)
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	// Closed mic rejects ingest.
+	closed := make([]byte, 32)
+	closed[0] = 0xAA
+	assert.False(t, d.QueueMicrophonePCM(closed))
+
+	openMic(t, d)
+	first := make([]byte, 32)
+	first[0] = 0x11
+	second := make([]byte, 32)
+	second[0] = 0x22
+	require.True(t, d.QueueMicrophonePCM(first))
+	require.True(t, d.QueueMicrophonePCM(second))
+
+	// Close (alt 1 -> 0): queue flushed, ingest gated again.
+	_, handled := d.HandleControl(0x01, 0x0B, 0, 2, 0, nil)
+	require.True(t, handled)
+	assert.False(t, d.QueueMicrophonePCM(closed))
+	assert.Nil(t, d.popMicrophoneFrame())
+
+	// EP2 serves silence, not stale frames.
+	got := d.HandleTransfer(ctx, 2, usbip.DirIn, nil)
+	for _, b := range got {
+		assert.Zero(t, b)
+	}
+
+	// Reopen: fresh frames flow, nothing stale.
+	openMic(t, d)
+	third := make([]byte, 32)
+	third[0] = 0x33
+	require.True(t, d.QueueMicrophonePCM(third))
+	assert.Equal(t, third, d.HandleTransfer(ctx, 2, usbip.DirIn, nil))
+}
