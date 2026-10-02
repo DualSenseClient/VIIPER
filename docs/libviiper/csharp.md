@@ -544,6 +544,11 @@ delegate void DSAudioCallbackDelegate(nuint handle, IntPtr pcm, nuint length);
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 delegate void DSSpeakerResetCallbackDelegate(nuint handle);
 
+// Rear voice-coil pair, 2ch S16LE @48kHz per call. Same lifetime/thread
+// rules as the speaker callback; resampling to 3kHz is feeder-side.
+[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+delegate void DSRealtimeHapticsCallbackDelegate(nuint handle, IntPtr pcm, nuint length);
+
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 delegate void NS2ProOutputCallbackDelegate(nuint handle, NS2ProOutputState output);
 ```
@@ -656,6 +661,10 @@ the audio-out callback (mic returns silence until the mic queue lands).
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool SetDualSenseSpeakerResetCallback(nuint deviceHandle, DSSpeakerResetCallbackDelegate? callback);
+
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool SetDualSenseRealtimeHapticsCallback(nuint deviceHandle, DSRealtimeHapticsCallbackDelegate? callback);
 
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.I1)]
@@ -820,6 +829,15 @@ LibVIIPER.SetDualSenseAudioOutCallback(dsHandle, audioCb);
 // Flush previous-generation PCM on each barrier.
 DSSpeakerResetCallbackDelegate resetCb = handle => { /* flush */ };
 LibVIIPER.SetDualSenseSpeakerResetCallback(dsHandle, resetCb);
+
+// Low-latency rear haptics (bypasses speaker-path batching).
+DSRealtimeHapticsCallbackDelegate hapticsCb = (handle, pcm, length) =>
+{
+    var rear = new byte[(int)length];
+    Marshal.Copy(pcm, rear, 0, rear.Length);
+    // resample 48kHz -> 3kHz and forward ...
+};
+LibVIIPER.SetDualSenseRealtimeHapticsCallback(dsHandle, hapticsCb);
 ```
 
 ## DualShock 4 output example

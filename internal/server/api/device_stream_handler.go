@@ -19,9 +19,37 @@ type AudioStreamProvider interface {
 	AudioStreamHandler() StreamHandlerFunc
 }
 
+// HapticsStreamProvider is the rear-haptics counterpart of
+// AudioStreamProvider.
+type HapticsStreamProvider interface {
+	HapticsStreamHandler() StreamHandlerFunc
+}
+
 // DeviceAudioStreamHandler dispatches audio streams to device handlers
 // implementing AudioStreamProvider.
 func DeviceAudioStreamHandler(srv *usb.Server) StreamHandlerFunc {
+	return deviceSubStreamHandler(srv, "audio", func(reg DeviceHandler) (StreamHandlerFunc, bool) {
+		provider, ok := reg.(AudioStreamProvider)
+		if !ok {
+			return nil, false
+		}
+		return provider.AudioStreamHandler(), true
+	})
+}
+
+// DeviceHapticsStreamHandler dispatches haptics streams to device handlers
+// implementing HapticsStreamProvider.
+func DeviceHapticsStreamHandler(srv *usb.Server) StreamHandlerFunc {
+	return deviceSubStreamHandler(srv, "haptics", func(reg DeviceHandler) (StreamHandlerFunc, bool) {
+		provider, ok := reg.(HapticsStreamProvider)
+		if !ok {
+			return nil, false
+		}
+		return provider.HapticsStreamHandler(), true
+	})
+}
+
+func deviceSubStreamHandler(_ *usb.Server, kind string, pick func(DeviceHandler) (StreamHandlerFunc, bool)) StreamHandlerFunc {
 	return func(conn net.Conn, dev *pusb.Device, logger *slog.Logger) error {
 		defer conn.Close() //nolint:errcheck
 
@@ -34,11 +62,10 @@ func DeviceAudioStreamHandler(srv *usb.Server) StreamHandlerFunc {
 		if reg == nil {
 			return fmt.Errorf("no handler for device type: %s", deviceType)
 		}
-		provider, ok := reg.(AudioStreamProvider)
+		handler, ok := pick(reg)
 		if !ok {
-			return fmt.Errorf("audio not supported for device type: %s", deviceType)
+			return fmt.Errorf("%s not supported for device type: %s", kind, deviceType)
 		}
-		handler := provider.AudioStreamHandler()
 		if err := handler(conn, dev, logger); err != nil {
 			return err
 		}

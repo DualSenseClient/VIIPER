@@ -59,3 +59,21 @@ func AudioStreamHandler(dev *DualSense, logger *slog.Logger) func(conn net.Conn)
 		return nil
 	}
 }
+
+// HapticsStreamHandler returns a StreamHandlerFunc serving the rear
+// voice-coil pair (2ch S16LE @48kHz) and reset barriers to one feeder.
+// Same framing as the speaker stream.
+func HapticsStreamHandler(dev *DualSense, logger *slog.Logger) func(conn net.Conn) error {
+	return func(conn net.Conn) error {
+		logger.Debug("dualsense haptics stream begin")
+		defer logger.Debug("dualsense haptics stream end")
+		ch, unsub := dev.SubscribeHaptics()
+		defer unsub()
+		for ev := range ch {
+			if err := writeAudioFrame(conn, SpeakerEvent(ev)); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}

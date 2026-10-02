@@ -152,3 +152,55 @@ func TestAudioStream_UnsupportedDevice(t *testing.T) {
 	require.Error(t, err)
 	assert.NotEqual(t, context.DeadlineExceeded, err)
 }
+
+// End to end: host speaker PCM surfaces on the haptics stream as the rear
+// pair only.
+func TestHapticsStream_RearPair(t *testing.T) {
+	s := viiperTesting.NewTestServer(t)
+	defer s.ApiServer.Close() //nolint:errcheck
+	defer s.UsbServer.Close() //nolint:errcheck
+
+	r := s.ApiServer.Router()
+	r.Register("bus/{id}/add", handler.BusDeviceAdd(s.UsbServer, s.ApiServer))
+	r.RegisterStream("bus/{busId}/{deviceid}", api.DeviceStreamHandler(s.UsbServer))
+	r.RegisterStream("bus/{busId}/{deviceid}/audio", api.DeviceAudioStreamHandler(s.UsbServer))
+	r.RegisterStream("bus/{busId}/{deviceid}/audio/haptics", api.DeviceHapticsStreamHandler(s.UsbServer))
+
+	require.NoError(t, s.ApiServer.Start())
+	time.Sleep(50 * time.Millisecond)
+
+	b, err := virtualbus.NewWithBusID(1)
+	require.NoError(t, err)
+	defer b.Close() //nolint:errcheck
+	require.NoError(t, s.UsbServer.AddBus(b))
+	time.Sleep(50 * time.Millisecond)
+
+	client := viiperclient.New(s.ApiServer.Addr())
+	addResp, err := client.DeviceAdd(b.BusID(), "dualsense", nil)
+	require.NoError(t, err)
+
+	haptics, err := client.OpenHapticsStream(context.Background(), b.BusID(), addResp.DevID)
+	require.NoError(t, err)
+	defer haptics.Close() //nolint:errcheck
+	require.NoError(t, haptics.SetReadDeadline(time.Now().Add(2*time.Second)))
+
+	usbipClient := viiperTesting.NewUsbIpClient(t, s.UsbServer.Addr())
+	devs, err := usbipClient.ListDevices()
+	require.NoError(t, err)
+	require.Len(t, devs, 1)
+	imp, err := usbipClient.AttachDevice(devs[0].BusID)
+	require.NoError(t, err)
+	if imp != nil && imp.Conn != nil {
+		defer imp.Conn.Close() //nolint:errcheck
+	}
+	time.Sleep(50 * time.Millisecond)
+
+	// One 4ch frame: FL FR RL RR.
+	frame := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
+	require.NoError(t, usbipClient.Submit(imp.Conn, usbip.DirOut, 1, frame, nil))
+
+	pcm, reset, err := haptics.ReadFrame()
+	require.NoError(t, err)
+	assert.False(t, reset)
+	assert.Equal(t, []byte{0x05, 0x06, 0x07, 0x08}, pcm)
+}

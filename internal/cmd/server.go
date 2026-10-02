@@ -104,6 +104,7 @@ func (s *Server) StartServer(ctx context.Context, logger *slog.Logger, rawLogger
 	r.Register("bus/{id}/remove", handler.BusDeviceRemove(usbSrv))
 	r.RegisterStream("bus/{busId}/{deviceid}", api.DeviceStreamHandler(usbSrv))
 	r.RegisterStream("bus/{busId}/{deviceid}/audio", api.DeviceAudioStreamHandler(usbSrv))
+	r.RegisterStream("bus/{busId}/{deviceid}/audio/haptics", api.DeviceHapticsStreamHandler(usbSrv))
 
 	if s.APIServerConfig.AutoAttachLocalClient {
 		logger.Info("Auto-attach is enabled, checking prerequisites...")

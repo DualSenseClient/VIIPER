@@ -136,6 +136,12 @@ static void viiper_call_ds_reset(DSSpeakerResetCallback fn, DSDeviceHandle handl
 	fn(handle);
 }
 
+typedef void (*DSRealtimeHapticsCallback)(DSDeviceHandle handle, const uint8_t* pcm, size_t length);
+
+static void viiper_call_ds_haptics(DSRealtimeHapticsCallback fn, DSDeviceHandle handle, const uint8_t* pcm, size_t length) {
+	fn(handle, pcm, length);
+}
+
 */
 import "C"
 import (
@@ -491,6 +497,64 @@ func trackDSResetSub(h deviceHandle, unsub func()) {
 	dsResetUnsubs[h] = unsub
 }
 
+// SetDualSenseRealtimeHapticsCallback sets a callback invoked with the
+// rear voice-coil pair (2ch S16LE @48kHz) for minimal-latency haptics
+// forwarding; resampling to the 3kHz haptics rate is feeder-side. Same
+// buffer/thread rules as the speaker callback. Pass NULL to clear.
+//
+//export SetDualSenseRealtimeHapticsCallback
+func SetDualSenseRealtimeHapticsCallback(handle C.DSDeviceHandle, cb C.DSRealtimeHapticsCallback) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	dsDevice, ok := dhw.device.(*dualsense.DualSense)
+	if !ok {
+		return false
+	}
+	clearDSHapticsSub(deviceHandle(handle))
+	if cb == nil {
+		return true
+	}
+	ch, unsub := dsDevice.SubscribeHaptics()
+	trackDSHapticsSub(deviceHandle(handle), unsub)
+	go func() {
+		for ev := range ch {
+			if ev.Reset || len(ev.PCM) == 0 {
+				continue
+			}
+			pcm := ev.PCM
+			C.viiper_call_ds_haptics(cb, handle,
+				(*C.uint8_t)(unsafe.Pointer(&pcm[0])),
+				C.size_t(len(pcm)),
+			)
+		}
+	}()
+	return true
+}
+
+// dsHapticsUnsubs tracks lib haptics-callback subscriptions per handle.
+var (
+	dsHapticsUnsubs   = map[deviceHandle]func(){}
+	dsHapticsUnsubsMu sync.Mutex
+)
+
+func clearDSHapticsSub(h deviceHandle) {
+	dsHapticsUnsubsMu.Lock()
+	defer dsHapticsUnsubsMu.Unlock()
+	if unsub, ok := dsHapticsUnsubs[h]; ok {
+		unsub()
+		delete(dsHapticsUnsubs, h)
+	}
+}
+
+func trackDSHapticsSub(h deviceHandle, unsub func()) {
+	dsHapticsUnsubsMu.Lock()
+	defer dsHapticsUnsubsMu.Unlock()
+	dsHapticsUnsubs[h] = unsub
+}
+
 // RemoveDualSenseDevice removes the DualSense device associated with the given handle from the server.
 // @param handle Handle to the DualSense device to remove.
 //
@@ -515,6 +579,7 @@ func RemoveDualSenseDevice(handle C.DSDeviceHandle) bool {
 	})
 	clearDSAudioSub(deviceHandle(handle))
 	clearDSResetSub(deviceHandle(handle))
+	clearDSHapticsSub(deviceHandle(handle))
 	dh.Delete()
 
 	return true

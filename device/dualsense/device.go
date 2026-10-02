@@ -50,6 +50,10 @@ type DualSense struct {
 	// never stall the USB path.
 	speakerSubs map[*speakerSub]struct{}
 
+	// Haptics subscribers, guarded by mtx: same discipline, smaller
+	// buffer. They receive the rear voice-coil pair only (see below).
+	hapticsSubs map[*hapticsSub]struct{}
+
 	mtx sync.Mutex
 }
 
@@ -122,6 +126,88 @@ func (d *DualSense) fireSpeakerEvent(ev SpeakerEvent) {
 			}
 		}
 	}
+}
+
+// HapticsEvent is one rear-haptics item: the deinterleaved rear voice-coil
+// pair (2ch S16LE @48kHz) for minimal-latency forwarding, or a generation
+// barrier. Mirrors the DS5Dongle rear-channel derivation (audio.cpp);
+// resampling to the 3kHz haptics rate is feeder-side.
+type HapticsEvent struct {
+	PCM   []byte
+	Reset bool
+}
+
+type hapticsSub struct {
+	ch      chan HapticsEvent
+	dropped uint64
+}
+
+const hapticsSubBuffer = 8
+
+// SubscribeHaptics registers a rear-haptics subscriber. Same release
+// discipline as SubscribeSpeaker (channel closed on unsubscribe).
+func (d *DualSense) SubscribeHaptics() (<-chan HapticsEvent, func()) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	if d.hapticsSubs == nil {
+		d.hapticsSubs = map[*hapticsSub]struct{}{}
+	}
+	sub := &hapticsSub{ch: make(chan HapticsEvent, hapticsSubBuffer)}
+	d.hapticsSubs[sub] = struct{}{}
+	var once bool
+	return sub.ch, func() {
+		d.mtx.Lock()
+		defer d.mtx.Unlock()
+		if once {
+			return
+		}
+		once = true
+		delete(d.hapticsSubs, sub)
+		close(sub.ch)
+	}
+}
+
+// fireHapticsEvent fans out to haptics subscribers (payload already owned).
+func (d *DualSense) fireHapticsEvent(ev HapticsEvent) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	for sub := range d.hapticsSubs {
+		select {
+		case sub.ch <- ev:
+		default:
+			select {
+			case <-sub.ch:
+			default:
+			}
+			select {
+			case sub.ch <- ev:
+			default:
+				sub.dropped++
+			}
+		}
+	}
+}
+
+// hasHapticsSubs reports whether any haptics subscriber is registered.
+func (d *DualSense) hasHapticsSubs() bool {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	return len(d.hapticsSubs) > 0
+}
+
+// splitRearPair deinterleaves the rear voice-coil pair (channels 2,3) from
+// one 4ch S16LE frame block. Returns nil when len is not whole frames.
+func splitRearPair(frame []byte) []byte {
+	const block = 4 * 2 // 4 channels of S16LE
+	if len(frame) == 0 || len(frame)%block != 0 {
+		return nil
+	}
+	frames := len(frame) / block
+	out := make([]byte, frames*2*2)
+	for i := 0; i < frames; i++ {
+		copy(out[i*4:i*4+4], frame[i*8+4:i*8+8])
+	}
+	return out
 }
 
 func New(o *device.CreateOptions) (*DualSense, error) {
@@ -316,9 +402,15 @@ func (d *DualSense) HandleTransfer(ctx context.Context, ep uint32, dir uint32, o
 			}
 		case 1:
 			// Speaker OUT: fan PCM out to subscribers (lib callback,
-			// TCP audio streams). No subscribers means absorbed.
+			// TCP audio streams) and the rear pair to haptics
+			// subscribers. No subscribers means absorbed.
 			if len(out) > 0 {
 				d.fireSpeakerEvent(SpeakerEvent{PCM: out})
+				if d.hasHapticsSubs() {
+					if rear := splitRearPair(out); rear != nil {
+						d.fireHapticsEvent(HapticsEvent{PCM: rear})
+					}
+				}
 			}
 		}
 	}
@@ -445,6 +537,7 @@ func (d *DualSense) setAltSetting(iface, alt uint8) {
 	// flush previous-generation PCM.
 	if changed && (iface == 1 || iface == 2) {
 		d.fireSpeakerEvent(SpeakerEvent{Reset: true})
+		d.fireHapticsEvent(HapticsEvent{Reset: true})
 	}
 }
 

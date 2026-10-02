@@ -233,3 +233,65 @@ func TestResetBarrierOnAltChange(t *testing.T) {
 	default:
 	}
 }
+
+func TestSplitRearPair(t *testing.T) {
+	// Two 4ch frames: FL FR RL RR per frame.
+	frame := []byte{
+		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+		0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+	}
+	assert.Equal(t, []byte{
+		0x05, 0x06, 0x07, 0x08,
+		0x15, 0x16, 0x17, 0x18,
+	}, splitRearPair(frame))
+
+	assert.Nil(t, splitRearPair(nil))
+	assert.Nil(t, splitRearPair([]byte{0x01, 0x02, 0x03}))
+}
+
+func TestHapticsLaneRearOnly(t *testing.T) {
+	d, err := new(nil, false)
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	hch, hunsub := d.SubscribeHaptics()
+	defer hunsub()
+	sch, sunsub := d.SubscribeSpeaker()
+	defer sunsub()
+
+	frame := []byte{
+		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+		0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+	}
+	d.HandleTransfer(ctx, 1, usbip.DirOut, frame)
+
+	select {
+	case ev := <-hch:
+		assert.False(t, ev.Reset)
+		assert.Equal(t, []byte{
+			0x05, 0x06, 0x07, 0x08,
+			0x15, 0x16, 0x17, 0x18,
+		}, ev.PCM)
+	default:
+		t.Fatal("no haptics frame delivered")
+	}
+
+	// Speaker lane still carries the full 4ch frame.
+	select {
+	case ev := <-sch:
+		assert.False(t, ev.Reset)
+		assert.Len(t, ev.PCM, 16)
+	default:
+		t.Fatal("no speaker frame delivered")
+	}
+
+	// Barriers fan out to haptics subscribers too.
+	_, handled := d.HandleControl(0x01, 0x0B, 1, 1, 0, nil)
+	require.True(t, handled)
+	select {
+	case ev := <-hch:
+		assert.True(t, ev.Reset)
+	default:
+		t.Fatal("no haptics barrier delivered")
+	}
+}

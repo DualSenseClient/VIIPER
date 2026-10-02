@@ -23,8 +23,8 @@ All functions are part of the [libVIIPER C API](../libviiper/overview.md).
 | `SetDualSenseOutputCallback(handle, cb)` | Register a callback for the full output state (rumble, trigger effects, lightbar, player LEDs) |
 | `SetDualSenseAudioOutCallback(handle, cb)` | Register a callback for speaker PCM (exact host bytes, 4ch S16LE @48kHz) |
 | `SetDualSenseSpeakerResetCallback(handle, cb)` | Register a callback fired once per streaming generation change (flush PCM) |
+| `SetDualSenseRealtimeHapticsCallback(handle, cb)` | Register a callback for the rear voice-coil pair (2ch S16LE @48kHz, low latency) |
 | `RemoveDualSenseDevice(handle)` | Remove the device |
-
 Only one output callback may be active at a time; pass `NULL` to clear it.
 
 ## Input state
@@ -156,3 +156,12 @@ speaker-reset barrier (stream generation change) with no payload. The mic
 change: the host opened, closed, or re-alternated an audio interface.
 Flush previous-generation PCM on fire (same barrier as the `0xFFFF` TCP
 message). Pass `NULL` to clear.
+
+## Realtime haptics
+
+`SetDualSenseRealtimeHapticsCallback` delivers the rear voice-coil pair
+(2ch S16LE @48kHz) per USB transfer for minimal-latency forwarding —
+the same audio without the speaker path's batching delay. Resampling to
+the 3kHz haptics rate is feeder-side. Same buffer/thread rules as speaker
+PCM. Over TCP, open `bus/{busId}/{deviceid}/audio/haptics` (same framing,
+barriers included).

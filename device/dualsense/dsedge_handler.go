@@ -167,3 +167,17 @@ func (h *dsedgehandler) AudioStreamHandler() api.StreamHandlerFunc {
 		return AudioStreamHandler(dse, logger)(conn)
 	}
 }
+
+// HapticsStreamHandler serves the rear voice-coil pair to TCP feeders.
+func (h *dsedgehandler) HapticsStreamHandler() api.StreamHandlerFunc {
+	return func(conn net.Conn, devPtr *usb.Device, logger *slog.Logger) error {
+		if devPtr == nil || *devPtr == nil {
+			return fmt.Errorf("nil device")
+		}
+		dse, ok := (*devPtr).(*DualSense)
+		if !ok {
+			return fmt.Errorf("%w: expected DualSenseEdge", device.ErrWrongDeviceType)
+		}
+		return HapticsStreamHandler(dse, logger)(conn)
+	}
+}

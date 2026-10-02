@@ -37,6 +37,16 @@ func (c *Client) OpenAudioStream(ctx context.Context, busID uint32, devID string
 	return &AudioStream{conn: conn, BusID: busID, DevID: devID}, nil
 }
 
+// OpenHapticsStream connects to an existing device's rear-haptics PCM
+// stream (2ch S16LE @48kHz, same framing as audio, barriers included).
+func (c *Client) OpenHapticsStream(ctx context.Context, busID uint32, devID string) (*AudioStream, error) {
+	conn, err := c.dialStream(ctx, fmt.Sprintf("bus/%d/%s/audio/haptics\x00", busID, devID))
+	if err != nil {
+		return nil, err
+	}
+	return &AudioStream{conn: conn, BusID: busID, DevID: devID}, nil
+}
+
 // ReadFrame reads one speaker frame. reset is true for barrier events
 // (pcm is nil then). Either a frame or a barrier is returned per call.
 func (s *AudioStream) ReadFrame() (pcm []byte, reset bool, err error) {
