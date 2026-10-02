@@ -146,6 +146,7 @@ const (
 	featureIDFirmware        uint8 = 0x20
 	featureIDCommand         uint8 = 0x80
 	featureIDCommandResponse uint8 = 0x81
+	featureIDEdgeHandshake   uint8 = 0x65
 )
 
 const (

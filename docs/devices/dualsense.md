@@ -184,3 +184,12 @@ with `RightTriggerEffect()`/`LeftTriggerEffect()`, which split mode from
 parameters. Mode semantics follow the community reverse-engineered `0x02`
 layout — the feeder maps modes as before. `MicLED()` and
 `LightbarCustom()` expose the mute-light mode and lightbar-takeover flag.
+
+## Feature reports
+
+Every descriptor-listed feature ID resolves at its exact length:
+`0x05` calibration, `0x09` pairing (live MAC), `0x20` firmware,
+`0x80`/`0x81` subcommands, and zero stubs elsewhere. Edge-only IDs
+(`0x60`–`0x7B`) serve static stubs — without a backing controller there
+is no unlock handshake. Edge `0x65` echoes the `0x20` firmware body until
+the host SETs its own payload, which is then served back verbatim.

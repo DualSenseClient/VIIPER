@@ -27,6 +27,11 @@ type DualSense struct {
 
 	subcommand [2]byte
 
+	// Edge handshake store for feature 0x65 (payload without report ID).
+	// Served back on GET; unset reads echo the 0x20 firmware body.
+	edgeHandshake    [63]byte
+	hasEdgeHandshake bool
+
 	seqCounter    uint8
 	timestampBase time.Time
 	edge          bool
@@ -554,6 +559,17 @@ func (d *DualSense) HandleControl(bmRequestType, bRequest uint8, wValue, wIndex,
 				d.subcommand[0] = data[1]
 				d.subcommand[1] = data[2]
 				return nil, true
+			case reportType == reportTypeFeature && reportID == featureIDEdgeHandshake && len(data) >= 64:
+				// Edge profile handshake: verbatim echo of the 0x20
+				// firmware body (DS5Dongle dse.cpp). data[0] is the
+				// report ID; the 63 payload bytes are stored.
+				if d.edge {
+					d.mtx.Lock()
+					copy(d.edgeHandshake[:], data[1:64])
+					d.hasEdgeHandshake = true
+					d.mtx.Unlock()
+				}
+				return nil, true
 			case reportType == reportTypeFeature:
 				return nil, true
 			case reportType == reportTypeOutput && reportID == ReportIDOutput && len(data) >= 48:
@@ -582,6 +598,27 @@ var featureGetHandlers = map[byte]func(*DualSense) []byte{
 	featureIDPairing:         (*DualSense).featureReportPairing,
 	featureIDFirmware:        (*DualSense).featureReportFirmware,
 	featureIDCommandResponse: (*DualSense).featureReportCommandResponse,
+	featureIDEdgeHandshake:   (*DualSense).featureReportEdgeHandshake,
+}
+
+// featureReportEdgeHandshake serves GET 0x65: the stored handshake payload,
+// defaulting to an echo of the 0x20 firmware body. Edge-only (absent from
+// the DS descriptor); nil on DS so the host stalls as before.
+func (d *DualSense) featureReportEdgeHandshake() []byte {
+	if !d.edge {
+		return nil
+	}
+	report := make([]byte, 64)
+	report[0] = featureIDEdgeHandshake
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	if d.hasEdgeHandshake {
+		copy(report[1:], d.edgeHandshake[:])
+		return report
+	}
+	fw := d.featureReportFirmwareLocked()
+	copy(report[1:], fw[1:])
+	return report
 }
 
 // USB audio plumbing constants.
@@ -813,12 +850,17 @@ func (d *DualSense) featureReportPairing() []byte {
 }
 
 func (d *DualSense) featureReportFirmware() []byte {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	return d.featureReportFirmwareLocked()
+}
+
+// featureReportFirmwareLocked builds the 0x20 report; caller holds mtx.
+func (d *DualSense) featureReportFirmwareLocked() []byte {
 	report := make([]byte, 64)
 	report[0] = featureIDFirmware
 
-	d.mtx.Lock()
 	bt := d.metaState.BuildTime
-	d.mtx.Unlock()
 
 	copy(report[1:12], bt.Format("Jan 02 2006"))
 	copy(report[12:20], bt.Format("15:04:05"))

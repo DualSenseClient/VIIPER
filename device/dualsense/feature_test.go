@@ -83,3 +83,49 @@ func TestFeatureUnknownStalls(t *testing.T) {
 	assert.Nil(t, d.getFeatureReport(0x70))
 	assert.NotNil(t, de.getFeatureReport(0x70))
 }
+
+// Edge 0x65 defaults to an echo of the 0x20 firmware body.
+func TestEdgeHandshakeDefaultsToFirmwareEcho(t *testing.T) {
+	de, err := new(nil, true)
+	require.NoError(t, err)
+	got := de.getFeatureReport(0x65)
+	require.Len(t, got, 64)
+	assert.Equal(t, uint8(0x65), got[0])
+	fw := de.featureReportFirmware()
+	assert.Equal(t, fw[1:], got[1:])
+
+	// Absent from the DS descriptor: stalls there.
+	d, err := new(nil, false)
+	require.NoError(t, err)
+	assert.Nil(t, d.getFeatureReport(0x65))
+}
+
+// SET 0x65 stores the payload; GET serves it back verbatim.
+func TestEdgeHandshakeSetEcho(t *testing.T) {
+	de, err := new(nil, true)
+	require.NoError(t, err)
+
+	payload := make([]byte, 64)
+	payload[0] = 0x65
+	for i := 1; i < 64; i++ {
+		payload[i] = byte(i)
+	}
+	_, handled := de.HandleControl(0x21, 0x09, 0x0365, 0x0003, 64, payload)
+	require.True(t, handled)
+
+	got := de.getFeatureReport(0x65)
+	require.Len(t, got, 64)
+	assert.Equal(t, payload, got)
+
+	// Short SETs are accepted but not stored.
+	_, handled = de.HandleControl(0x21, 0x09, 0x0365, 0x0003, 3, []byte{0x65, 0x01, 0x02})
+	require.True(t, handled)
+	assert.Equal(t, payload, de.getFeatureReport(0x65))
+
+	// DS accepts the SET but never serves it.
+	d, err := new(nil, false)
+	require.NoError(t, err)
+	_, handled = d.HandleControl(0x21, 0x09, 0x0365, 0x0003, 64, payload)
+	require.True(t, handled)
+	assert.Nil(t, d.getFeatureReport(0x65))
+}
