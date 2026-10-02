@@ -29,6 +29,7 @@ type DualSense struct {
 
 	seqCounter    uint8
 	timestampBase time.Time
+	edge          bool
 
 	// Per-finger touch tracking IDs. Bumped on rising edge (not-touched →
 	// touched) and mirrored into the contact byte, like real hardware.
@@ -128,6 +129,7 @@ func new(o *device.CreateOptions, edge bool) (*DualSense, error) {
 			Strings:       strings,
 		},
 		metaState: metaState,
+		edge:      edge,
 	}
 
 	slog.Info("DualSense device instantiated",
@@ -249,8 +251,7 @@ func (d *DualSense) HandleControl(bmRequestType, bRequest uint8, wValue, wIndex,
 				return b, true
 			}
 			if reportType == reportTypeFeature {
-				if fn, ok := featureGetHandlers[reportID]; ok {
-					b := fn(d)
+				if b := d.getFeatureReport(reportID); b != nil {
 					if wLength > 0 && int(wLength) < len(b) {
 						b = b[:wLength]
 					}
@@ -297,6 +298,50 @@ var featureGetHandlers = map[byte]func(*DualSense) []byte{
 	featureIDPairing:         (*DualSense).featureReportPairing,
 	featureIDFirmware:        (*DualSense).featureReportFirmware,
 	featureIDCommandResponse: (*DualSense).featureReportCommandResponse,
+}
+
+// dsFeatureLengths maps every DS feature report ID to its total GET length
+// (report ID + payload), derived from the HID report descriptor counts.
+var dsFeatureLengths = map[byte]int{
+	0x05: 41, 0x08: 48, 0x09: 20, 0x0A: 27, 0x0B: 42, 0x0C: 42,
+	0x20: 64, 0x21: 5, 0x22: 64,
+	0x80: 64, 0x81: 64, 0x82: 10, 0x83: 64, 0x84: 64, 0x85: 3,
+	0xA0: 2, 0xE0: 64,
+	0xF0: 64, 0xF1: 64, 0xF2: 16, 0xF4: 64, 0xF5: 4,
+	0xF6: 64, 0xF7: 64, 0xF8: 64, 0xF9: 64,
+}
+
+// edgeFeatureLengths overrides/additions for the Edge descriptor:
+// 0xF2 is wider and the profile block is Edge-only.
+var edgeFeatureLengths = map[byte]int{
+	0xF2: 53,
+	0x60: 64, 0x61: 64, 0x62: 64, 0x63: 64, 0x64: 64, 0x65: 64,
+	0x68: 64,
+	0x70: 64, 0x71: 64, 0x72: 64, 0x73: 64, 0x74: 64, 0x75: 64,
+	0x76: 64, 0x77: 64, 0x78: 64, 0x79: 64, 0x7A: 64, 0x7B: 64,
+}
+
+// getFeatureReport serves a GET_REPORT for any descriptor-listed feature ID.
+// IDs with real content use their handler; the rest return a zero stub of
+// exact length with the report ID set. Edge profile reports (0x60-0x7B)
+// are static stubs — without a backing physical controller there is no
+// unlock handshake or NAK-until-ready sequence to perform.
+func (d *DualSense) getFeatureReport(id byte) []byte {
+	if fn, ok := featureGetHandlers[id]; ok {
+		return fn(d)
+	}
+	n, ok := dsFeatureLengths[id]
+	if d.edge {
+		if en, found := edgeFeatureLengths[id]; found {
+			n, ok = en, true
+		}
+	}
+	if !ok {
+		return nil
+	}
+	b := make([]byte, n)
+	b[0] = id
+	return b
 }
 
 // parseOutputReport decodes the 48B USB output report 0x02 (report ID +
