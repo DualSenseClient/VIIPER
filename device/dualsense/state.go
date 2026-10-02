@@ -9,7 +9,7 @@ import (
 )
 
 // nolint
-// viiper:wire dualsense c2s stickLX:i8 stickLY:i8 stickRX:i8 stickRY:i8 buttons:u32 dpad:u8 triggerL2:u8 triggerR2:u8 touch1X:u16 touch1Y:u16 touch1Active:bool touch2X:u16 touch2Y:u16 touch2Active:bool gyroX:i16 gyroY:i16 gyroZ:i16 accelX:i16 accelY:i16 accelZ:i16
+// viiper:wire dualsense c2s stickLX:i8 stickLY:i8 stickRX:i8 stickRY:i8 buttons:u32 dpad:u8 triggerL2:u8 triggerR2:u8 touch1X:u16 touch1Y:u16 touch1Active:bool touch1Tracking:u8 touch2X:u16 touch2Y:u16 touch2Active:bool touch2Tracking:u8 gyroX:i16 gyroY:i16 gyroZ:i16 accelX:i16 accelY:i16 accelZ:i16
 type InputState struct {
 	LX, LY  int8
 	RX, RY  int8
@@ -19,8 +19,10 @@ type InputState struct {
 
 	Touch1X, Touch1Y uint16
 	Touch1Active     bool
+	Touch1Tracking   uint8
 	Touch2X, Touch2Y uint16
 	Touch2Active     bool
+	Touch2Tracking   uint8
 
 	GyroX, GyroY, GyroZ    int16
 	AccelX, AccelY, AccelZ int16
@@ -51,17 +53,19 @@ func (s *InputState) MarshalBinary() ([]byte, error) {
 	if s.Touch1Active {
 		b[15] = 1
 	}
-	binary.LittleEndian.PutUint16(b[16:18], s.Touch2X)
-	binary.LittleEndian.PutUint16(b[18:20], s.Touch2Y)
+	b[16] = s.Touch1Tracking
+	binary.LittleEndian.PutUint16(b[17:19], s.Touch2X)
+	binary.LittleEndian.PutUint16(b[19:21], s.Touch2Y)
 	if s.Touch2Active {
-		b[20] = 1
+		b[21] = 1
 	}
-	binary.LittleEndian.PutUint16(b[21:23], uint16(s.GyroX))
-	binary.LittleEndian.PutUint16(b[23:25], uint16(s.GyroY))
-	binary.LittleEndian.PutUint16(b[25:27], uint16(s.GyroZ))
-	binary.LittleEndian.PutUint16(b[27:29], uint16(s.AccelX))
-	binary.LittleEndian.PutUint16(b[29:31], uint16(s.AccelY))
-	binary.LittleEndian.PutUint16(b[31:33], uint16(s.AccelZ))
+	b[22] = s.Touch2Tracking
+	binary.LittleEndian.PutUint16(b[23:25], uint16(s.GyroX))
+	binary.LittleEndian.PutUint16(b[25:27], uint16(s.GyroY))
+	binary.LittleEndian.PutUint16(b[27:29], uint16(s.GyroZ))
+	binary.LittleEndian.PutUint16(b[29:31], uint16(s.AccelX))
+	binary.LittleEndian.PutUint16(b[31:33], uint16(s.AccelY))
+	binary.LittleEndian.PutUint16(b[33:35], uint16(s.AccelZ))
 	return b, nil
 }
 
@@ -80,15 +84,17 @@ func (s *InputState) UnmarshalBinary(data []byte) error {
 	s.Touch1X = binary.LittleEndian.Uint16(data[11:13])
 	s.Touch1Y = binary.LittleEndian.Uint16(data[13:15])
 	s.Touch1Active = data[15] != 0
-	s.Touch2X = binary.LittleEndian.Uint16(data[16:18])
-	s.Touch2Y = binary.LittleEndian.Uint16(data[18:20])
-	s.Touch2Active = data[20] != 0
-	s.GyroX = int16(binary.LittleEndian.Uint16(data[21:23]))
-	s.GyroY = int16(binary.LittleEndian.Uint16(data[23:25]))
-	s.GyroZ = int16(binary.LittleEndian.Uint16(data[25:27]))
-	s.AccelX = int16(binary.LittleEndian.Uint16(data[27:29]))
-	s.AccelY = int16(binary.LittleEndian.Uint16(data[29:31]))
-	s.AccelZ = int16(binary.LittleEndian.Uint16(data[31:33]))
+	s.Touch1Tracking = data[16]
+	s.Touch2X = binary.LittleEndian.Uint16(data[17:19])
+	s.Touch2Y = binary.LittleEndian.Uint16(data[19:21])
+	s.Touch2Active = data[21] != 0
+	s.Touch2Tracking = data[22]
+	s.GyroX = int16(binary.LittleEndian.Uint16(data[23:25]))
+	s.GyroY = int16(binary.LittleEndian.Uint16(data[25:27]))
+	s.GyroZ = int16(binary.LittleEndian.Uint16(data[27:29]))
+	s.AccelX = int16(binary.LittleEndian.Uint16(data[29:31]))
+	s.AccelY = int16(binary.LittleEndian.Uint16(data[31:33]))
+	s.AccelZ = int16(binary.LittleEndian.Uint16(data[33:35]))
 	return nil
 }
 

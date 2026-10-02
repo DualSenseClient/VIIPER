@@ -70,9 +70,11 @@ typedef struct {
 	uint16_t Touch1X;
 	uint16_t Touch1Y;
 	uint8_t  Touch1Active;
+	uint8_t  Touch1Tracking;
 	uint16_t Touch2X;
 	uint16_t Touch2Y;
 	uint8_t  Touch2Active;
+	uint8_t  Touch2Tracking;
 	int16_t  GyroX;
 	int16_t  GyroY;
 	int16_t  GyroZ;
@@ -307,26 +309,28 @@ func SetDualSenseDeviceState(handle C.DSDeviceHandle, state C.DSDeviceState) boo
 		return false
 	}
 	s := &dualsense.InputState{
-		LX:           int8(state.LX),
-		LY:           int8(state.LY),
-		RX:           int8(state.RX),
-		RY:           int8(state.RY),
-		Buttons:      uint32(state.Buttons),
-		DPad:         uint8(state.DPad),
-		L2:           uint8(state.L2),
-		R2:           uint8(state.R2),
-		Touch1X:      uint16(state.Touch1X),
-		Touch1Y:      uint16(state.Touch1Y),
-		Touch1Active: state.Touch1Active != 0,
-		Touch2X:      uint16(state.Touch2X),
-		Touch2Y:      uint16(state.Touch2Y),
-		Touch2Active: state.Touch2Active != 0,
-		GyroX:        int16(state.GyroX),
-		GyroY:        int16(state.GyroY),
-		GyroZ:        int16(state.GyroZ),
-		AccelX:       int16(state.AccelX),
-		AccelY:       int16(state.AccelY),
-		AccelZ:       int16(state.AccelZ),
+		LX:             int8(state.LX),
+		LY:             int8(state.LY),
+		RX:             int8(state.RX),
+		RY:             int8(state.RY),
+		Buttons:        uint32(state.Buttons),
+		DPad:           uint8(state.DPad),
+		L2:             uint8(state.L2),
+		R2:             uint8(state.R2),
+		Touch1X:        uint16(state.Touch1X),
+		Touch1Y:        uint16(state.Touch1Y),
+		Touch1Active:   state.Touch1Active != 0,
+		Touch1Tracking: uint8(state.Touch1Tracking),
+		Touch2X:        uint16(state.Touch2X),
+		Touch2Y:        uint16(state.Touch2Y),
+		Touch2Active:   state.Touch2Active != 0,
+		Touch2Tracking: uint8(state.Touch2Tracking),
+		GyroX:          int16(state.GyroX),
+		GyroY:          int16(state.GyroY),
+		GyroZ:          int16(state.GyroZ),
+		AccelX:         int16(state.AccelX),
+		AccelY:         int16(state.AccelY),
+		AccelZ:         int16(state.AccelZ),
 	}
 	dsDevice.UpdateInputState(s)
 	return true

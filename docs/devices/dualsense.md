@@ -44,9 +44,11 @@ typedef struct {
     uint16_t Touch1X;
     uint16_t Touch1Y;
     uint8_t  Touch1Active;
+    uint8_t  Touch1Tracking; // feeder-supplied contact ID, verbatim to USB
     uint16_t Touch2X;
     uint16_t Touch2Y;
     uint8_t  Touch2Active;
+    uint8_t  Touch2Tracking;
     int16_t  GyroX;
     int16_t  GyroY;
     int16_t  GyroZ;

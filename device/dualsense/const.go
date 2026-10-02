@@ -41,7 +41,7 @@ const (
 const (
 	InputReportSize  = 64
 	OutputReportSize = 64
-	InputStateSize   = 33
+	InputStateSize   = 35
 	OutputStateSize  = 47
 )
 

@@ -36,12 +36,6 @@ type DualSense struct {
 	timestampBase time.Time
 	edge          bool
 
-	// Per-finger touch tracking IDs. Bumped on rising edge (not-touched →
-	// touched) and mirrored into the contact byte, like real hardware.
-	// Guarded by mtx.
-	touchTracking [2]uint8
-	lastTouchHeld [2]bool
-
 	// UAC1 streaming state, guarded by mtx: alt-setting per interface
 	// number plus feature-unit mute/volume.
 	alts    [4]uint8
@@ -410,14 +404,6 @@ func (d *DualSense) SetOutputCallback(f func(OutputState)) {
 
 func (d *DualSense) UpdateInputState(state *InputState) {
 	d.mtx.Lock()
-	if state.Touch1Active && !d.lastTouchHeld[0] {
-		d.touchTracking[0]++
-	}
-	if state.Touch2Active && !d.lastTouchHeld[1] {
-		d.touchTracking[1]++
-	}
-	d.lastTouchHeld[0] = state.Touch1Active
-	d.lastTouchHeld[1] = state.Touch2Active
 	d.inputState = state
 	d.mtx.Unlock()
 	select {
@@ -979,18 +965,17 @@ func (d *DualSense) buildUSBInputReport(s *InputState, m *MetaState) []byte {
 	ts := uint32(time.Since(d.timestampBase).Microseconds() * 3)
 	binary.LittleEndian.PutUint32(b[28:32], ts)
 
-	d.mtx.Lock()
-	trk := d.touchTracking
-	d.mtx.Unlock()
-
-	touch1 := trk[0] & 0x7F
+	// Contact bytes carry the feeder-supplied tracking IDs verbatim (real
+	// controller IDs preserved end-to-end); feeders that do not track
+	// send zero.
+	touch1 := s.Touch1Tracking & 0x7F
 	if !s.Touch1Active {
 		touch1 |= TouchInactiveMask
 	}
 	b[33] = touch1
 	encodeTouchCoords(b[34:37], s.Touch1X, s.Touch1Y)
 
-	touch2 := trk[1] & 0x7F
+	touch2 := s.Touch2Tracking & 0x7F
 	if !s.Touch2Active {
 		touch2 |= TouchInactiveMask
 	}

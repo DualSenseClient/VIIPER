@@ -404,8 +404,10 @@ struct DSDeviceState
     public byte   L2, R2;
     public ushort Touch1X, Touch1Y;
     public byte   Touch1Active;
+    public byte   Touch1Tracking; // contact ID, verbatim to USB
     public ushort Touch2X, Touch2Y;
     public byte   Touch2Active;
+    public byte   Touch2Tracking;
     public short  GyroX, GyroY, GyroZ;
     public short  AccelX, AccelY, AccelZ;
 }

@@ -56,28 +56,32 @@ func TestInputReportTouchTracking(t *testing.T) {
 	d, err := new(nil, false)
 	require.NoError(t, err)
 
-	// First touch: rising edge bumps tracking 0 -> 1.
+	// Feeder-supplied tracking IDs flow verbatim into the contact bytes.
 	s := NewInputState()
 	s.Touch1Active = true
+	s.Touch1Tracking = 0x2A
 	s.Touch1X, s.Touch1Y = 100, 200
 	d.UpdateInputState(s)
 	b := neutralReport(t, d)
-	assert.Equal(t, uint8(1), b[33])
+	assert.Equal(t, uint8(0x2A), b[33])
 	assert.Equal(t, uint8(100), b[34])
 
-	// Held touch keeps the same tracking ID.
-	d.UpdateInputState(s)
-	b = neutralReport(t, d)
-	assert.Equal(t, uint8(1), b[33])
-
-	// Release keeps the last ID with the inactive mask.
+	// Release keeps the supplied ID under the inactive mask.
 	s.Touch1Active = false
 	d.UpdateInputState(s)
 	b = neutralReport(t, d)
-	assert.Equal(t, TouchInactiveMask|1, b[33])
+	assert.Equal(t, TouchInactiveMask|0x2A, b[33])
 
 	// Untouched second finger stays at never-touched 0x80.
 	assert.Equal(t, TouchInactiveMask, b[37])
+
+	// Tracking survives the wire round-trip.
+	wire, err := s.MarshalBinary()
+	require.NoError(t, err)
+	require.Len(t, wire, InputStateSize)
+	var back InputState
+	require.NoError(t, back.UnmarshalBinary(wire))
+	assert.Equal(t, uint8(0x2A), back.Touch1Tracking)
 }
 
 func TestInputReportSeqAdvances(t *testing.T) {
