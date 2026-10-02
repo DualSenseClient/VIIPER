@@ -22,6 +22,7 @@ All functions are part of the [libVIIPER C API](../libviiper/overview.md).
 | `SetDualSenseDeviceState(handle, state)` | Push an input state to the device |
 | `SetDualSenseOutputCallback(handle, cb)` | Register a callback for the full output state (rumble, trigger effects, lightbar, player LEDs) |
 | `SetDualSenseAudioOutCallback(handle, cb)` | Register a callback for speaker PCM (exact host bytes, 4ch S16LE @48kHz) |
+| `SetDualSenseSpeakerResetCallback(handle, cb)` | Register a callback fired once per streaming generation change (flush PCM) |
 | `RemoveDualSenseDevice(handle)` | Remove the device |
 
 Only one output callback may be active at a time; pass `NULL` to clear it.
@@ -148,3 +149,10 @@ Over TCP, open `bus/{busId}/{deviceid}/audio`: each message is a u16 LE
 length followed by that many PCM bytes. Length `0xFFFF` marks a
 speaker-reset barrier (stream generation change) with no payload. The mic
 (`IF2`) returns silence until the microphone queue lands.
+
+## Speaker reset
+
+`SetDualSenseSpeakerResetCallback` fires once per streaming generation
+change: the host opened, closed, or re-alternated an audio interface.
+Flush previous-generation PCM on fire (same barrier as the `0xFFFF` TCP
+message). Pass `NULL` to clear.

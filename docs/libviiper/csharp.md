@@ -540,6 +540,10 @@ delegate void DSOutputCallbackDelegate(nuint handle, in DSOutputState output);
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 delegate void DSAudioCallbackDelegate(nuint handle, IntPtr pcm, nuint length);
 
+// Generation barrier: flush buffered PCM on fire.
+[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+delegate void DSSpeakerResetCallbackDelegate(nuint handle);
+
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 delegate void NS2ProOutputCallbackDelegate(nuint handle, NS2ProOutputState output);
 ```
@@ -648,6 +652,10 @@ the audio-out callback (mic returns silence until the mic queue lands).
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool SetDualSenseAudioOutCallback(nuint deviceHandle, DSAudioCallbackDelegate? callback);
+
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool SetDualSenseSpeakerResetCallback(nuint deviceHandle, DSSpeakerResetCallbackDelegate? callback);
 
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.I1)]
@@ -808,6 +816,10 @@ DSAudioCallbackDelegate audioCb = (handle, pcm, length) =>
 };
 
 LibVIIPER.SetDualSenseAudioOutCallback(dsHandle, audioCb);
+
+// Flush previous-generation PCM on each barrier.
+DSSpeakerResetCallbackDelegate resetCb = handle => { /* flush */ };
+LibVIIPER.SetDualSenseSpeakerResetCallback(dsHandle, resetCb);
 ```
 
 ## DualShock 4 output example

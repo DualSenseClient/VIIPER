@@ -198,7 +198,7 @@ func new(o *device.CreateOptions, edge bool) (*DualSense, error) {
 	// Strings are per-device: the map must be cloned so one device never
 	// mutates the shared template, and index 3 carries this unit's serial.
 	strings := map[uint8]string{
-		0: "Ѐ", // LangID: en-US (0x0409)
+		0: "\u0409", // LangID: en-US (0x0409)
 		1: "Sony Interactive Entertainment",
 		2: product,
 		3: metaState.SerialNumber,
