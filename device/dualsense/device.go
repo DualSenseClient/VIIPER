@@ -30,6 +30,12 @@ type DualSense struct {
 	seqCounter    uint8
 	timestampBase time.Time
 
+	// Per-finger touch tracking IDs. Bumped on rising edge (not-touched →
+	// touched) and mirrored into the contact byte, like real hardware.
+	// Guarded by mtx.
+	touchTracking [2]uint8
+	lastTouchHeld [2]bool
+
 	mtx sync.Mutex
 }
 
@@ -150,6 +156,14 @@ func (d *DualSense) SetOutputCallback(f func(OutputState)) {
 
 func (d *DualSense) UpdateInputState(state *InputState) {
 	d.mtx.Lock()
+	if state.Touch1Active && !d.lastTouchHeld[0] {
+		d.touchTracking[0]++
+	}
+	if state.Touch2Active && !d.lastTouchHeld[1] {
+		d.touchTracking[1]++
+	}
+	d.lastTouchHeld[0] = state.Touch1Active
+	d.lastTouchHeld[1] = state.Touch2Active
 	d.inputState = state
 	d.mtx.Unlock()
 	select {
@@ -412,6 +426,15 @@ func (d *DualSense) featureReportCommandResponse() []byte {
 	return report
 }
 
+// buildUSBInputReport encodes the 64B USB input report 0x01.
+//
+// Populated from feeder state: sticks, triggers, seq, buttons, gyro/accel,
+// sensor timestamp, touch contacts, battery status.
+//
+// Deliberately left zero (need a real-hardware capture to fill correctly,
+// not sample constants): b[11:16] touch timestamps, b[32], b[41:48] trigger
+// effect state echo, b[49] reserved marker (kept at the historical 0x10),
+// b[50:52], b[54:63] audio/headset flags and reserved tail.
 func (d *DualSense) buildUSBInputReport(s *InputState, m *MetaState) []byte {
 	b := make([]byte, InputReportSize)
 
@@ -462,14 +485,18 @@ func (d *DualSense) buildUSBInputReport(s *InputState, m *MetaState) []byte {
 	ts := uint32(time.Since(d.timestampBase).Microseconds() * 3)
 	binary.LittleEndian.PutUint32(b[28:32], ts)
 
-	touch1 := uint8(0)
+	d.mtx.Lock()
+	trk := d.touchTracking
+	d.mtx.Unlock()
+
+	touch1 := trk[0] & 0x7F
 	if !s.Touch1Active {
 		touch1 |= TouchInactiveMask
 	}
 	b[33] = touch1
 	encodeTouchCoords(b[34:37], s.Touch1X, s.Touch1Y)
 
-	touch2 := uint8(0)
+	touch2 := trk[1] & 0x7F
 	if !s.Touch2Active {
 		touch2 |= TouchInactiveMask
 	}
