@@ -77,3 +77,29 @@ func TestParseOutputReportShort(t *testing.T) {
 	fb = parseOutputReport(nil)
 	assert.Equal(t, OutputState{}, fb)
 }
+
+func TestTriggerEffectDecode(t *testing.T) {
+	out := make([]byte, 48)
+	out[0] = ReportIDOutput
+	out[11] = 0x01 // R2 mode
+	for i := 0; i < 10; i++ {
+		out[12+i] = byte(0x10 + i)
+	}
+	out[22] = 0x02 // L2 mode
+	out[39] = 0x02 // flags3: custom lightbar
+	out[9] = 0x02  // mic LED pulse
+
+	fb := parseOutputReport(out)
+	r := fb.RightTriggerEffect()
+	assert.Equal(t, uint8(0x01), r.Mode)
+	assert.Equal(t, uint8(0x10), r.Params[0])
+	assert.Equal(t, uint8(0x19), r.Params[9])
+	l := fb.LeftTriggerEffect()
+	assert.Equal(t, uint8(0x02), l.Mode)
+	assert.Equal(t, uint8(0x02), fb.MicLED())
+	assert.True(t, fb.LightbarCustom())
+
+	plain := parseOutputReport(make([]byte, 48))
+	assert.Equal(t, uint8(0), plain.RightTriggerEffect().Mode)
+	assert.False(t, plain.LightbarCustom())
+}

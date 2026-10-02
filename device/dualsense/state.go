@@ -130,6 +130,42 @@ const (
 	Flag1AllowPlayerLEDs     uint8 = 0x10
 )
 
+// TriggerEffect is the decoded 11-byte adaptive-trigger block at
+// OutputState.TriggerRight/TriggerLeft: block[0] is the effect mode,
+// block[1:11] are mode parameters. DS5Dongle carries these blocks opaquely
+// (SetStateData RightTriggerFFB/LeftTriggerFFB); mode semantics follow the
+// community reverse-engineered 0x02 layout, so only offsets are decoded
+// here — the feeder maps modes as before.
+type TriggerEffect struct {
+	Mode   uint8
+	Params [10]byte
+}
+
+// RightTriggerEffect decodes the R2 adaptive-trigger block.
+func (f *OutputState) RightTriggerEffect() TriggerEffect {
+	var p [10]byte
+	copy(p[:], f.TriggerRight[1:11])
+	return TriggerEffect{Mode: f.TriggerRight[0], Params: p}
+}
+
+// LeftTriggerEffect decodes the L2 adaptive-trigger block.
+func (f *OutputState) LeftTriggerEffect() TriggerEffect {
+	var p [10]byte
+	copy(p[:], f.TriggerLeft[1:11])
+	return TriggerEffect{Mode: f.TriggerLeft[0], Params: p}
+}
+
+// MicLED reports the mute-light mode (MuteLightMode byte).
+func (f *OutputState) MicLED() uint8 {
+	return f.MuteLightMode
+}
+
+// LightbarCustom reports whether the host takes over the lightbar
+// (Flags3 AllowColorLightFadeAnimation bit).
+func (f *OutputState) LightbarCustom() bool {
+	return f.Flags3&0x02 != 0
+}
+
 func (f *OutputState) MarshalBinary() ([]byte, error) {
 	b := make([]byte, OutputStateSize)
 	b[0] = f.Flags0

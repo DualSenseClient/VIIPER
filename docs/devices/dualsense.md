@@ -165,3 +165,13 @@ the same audio without the speaker path's batching delay. Resampling to
 the 3kHz haptics rate is feeder-side. Same buffer/thread rules as speaker
 PCM. Over TCP, open `bus/{busId}/{deviceid}/audio/haptics` (same framing,
 barriers included).
+
+## Trigger effects
+
+Each adaptive trigger carries an 11-byte block (`TriggerRight`/`TriggerLeft`
+in `DSOutputState`): byte 0 is the effect mode, bytes 1–10 are mode
+parameters. The core delivers them verbatim (as DS5Dongle does); decode
+with `RightTriggerEffect()`/`LeftTriggerEffect()`, which split mode from
+parameters. Mode semantics follow the community reverse-engineered `0x02`
+layout — the feeder maps modes as before. `MicLED()` and
+`LightbarCustom()` expose the mute-light mode and lightbar-takeover flag.
