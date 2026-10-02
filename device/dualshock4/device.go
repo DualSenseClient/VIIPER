@@ -237,6 +237,33 @@ func (d *DualShock4) SetMetaState(meta MetaState) {
 	d.metaState = &meta
 }
 
+// MergeMetaState applies non-zero metadata fields (create-time merge rules:
+// empty strings and zero numerics keep current values).
+func (d *DualShock4) MergeMetaState(delta MetaState) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	m := *d.metaState
+	if delta.SerialNumber != "" {
+		m.SerialNumber = delta.SerialNumber
+	}
+	if delta.Board != "" {
+		m.Board = delta.Board
+	}
+	if !delta.BuildTime.IsZero() {
+		m.BuildTime = delta.BuildTime
+	}
+	if delta.BatteryStatus != 0 {
+		m.BatteryStatus = delta.BatteryStatus
+	}
+	if delta.TemperatureCelsius != 0 {
+		m.TemperatureCelsius = delta.TemperatureCelsius
+	}
+	if delta.BatteryVoltage != 0 {
+		m.BatteryVoltage = delta.BatteryVoltage
+	}
+	d.metaState = &m
+}
+
 func (d *DualShock4) SetOutputCallback(f func(OutputState)) {
 	d.outputFunc = f
 }

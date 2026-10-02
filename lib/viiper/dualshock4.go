@@ -381,6 +381,33 @@ func SetDS4MicrophonePCM(handle C.DS4DeviceHandle, data *C.uint8_t, length C.siz
 	return ds4device.QueueMicrophonePCM(frame)
 }
 
+// SetDS4MetaState merge-updates identity/battery metadata at runtime.
+// Fields left at zero value keep their current values; a nil meta fails.
+//
+//export SetDS4MetaState
+func SetDS4MetaState(handle C.DS4DeviceHandle, meta *C.DS4MetaState) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	ds4device, ok := dhw.device.(*dualshock4.DualShock4)
+	if !ok {
+		return false
+	}
+	if meta == nil {
+		return false
+	}
+	ds4device.MergeMetaState(dualshock4.MetaState{
+		SerialNumber:       goStringOrEmpty(meta.SerialNumber),
+		Board:              goStringOrEmpty(meta.Board),
+		BatteryStatus:      byte(meta.BatteryStatus),
+		TemperatureCelsius: float64(meta.TemperatureCelsius),
+		BatteryVoltage:     float64(meta.BatteryVoltage),
+	})
+	return true
+}
+
 // ds4ResetUnsubs tracks lib speaker-reset subscriptions per device handle.
 var (
 	ds4ResetUnsubs   = map[deviceHandle]func(){}
