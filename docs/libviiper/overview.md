@@ -120,6 +120,7 @@ Each device family has its own create/state/callback functions documented on its
 | `CreateDualSenseEdgeDevice(...)` | Create a virtual DualSense Edge |
 | `SetDualSenseDeviceState(handle, state)` | Push an input state to the device |
 | `SetDualSenseOutputCallback(handle, cb)` | Register a callback for the full output state (rumble, trigger effects, lightbar, player LEDs) |
+| `SetDualSenseAudioOutCallback(handle, cb)` | Register a callback for speaker PCM (exact host bytes, 4ch S16LE @48kHz) |
 | `RemoveDualSenseDevice(handle)` | Remove the device |
 
 #### Switch 2 Pro

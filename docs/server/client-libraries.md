@@ -68,6 +68,7 @@ Key configuration options (see `viiper server --help` for all of them):
 | `bus/{id}/add <json>` | Add a device (`{"type":"xbox360","deviceSpecific":{...}}`) |
 | `bus/{id}/remove <devId>` | Remove a device |
 | `bus/{busId}/{deviceid}` | Open the binary device stream |
+| `bus/{busId}/{deviceid}/audio` | Open the DualSense speaker PCM stream (u16 LE length + PCM; `0xFFFF` = reset barrier). Fails for devices without audio. Streams end on disconnect; removing the device does not close open feeder streams |
 
 ## C# — `Viiper.Client`
 

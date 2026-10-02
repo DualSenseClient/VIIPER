@@ -38,16 +38,90 @@ type DualSense struct {
 	lastTouchHeld [2]bool
 
 	// UAC1 streaming state, guarded by mtx: alt-setting per interface
-	// number plus feature-unit mute/volume. Feeder PCM hooks are a
-	// follow-up; until then speaker PCM is absorbed and the mic
-	// returns silence.
+	// number plus feature-unit mute/volume.
 	alts    [4]uint8
 	spkMute uint8
 	micMute uint8
 	spkVol  uint16
 	micVol  uint16
 
+	// Speaker subscribers, guarded by mtx. Each subscriber drains its own
+	// channel; slow subscribers lose oldest frames first so live bridges
+	// never stall the USB path.
+	speakerSubs map[*speakerSub]struct{}
+
 	mtx sync.Mutex
+}
+
+// SpeakerEvent is one speaker-stream item: PCM audio or a generation
+// barrier. PCM slices are exact host-written EP1 OUT payloads (4ch S16LE
+// @48kHz, up to 392B), read-only and reused after the next event.
+type SpeakerEvent struct {
+	PCM   []byte
+	Reset bool
+}
+
+// speakerSub is one speaker-stream subscription (lib callback or TCP audio
+// stream).
+type speakerSub struct {
+	ch      chan SpeakerEvent
+	dropped uint64
+}
+
+const speakerSubBuffer = 32
+
+// SubscribeSpeaker registers a speaker-stream subscriber. The channel
+// receives PCM frames and reset barriers; call unsubscribe to release.
+// Unsubscribe is idempotent; core closes the channel on unsubscribe, so
+// range loops terminate.
+func (d *DualSense) SubscribeSpeaker() (<-chan SpeakerEvent, func()) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	if d.speakerSubs == nil {
+		d.speakerSubs = map[*speakerSub]struct{}{}
+	}
+	sub := &speakerSub{ch: make(chan SpeakerEvent, speakerSubBuffer)}
+	d.speakerSubs[sub] = struct{}{}
+	var once bool
+	return sub.ch, func() {
+		d.mtx.Lock()
+		defer d.mtx.Unlock()
+		if once {
+			return
+		}
+		once = true
+		delete(d.speakerSubs, sub)
+		close(sub.ch)
+	}
+}
+
+// fireSpeakerEvent copies the payload (caller scratch) and fans out.
+// No subscribers means absorbed without copying.
+func (d *DualSense) fireSpeakerEvent(ev SpeakerEvent) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	if len(d.speakerSubs) == 0 {
+		return
+	}
+	if ev.PCM != nil {
+		ev.PCM = append([]byte(nil), ev.PCM...)
+	}
+	for sub := range d.speakerSubs {
+		select {
+		case sub.ch <- ev:
+		default:
+			// Slow subscriber: drop oldest, keep the freshest.
+			select {
+			case <-sub.ch:
+			default:
+			}
+			select {
+			case sub.ch <- ev:
+			default:
+				sub.dropped++
+			}
+		}
+	}
 }
 
 func New(o *device.CreateOptions) (*DualSense, error) {
@@ -124,7 +198,7 @@ func new(o *device.CreateOptions, edge bool) (*DualSense, error) {
 	// Strings are per-device: the map must be cloned so one device never
 	// mutates the shared template, and index 3 carries this unit's serial.
 	strings := map[uint8]string{
-		0: "\u0409", // LangID: en-US (0x0409)
+		0: "Ѐ", // LangID: en-US (0x0409)
 		1: "Sony Interactive Entertainment",
 		2: product,
 		3: metaState.SerialNumber,
@@ -241,7 +315,11 @@ func (d *DualSense) HandleTransfer(ctx context.Context, ep uint32, dir uint32, o
 				}
 			}
 		case 1:
-			// Speaker OUT: PCM absorbed until feeder PCM hooks land.
+			// Speaker OUT: fan PCM out to subscribers (lib callback,
+			// TCP audio streams). No subscribers means absorbed.
+			if len(out) > 0 {
+				d.fireSpeakerEvent(SpeakerEvent{PCM: out})
+			}
 		}
 	}
 
@@ -356,10 +434,17 @@ const (
 var micSilence = make([]byte, 192)
 
 func (d *DualSense) setAltSetting(iface, alt uint8) {
+	changed := false
 	d.mtx.Lock()
-	defer d.mtx.Unlock()
 	if int(iface) < len(d.alts) {
+		changed = d.alts[iface] != alt
 		d.alts[iface] = alt
+	}
+	d.mtx.Unlock()
+	// Streaming generation change on either audio interface: subscribers
+	// flush previous-generation PCM.
+	if changed && (iface == 1 || iface == 2) {
+		d.fireSpeakerEvent(SpeakerEvent{Reset: true})
 	}
 }
 

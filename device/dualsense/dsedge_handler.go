@@ -153,3 +153,17 @@ func (h *dsedgehandler) UpdateMetaState(meta string, dev *usb.Device) error {
 	dse.SetMetaState(current)
 	return nil
 }
+
+// AudioStreamHandler serves speaker PCM to TCP feeders (see audio_stream.go).
+func (h *dsedgehandler) AudioStreamHandler() api.StreamHandlerFunc {
+	return func(conn net.Conn, devPtr *usb.Device, logger *slog.Logger) error {
+		if devPtr == nil || *devPtr == nil {
+			return fmt.Errorf("nil device")
+		}
+		dse, ok := (*devPtr).(*DualSense)
+		if !ok {
+			return fmt.Errorf("%w: expected DualSenseEdge", device.ErrWrongDeviceType)
+		}
+		return AudioStreamHandler(dse, logger)(conn)
+	}
+}

@@ -30,6 +30,22 @@ type DeviceStream struct {
 // OpenStream connects to an existing device's stream channel.
 // The device must already exist on the bus (use DeviceAdd first).
 func (c *Client) OpenStream(ctx context.Context, busID uint32, devID string) (*DeviceStream, error) {
+	conn, err := c.dialStream(ctx, fmt.Sprintf("bus/%d/%s\x00", busID, devID))
+	if err != nil {
+		return nil, err
+	}
+
+	ds := &DeviceStream{
+		conn:  conn,
+		BusID: busID,
+		DevID: devID,
+	}
+	return ds, nil
+}
+
+// dialStream dials the server, performs the auth handshake when configured,
+// and writes the stream path request. The caller owns the connection.
+func (c *Client) dialStream(ctx context.Context, streamPath string) (net.Conn, error) {
 	addr := c.transport.addr
 	if c.transport.mock != nil {
 		return nil, fmt.Errorf("stream connections not supported with mock transport")
@@ -65,18 +81,11 @@ func (c *Client) OpenStream(ctx context.Context, busID uint32, devID string) (*D
 		}
 	}
 
-	streamPath := fmt.Sprintf("bus/%d/%s\x00", busID, devID)
 	if _, err := conn.Write([]byte(streamPath)); err != nil {
 		conn.Close() // nolint
 		return nil, fmt.Errorf("write stream path: %w", err)
 	}
-
-	ds := &DeviceStream{
-		conn:  conn,
-		BusID: busID,
-		DevID: devID,
-	}
-	return ds, nil
+	return conn, nil
 }
 
 // AddDeviceAndConnect creates a device on the specified bus and immediately connects to its stream.

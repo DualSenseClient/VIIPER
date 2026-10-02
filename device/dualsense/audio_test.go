@@ -107,3 +107,76 @@ func TestIsochronousTransfers(t *testing.T) {
 	// Speaker OUT is absorbed.
 	assert.Nil(t, d.HandleTransfer(ctx, 1, usbip.DirOut, make([]byte, 392)))
 }
+
+func TestSpeakerSubscriptionExactBytes(t *testing.T) {
+	d, err := new(nil, false)
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	ch, unsub := d.SubscribeSpeaker()
+	defer unsub()
+
+	frame := make([]byte, 392)
+	for i := range frame {
+		frame[i] = byte(i)
+	}
+	// HandleTransfer takes caller scratch: mutate afterwards to prove copy.
+	d.HandleTransfer(ctx, 1, usbip.DirOut, frame)
+	for i := range frame {
+		frame[i] = 0xFF
+	}
+
+	select {
+	case ev := <-ch:
+		assert.False(t, ev.Reset)
+		require.Len(t, ev.PCM, 392)
+		for i := range ev.PCM {
+			assert.Equal(t, byte(i), ev.PCM[i])
+		}
+	default:
+		t.Fatal("no speaker frame delivered")
+	}
+}
+
+func TestSpeakerSubscriptionSlowDropsOldest(t *testing.T) {
+	d, err := new(nil, false)
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	ch, unsub := d.SubscribeSpeaker()
+	defer unsub()
+
+	// Overflow the 32-frame buffer without draining.
+	for i := 0; i < 40; i++ {
+		d.HandleTransfer(ctx, 1, usbip.DirOut, []byte{byte(i), 0xAA})
+	}
+	// Freshest frames survive; count what remains.
+	var last byte
+	n := 0
+drain:
+	for {
+		select {
+		case ev := <-ch:
+			last = ev.PCM[0]
+			n++
+		default:
+			break drain
+		}
+	}
+	assert.Equal(t, 32, n)
+	assert.Equal(t, byte(39), last)
+}
+
+func TestSpeakerUnsubscribeStops(t *testing.T) {
+	d, err := new(nil, false)
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	ch, unsub := d.SubscribeSpeaker()
+	unsub()
+	unsub() // idempotent
+	d.HandleTransfer(ctx, 1, usbip.DirOut, []byte{0x01})
+	// Closed channel: receives zero value with ok=false, never a frame.
+	_, ok := <-ch
+	assert.False(t, ok)
+}

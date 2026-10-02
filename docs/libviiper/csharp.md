@@ -534,6 +534,12 @@ delegate void DS4OutputCallbackDelegate(nuint handle, byte updateFlags, byte rum
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 delegate void DSOutputCallbackDelegate(nuint handle, in DSOutputState output);
 
+// Speaker PCM: exact host-written bytes, 4ch S16LE @48kHz, up to 392B per
+// call. The pointer is only valid during the call — copy with Marshal.Copy.
+// Runs on the audio thread: never block.
+[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+delegate void DSAudioCallbackDelegate(nuint handle, IntPtr pcm, nuint length);
+
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 delegate void NS2ProOutputCallbackDelegate(nuint handle, NS2ProOutputState output);
 ```
@@ -614,9 +620,9 @@ static class LibVIIPER
 Only `Device` and `EdgeDevice` variants exist in this branch
 (no audio-only / gamepad-only / by-type / raw-input / meta-setter /
 realtime-haptics / atomic-audio / speaker-reset /
-audio-out / microphone PCM-feeder APIs).
-Output arrives as the full `DSOutputState` struct; speaker PCM is absorbed
-and the mic returns silence until feeder PCM hooks land.
+microphone PCM-feeder APIs).
+Output arrives as the full `DSOutputState` struct; speaker PCM streams to
+the audio-out callback (mic returns silence until the mic queue lands).
 
 ```csharp
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
@@ -638,6 +644,10 @@ and the mic returns silence until feeder PCM hooks land.
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool SetDualSenseOutputCallback(nuint deviceHandle, DSOutputCallbackDelegate? callback);
+
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool SetDualSenseAudioOutCallback(nuint deviceHandle, DSAudioCallbackDelegate? callback);
 
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.I1)]
@@ -783,6 +793,21 @@ if (!LibVIIPER.CreateDualSenseDevice(serverHandle, out nuint dsHandle, busID,
     return 1;
 
 LibVIIPER.SetDualSenseOutputCallback(dsHandle, outputCb);
+```
+
+### Speaker PCM capture
+
+```csharp
+// Keep the delegate alive for the lifetime of the device!
+DSAudioCallbackDelegate audioCb = (handle, pcm, length) =>
+{
+    // 4ch S16LE @48kHz: front L/R speaker + rear L/R haptics.
+    var bytes = new byte[(int)length];
+    Marshal.Copy(pcm, bytes, 0, bytes.Length);
+    // hand bytes to your Opus encoder / ring — never block here.
+};
+
+LibVIIPER.SetDualSenseAudioOutCallback(dsHandle, audioCb);
 ```
 
 ## DualShock 4 output example

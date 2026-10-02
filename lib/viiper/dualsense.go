@@ -124,6 +124,18 @@ static void viiper_call_ds_output(DSOutputCallback fn, DSDeviceHandle handle, co
 	fn(handle, output);
 }
 
+typedef void (*DSAudioCallback)(DSDeviceHandle handle, const uint8_t* pcm, size_t length);
+
+static void viiper_call_ds_audio(DSAudioCallback fn, DSDeviceHandle handle, const uint8_t* pcm, size_t length) {
+	fn(handle, pcm, length);
+}
+
+typedef void (*DSSpeakerResetCallback)(DSDeviceHandle handle);
+
+static void viiper_call_ds_reset(DSSpeakerResetCallback fn, DSDeviceHandle handle) {
+	fn(handle);
+}
+
 */
 import "C"
 import (
@@ -133,6 +145,8 @@ import (
 	"log/slog"
 	"runtime/cgo"
 	"slices"
+	"sync"
+	"unsafe"
 
 	"github.com/DualSenseClient/VIIPER/device"
 	"github.com/DualSenseClient/VIIPER/device/dualsense"
@@ -364,6 +378,119 @@ func SetDualSenseOutputCallback(handle C.DSDeviceHandle, cb C.DSOutputCallback) 
 	return true
 }
 
+// dsAudioUnsubs tracks lib speaker-stream subscriptions per device handle
+// so re-registering replaces the old pumps and removal stops them.
+var (
+	dsAudioUnsubs   = map[deviceHandle]func(){}
+	dsAudioUnsubsMu sync.Mutex
+)
+
+func clearDSAudioSub(h deviceHandle) {
+	dsAudioUnsubsMu.Lock()
+	defer dsAudioUnsubsMu.Unlock()
+	if unsub, ok := dsAudioUnsubs[h]; ok {
+		unsub()
+		delete(dsAudioUnsubs, h)
+	}
+}
+
+func trackDSAudioSub(h deviceHandle, unsub func()) {
+	dsAudioUnsubsMu.Lock()
+	defer dsAudioUnsubsMu.Unlock()
+	dsAudioUnsubs[h] = unsub
+}
+
+// SetDualSenseAudioOutCallback sets a callback invoked with the exact bytes
+// the host writes to the speaker endpoint (4ch S16LE @48kHz, up to 392B).
+// The buffer is only valid during the call; copy it. Invoked on the audio
+// thread: never block. Pass NULL to clear.
+//
+//export SetDualSenseAudioOutCallback
+func SetDualSenseAudioOutCallback(handle C.DSDeviceHandle, cb C.DSAudioCallback) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	dsDevice, ok := dhw.device.(*dualsense.DualSense)
+	if !ok {
+		return false
+	}
+	clearDSAudioSub(deviceHandle(handle))
+	if cb == nil {
+		return true
+	}
+	ch, unsub := dsDevice.SubscribeSpeaker()
+	trackDSAudioSub(deviceHandle(handle), unsub)
+	go func() {
+		for ev := range ch {
+			if ev.Reset || len(ev.PCM) == 0 {
+				continue
+			}
+			pcm := ev.PCM
+			C.viiper_call_ds_audio(cb, handle,
+				(*C.uint8_t)(unsafe.Pointer(&pcm[0])),
+				C.size_t(len(pcm)),
+			)
+		}
+	}()
+	return true
+}
+
+// SetDualSenseSpeakerResetCallback sets a callback invoked once per speaker
+// streaming generation change (host opened, closed, or re-alternated the
+// audio interface). Flush previous-generation PCM on fire. Pass NULL to
+// clear.
+//
+//export SetDualSenseSpeakerResetCallback
+func SetDualSenseSpeakerResetCallback(handle C.DSDeviceHandle, cb C.DSSpeakerResetCallback) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	dsDevice, ok := dhw.device.(*dualsense.DualSense)
+	if !ok {
+		return false
+	}
+	clearDSResetSub(deviceHandle(handle))
+	if cb == nil {
+		return true
+	}
+	ch, unsub := dsDevice.SubscribeSpeaker()
+	trackDSResetSub(deviceHandle(handle), unsub)
+	go func() {
+		for ev := range ch {
+			if !ev.Reset {
+				continue
+			}
+			C.viiper_call_ds_reset(cb, handle)
+		}
+	}()
+	return true
+}
+
+// dsResetUnsubs tracks lib reset-callback subscriptions per device handle.
+var (
+	dsResetUnsubs   = map[deviceHandle]func(){}
+	dsResetUnsubsMu sync.Mutex
+)
+
+func clearDSResetSub(h deviceHandle) {
+	dsResetUnsubsMu.Lock()
+	defer dsResetUnsubsMu.Unlock()
+	if unsub, ok := dsResetUnsubs[h]; ok {
+		unsub()
+		delete(dsResetUnsubs, h)
+	}
+}
+
+func trackDSResetSub(h deviceHandle, unsub func()) {
+	dsResetUnsubsMu.Lock()
+	defer dsResetUnsubsMu.Unlock()
+	dsResetUnsubs[h] = unsub
+}
+
 // RemoveDualSenseDevice removes the DualSense device associated with the given handle from the server.
 // @param handle Handle to the DualSense device to remove.
 //
@@ -386,6 +513,8 @@ func RemoveDualSenseDevice(handle C.DSDeviceHandle) bool {
 	shw.deviceHandles[busID] = slices.DeleteFunc(shw.deviceHandles[busID], func(h deviceHandle) bool {
 		return h == deviceHandle(handle)
 	})
+	clearDSAudioSub(deviceHandle(handle))
+	clearDSResetSub(deviceHandle(handle))
 	dh.Delete()
 
 	return true

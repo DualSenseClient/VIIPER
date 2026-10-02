@@ -21,6 +21,7 @@ All functions are part of the [libVIIPER C API](../libviiper/overview.md).
 | `CreateDualSenseEdgeDevice(serverHandle, &handle, busID, autoAttach, vid, pid, meta)` | Create a virtual DualSense Edge gamepad |
 | `SetDualSenseDeviceState(handle, state)` | Push an input state to the device |
 | `SetDualSenseOutputCallback(handle, cb)` | Register a callback for the full output state (rumble, trigger effects, lightbar, player LEDs) |
+| `SetDualSenseAudioOutCallback(handle, cb)` | Register a callback for speaker PCM (exact host bytes, 4ch S16LE @48kHz) |
 | `RemoveDualSenseDevice(handle)` | Remove the device |
 
 Only one output callback may be active at a time; pass `NULL` to clear it.
@@ -134,3 +135,16 @@ typedef void (*DSOutputCallback)(DSDeviceHandle handle, const DSOutputState* out
 ```
 
 Pass `NULL` to `SetDualSenseOutputCallback` to clear a previously registered callback.
+
+## Speaker audio
+
+The host streams speaker/haptics PCM to the `IF1` isochronous endpoint as
+4ch S16LE @48kHz (front L/R speaker + rear L/R haptics, channel config
+`0x0033`), up to 392 bytes per transfer. `SetDualSenseAudioOutCallback`
+delivers the exact host-written bytes; the buffer is only valid during the
+call, so copy it, and never block (audio thread).
+
+Over TCP, open `bus/{busId}/{deviceid}/audio`: each message is a u16 LE
+length followed by that many PCM bytes. Length `0xFFFF` marks a
+speaker-reset barrier (stream generation change) with no payload. The mic
+(`IF2`) returns silence until the microphone queue lands.
