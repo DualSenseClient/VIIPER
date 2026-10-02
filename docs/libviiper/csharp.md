@@ -853,7 +853,8 @@ LibVIIPER.SetDualSenseRealtimeHapticsCallback(dsHandle, hapticsCb);
 
 ```csharp
 // Exactly 192 bytes per call (48 frames of 2ch S16LE @48kHz); anything
-// else returns false. Opus-decode in your app, queue here.
+// else returns false, as do calls while the host has not opened the mic
+// (dropped, as on hardware). Opus-decode in your app, queue here.
 var micFrame = new byte[192];
 // ... fill from capture ...
 LibVIIPER.SetDualSenseMicrophonePCM(dsHandle, micFrame, (nuint)micFrame.Length);

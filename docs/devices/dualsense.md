@@ -78,6 +78,31 @@ Button bits:
 
 D-pad bits are **Up** `0x01`, **Down** `0x02`, **Left** `0x04`, **Right** `0x08`.
 
+### Input report byte map (USB report `0x01`, 64B)
+
+| Bytes | Source | Notes |
+| --- | --- | --- |
+| `b[1:5]` | Feeder sticks | `LX/LY/RX/RY` + 128 |
+| `b[5:7]` | Feeder triggers | `L2`/`R2` analog |
+| `b[7]` | Core sequence | `++` per report |
+| `b[8:11]` | Feeder D-pad + buttons | Hat nibble + face/shoulder/PS bits |
+| `b[11:16]` | Zero | Touch timestamps (no hardware capture) |
+| `b[16:28]` | Feeder gyro/accel | Raw counts |
+| `b[28:32]` | Core timestamp | µs since boot × 3 |
+| `b[33:41]` | Feeder touch | Coords + verbatim tracking IDs, inactive mask |
+| `b[41:48]` | Zero | Trigger-effect echo (no hardware capture) |
+| `b[49]` | Fixed `0x10` | Historical reserved marker |
+| `b[50:52]` | Zero | Reserved |
+| `b[53]` | Meta battery | `BatteryStatus` |
+| `b[54]` bit 2 | Synthesized mute LED | From the last host output (see below); bit 0 (headset) and the rest stay zero |
+| `b[55:63]` | Zero | Audio/headset flags, reserved tail |
+
+The mute LED bit follows the host-converged value: the last output with
+`AllowMuteLight` set and mode `Off`/`On`/`Breathing` turns the bit off/on;
+`DoNothing`/`NoAction` leave it unchanged. The dongle forwards the
+controller-reported bit over BT; the virtual device has no backing
+controller, so it echoes what the host asked for.
+
 ## Meta state
 
 Optional metadata passed to the create functions. Fields left at
@@ -180,6 +205,26 @@ change: the host opened, closed, or re-alternated an audio interface.
 Flush previous-generation PCM on fire (same barrier as the `0xFFFF` TCP
 message). Pass `NULL` to clear.
 
+## Audio control requests (UAC1)
+
+Mute/volume for the speaker feature unit (`0x02`) and mic feature unit
+(`0x05`), matching DS5Dongle (`usb.cpp`):
+
+| Control | Speaker `0x02` | Mic `0x05` |
+| --- | --- | --- |
+| Mute `GET_*` | last-SET mute byte | last-SET mute byte |
+| Volume `GET_CUR` | last-SET (`0x0000` = 0dB at power-up) | last-SET (`0x3000` = +48dB at power-up) |
+| Volume `GET_MIN` | `0x009C` (-100dB) | `0x0000` (0dB) |
+| Volume `GET_MAX` | `0x0000` (0dB) | `0x3000` (+48dB) |
+| Volume `GET_RES` | `0x0001` (1/256dB) | `0x007A` (122/256dB) |
+
+The channel number is ignored (every request applies to master), and mute
+answers every `GET_*` with the mute byte — both matching the dongle. One
+accepted delta: speaker `GET_CUR` returns the last-SET value (0dB default)
+rather than the dongle config-derived default — the core has no config
+store. Volume/mute `SET`s are stored only; with no BT side there is no
+controller state to update.
+
 ## Realtime haptics
 
 `SetDualSenseRealtimeHapticsCallback` delivers the rear voice-coil pair
@@ -203,7 +248,20 @@ layout — the feeder maps modes as before. `MicLED()` and
 
 Every descriptor-listed feature ID resolves at its exact length:
 `0x05` calibration, `0x09` pairing (live MAC), `0x20` firmware,
-`0x80`/`0x81` subcommands, and zero stubs elsewhere. Edge-only IDs
-(`0x60`–`0x7B`) serve static stubs — without a backing controller there
-is no unlock handshake. Edge `0x65` echoes the `0x20` firmware body until
-the host SETs its own payload, which is then served back verbatim.
+`0x80`/`0x81` subcommands, and zero stubs elsewhere. Synthesized, not
+forwarded: `0x20` is built from metadata (`BuildTime` date/time strings,
+hardware type, `HwInfo`, firmware version), `0x81` answers the stored
+`0x80` subcommand from metadata (serial, battery voltage, temperature),
+and `0x09` carries the live MAC. Edge-only IDs (`0x60`–`0x7B`) serve
+static stubs — without a backing controller there is no unlock handshake
+and no NAK-until-ready gate. Edge `0x65` echoes the `0x20` firmware body
+until the host SETs its own payload, which is then served back verbatim.
+
+## Deliberate deltas from DS5Dongle
+
+- USB serial strings are served verbatim from metadata (no trailing `2`
+  cache-buster the dongle appends for Windows).
+- HID `bInterval` is fixed at 1 (no `polling_rate_mode` tunable).
+- BT-side internals (Opus, resampling, `0x35`/`0x36`/`0x39` building,
+  profile prefetch, pico commands, wake keyboard, CDC) live in the
+  feeder app or are out of scope — never in the core.
