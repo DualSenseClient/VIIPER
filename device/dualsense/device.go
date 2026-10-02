@@ -37,6 +37,16 @@ type DualSense struct {
 	touchTracking [2]uint8
 	lastTouchHeld [2]bool
 
+	// UAC1 streaming state, guarded by mtx: alt-setting per interface
+	// number plus feature-unit mute/volume. Feeder PCM hooks are a
+	// follow-up; until then speaker PCM is absorbed and the mic
+	// returns silence.
+	alts    [4]uint8
+	spkMute uint8
+	micMute uint8
+	spkVol  uint16
+	micVol  uint16
+
 	mtx sync.Mutex
 }
 
@@ -96,12 +106,11 @@ func new(o *device.CreateOptions, edge bool) (*DualSense, error) {
 	devDesc := baseDeviceDescriptor()
 	devDesc.IDProduct = DefaultPIDDS
 	product := "DualSense Wireless Controller"
-	ifaces := []usb.InterfaceConfig{dsInterface}
 	if edge {
 		devDesc.IDProduct = DefaultPIDDSEdge
 		product = "DualSense Edge Wireless Controller"
-		ifaces = []usb.InterfaceConfig{dseInterface}
 	}
+	ifaces := hidInterfaceFor(edge)
 
 	if o != nil {
 		if o.IDVendor != nil {
@@ -136,7 +145,7 @@ func new(o *device.CreateOptions, edge bool) (*DualSense, error) {
 		"edge", edge,
 		"vid", d.descriptor.Device.IDVendor,
 		"pid", d.descriptor.Device.IDProduct,
-		"interfaces", len(d.descriptor.Interfaces))
+		"interfaces", d.descriptor.NumInterfaces())
 
 	d.inputState = NewInputState()
 	d.inputCh = make(chan *InputState, 1)
@@ -215,16 +224,24 @@ func (d *DualSense) HandleTransfer(ctx context.Context, ep uint32, dir uint32, o
 				d.mtx.Unlock()
 				return d.buildUSBInputReport(is, &ms)
 			}
+		case 2:
+			// Microphone IN: silence until feeder PCM hooks land.
+			return micSilence
 		default:
 			return nil
 		}
 	}
 
-	if dir == usbip.DirOut && ep == 3 {
-		if len(out) >= 48 && out[0] == ReportIDOutput {
-			if d.outputFunc != nil {
-				d.outputFunc(parseOutputReport(out))
+	if dir == usbip.DirOut {
+		switch ep {
+		case 3:
+			if len(out) >= 48 && out[0] == ReportIDOutput {
+				if d.outputFunc != nil {
+					d.outputFunc(parseOutputReport(out))
+				}
 			}
+		case 1:
+			// Speaker OUT: PCM absorbed until feeder PCM hooks land.
 		}
 	}
 
@@ -234,6 +251,22 @@ func (d *DualSense) HandleTransfer(ctx context.Context, ep uint32, dir uint32, o
 func (d *DualSense) HandleControl(bmRequestType, bRequest uint8, wValue, wIndex, wLength uint16, data []byte) ([]byte, bool) {
 	reportType := uint8(wValue >> 8)
 	reportID := uint8(wValue & 0xFF)
+
+	// Standard SET_INTERFACE selects the audio streaming alt-setting.
+	if bmRequestType == usbStdOutIface && bRequest == usbSetInterface {
+		d.setAltSetting(uint8(wIndex), uint8(wValue))
+		return nil, true
+	}
+
+	// UAC1 feature-unit mute/volume (speaker 0x02, mic 0x05).
+	if bmRequestType == usbClassOutIface || bmRequestType == usbClassInIface {
+		if resp, ok := d.handleAudioControl(bmRequestType, bRequest, wValue, wIndex, data); ok {
+			if resp != nil && wLength > 0 && int(wLength) < len(resp) {
+				resp = resp[:wLength]
+			}
+			return resp, true
+		}
+	}
 
 	switch bmRequestType {
 	case hidClassIN:
@@ -298,6 +331,106 @@ var featureGetHandlers = map[byte]func(*DualSense) []byte{
 	featureIDPairing:         (*DualSense).featureReportPairing,
 	featureIDFirmware:        (*DualSense).featureReportFirmware,
 	featureIDCommandResponse: (*DualSense).featureReportCommandResponse,
+}
+
+// USB audio plumbing constants.
+const (
+	usbStdOutIface   uint8 = 0x01
+	usbSetInterface  uint8 = 0x0B
+	usbClassOutIface uint8 = 0x21
+	usbClassInIface  uint8 = 0xA1
+
+	uacSetCur uint8 = 0x01
+	uacGetCur uint8 = 0x81
+	uacGetMin uint8 = 0x82
+	uacGetMax uint8 = 0x83
+	uacGetRes uint8 = 0x84
+
+	uacEntitySpeakerFU uint8 = 0x02
+	uacEntityMicFU     uint8 = 0x05
+	uacFUControlMute   uint8 = 0x01
+	uacFUControlVolume uint8 = 0x02
+)
+
+// micSilence is one 1ms idle frame: 48 samples of 2ch S16LE zeros.
+var micSilence = make([]byte, 192)
+
+func (d *DualSense) setAltSetting(iface, alt uint8) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	if int(iface) < len(d.alts) {
+		d.alts[iface] = alt
+	}
+}
+
+// handleAudioControl serves UAC1 feature-unit mute/volume for the speaker
+// (entity 0x02) and mic (entity 0x05), mirroring DS5Dongle usb.cpp ranges.
+// Anything else (unknown entity, channel, or request) is left unhandled so
+// HID class traffic on the same bmRequestType bytes still falls through.
+func (d *DualSense) handleAudioControl(bm, bRequest uint8, wValue, wIndex uint16, data []byte) ([]byte, bool) {
+	entity := uint8(wIndex >> 8)
+	if entity != uacEntitySpeakerFU && entity != uacEntityMicFU {
+		return nil, false
+	}
+	cs := uint8(wValue >> 8)
+	if uint8(wValue&0xFF) != 0 {
+		return nil, false // master channel only
+	}
+	speaker := entity == uacEntitySpeakerFU
+
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	switch {
+	case bm == usbClassOutIface && bRequest == uacSetCur && cs == uacFUControlMute && len(data) >= 1:
+		if speaker {
+			d.spkMute = data[0]
+		} else {
+			d.micMute = data[0]
+		}
+		return nil, true
+	case bm == usbClassOutIface && bRequest == uacSetCur && cs == uacFUControlVolume && len(data) >= 2:
+		v := binary.LittleEndian.Uint16(data[:2])
+		if speaker {
+			d.spkVol = v
+		} else {
+			d.micVol = v
+		}
+		return nil, true
+	case bm == usbClassInIface && bRequest == uacGetCur && cs == uacFUControlMute:
+		if speaker {
+			return []byte{d.spkMute}, true
+		}
+		return []byte{d.micMute}, true
+	case bm == usbClassInIface && cs == uacFUControlVolume:
+		var cur uint16
+		if speaker {
+			cur = d.spkVol
+		} else {
+			cur = d.micVol
+		}
+		switch bRequest {
+		case uacGetCur:
+			b := make([]byte, 2)
+			binary.LittleEndian.PutUint16(b, cur)
+			return b, true
+		case uacGetMin:
+			if speaker {
+				return []byte{0x00, 0x9C}, true
+			}
+			return []byte{0x00, 0x00}, true
+		case uacGetMax:
+			if speaker {
+				return []byte{0x00, 0x00}, true
+			}
+			return []byte{0x00, 0x30}, true
+		case uacGetRes:
+			if speaker {
+				return []byte{0x00, 0x01}, true
+			}
+			return []byte{0x7A, 0x00}, true
+		}
+	}
+	return nil, false
 }
 
 // dsFeatureLengths maps every DS feature report ID to its total GET length

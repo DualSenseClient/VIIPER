@@ -164,12 +164,108 @@ var (
 	dseReportDescriptor = reportDescriptor(63, 52, dseTail())
 )
 
-// hidInterface is the single HID interface. It stays at number 0 until the
-// audio interfaces land with their streaming plumbing, which renumbers it to 3.
+// audioInterfaces builds IF0 (Audio Control) + IF1 AS OUT alt0/1 (4ch
+// 16-bit 48kHz, EP1 OUT isochronous adaptive, 392B) + IF2 AS IN alt0/1 (2ch
+// 16-bit 48kHz, EP2 IN isochronous asynchronous, 196B), byte-identical in
+// structure to DS5Dongle descriptor_configuration (standard build). Shared
+// by DS and Edge; only the HID report length differs per variant.
+func audioInterfaces() []usb.InterfaceConfig {
+	acBlobs := func(payloads ...[]byte) []usb.ClassSpecificDescriptor {
+		out := make([]usb.ClassSpecificDescriptor, 0, len(payloads))
+		for _, p := range payloads {
+			out = append(out, usb.ClassSpecificDescriptor{DescriptorType: 0x24, Payload: p})
+		}
+		return out
+	}
+	return []usb.InterfaceConfig{
+		{
+			Descriptor: usb.InterfaceDescriptor{
+				BInterfaceNumber: 0x00, BAlternateSetting: 0x00, BNumEndpoints: 0x00,
+				BInterfaceClass: 0x01, BInterfaceSubClass: 0x01, BInterfaceProtocol: 0x00,
+			},
+			ClassDescriptors: acBlobs(
+				// AC Header: bcdADC 1.00, wTotalLength 73, 2 streaming IFs (1, 2).
+				[]byte{0x01, 0x00, 0x01, 0x49, 0x00, 0x02, 0x01, 0x02},
+				// Input Terminal 1 (USB streaming, 4ch) -> assoc 6.
+				[]byte{0x02, 0x01, 0x01, 0x01, 0x06, 0x04, 0x33, 0x00, 0x00, 0x00},
+				// Feature Unit 2 (mute+volume master).
+				[]byte{0x06, 0x02, 0x01, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00},
+				// Output Terminal 3 (speaker) <- unit 2.
+				[]byte{0x03, 0x03, 0x01, 0x03, 0x04, 0x02, 0x00},
+				// Input Terminal 4 (headset mic, 2ch) assoc 3.
+				[]byte{0x02, 0x04, 0x02, 0x04, 0x03, 0x02, 0x03, 0x00, 0x00, 0x00},
+				// Feature Unit 5 (mute+volume master).
+				[]byte{0x06, 0x05, 0x04, 0x01, 0x03, 0x00, 0x00},
+				// Output Terminal 6 (USB streaming) <- unit 5.
+				[]byte{0x03, 0x06, 0x01, 0x01, 0x01, 0x05, 0x00},
+			),
+		},
+		{
+			Descriptor: usb.InterfaceDescriptor{
+				BInterfaceNumber: 0x01, BAlternateSetting: 0x00, BNumEndpoints: 0x00,
+				BInterfaceClass: 0x01, BInterfaceSubClass: 0x02, BInterfaceProtocol: 0x00,
+			},
+		},
+		{
+			Descriptor: usb.InterfaceDescriptor{
+				BInterfaceNumber: 0x01, BAlternateSetting: 0x01, BNumEndpoints: 0x01,
+				BInterfaceClass: 0x01, BInterfaceSubClass: 0x02, BInterfaceProtocol: 0x00,
+			},
+			ClassDescriptors: acBlobs(
+				// AS General: terminal 1, 1 frame delay, PCM.
+				[]byte{0x01, 0x01, 0x01, 0x01, 0x00},
+				// Format Type I: 4ch, 2B subframe, 16-bit, 48kHz.
+				[]byte{0x02, 0x01, 0x04, 0x02, 0x10, 0x01, 0x80, 0xBB, 0x00},
+			),
+			Endpoints: []usb.EndpointDescriptor{
+				{
+					BEndpointAddress: 0x01, // OUT EP1
+					BMAttributes:     0x09, // Isochronous, adaptive
+					WMaxPacketSize:   392,
+					BInterval:        1,
+					ClassDescriptors: []usb.ClassSpecificDescriptor{
+						{DescriptorType: 0x25, Payload: []byte{0x01, 0x00, 0x00, 0x00, 0x00}},
+					},
+				},
+			},
+		},
+		{
+			Descriptor: usb.InterfaceDescriptor{
+				BInterfaceNumber: 0x02, BAlternateSetting: 0x00, BNumEndpoints: 0x00,
+				BInterfaceClass: 0x01, BInterfaceSubClass: 0x02, BInterfaceProtocol: 0x00,
+			},
+		},
+		{
+			Descriptor: usb.InterfaceDescriptor{
+				BInterfaceNumber: 0x02, BAlternateSetting: 0x01, BNumEndpoints: 0x01,
+				BInterfaceClass: 0x01, BInterfaceSubClass: 0x02, BInterfaceProtocol: 0x00,
+			},
+			ClassDescriptors: acBlobs(
+				// AS General: terminal 6, 1 frame delay, PCM.
+				[]byte{0x01, 0x06, 0x01, 0x01, 0x00},
+				// Format Type I: 2ch, 2B subframe, 16-bit, 48kHz.
+				[]byte{0x02, 0x01, 0x02, 0x02, 0x10, 0x01, 0x80, 0xBB, 0x00},
+			),
+			Endpoints: []usb.EndpointDescriptor{
+				{
+					BEndpointAddress: 0x82, // IN EP2
+					BMAttributes:     0x05, // Isochronous, asynchronous
+					WMaxPacketSize:   196,
+					BInterval:        1,
+					ClassDescriptors: []usb.ClassSpecificDescriptor{
+						{DescriptorType: 0x25, Payload: []byte{0x01, 0x00, 0x00, 0x00, 0x00}},
+					},
+				},
+			},
+		},
+	}
+}
+
+// hidInterface is the HID gamepad interface (IF3 once audio is present).
 func hidInterface(report hid.ReportDescriptor) usb.InterfaceConfig {
 	return usb.InterfaceConfig{
 		Descriptor: usb.InterfaceDescriptor{
-			BInterfaceNumber:   0x00,
+			BInterfaceNumber:   0x03,
 			BAlternateSetting:  0x00,
 			BNumEndpoints:      0x02,
 			BInterfaceClass:    0x03, // HID
@@ -204,10 +300,15 @@ func hidInterface(report hid.ReportDescriptor) usb.InterfaceConfig {
 	}
 }
 
-var (
-	dsInterface  = hidInterface(dsReportDescriptor)
-	dseInterface = hidInterface(dseReportDescriptor)
-)
+// hidInterfaceFor builds the per-variant interface list: shared audio
+// interfaces plus the variant HID interface.
+func hidInterfaceFor(edge bool) []usb.InterfaceConfig {
+	hidIF := hidInterface(dsReportDescriptor)
+	if edge {
+		hidIF = hidInterface(dseReportDescriptor)
+	}
+	return append(audioInterfaces(), hidIF)
+}
 
 func baseDeviceDescriptor() usb.DeviceDescriptor {
 	return usb.DeviceDescriptor{

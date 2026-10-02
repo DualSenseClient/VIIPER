@@ -2,11 +2,14 @@
 
 VIIPER emulates USB-connected DualSense and DualSense Edge gamepads,
 including sticks, triggers, buttons, touchpad, motion, lightbar, rumble,
-and player LEDs.
+player LEDs, and the UAC1 speaker/microphone audio interfaces
+(IF0 control, IF1 4ch/48kHz OUT, IF2 2ch/48kHz IN, IF3 HID).
 
 This branch has no audio-only, gamepad-only, speaker/haptics PCM, or
 microphone variants: only `CreateDualSenseDevice` and
 `CreateDualSenseEdgeDevice` exist. Meta is create-time only.
+Speaker PCM is absorbed and the mic returns silence; feeder PCM hooks
+are a follow-up.
 
 All functions are part of the [libVIIPER C API](../libviiper/overview.md).
 
@@ -17,7 +20,7 @@ All functions are part of the [libVIIPER C API](../libviiper/overview.md).
 | `CreateDualSenseDevice(serverHandle, &handle, busID, autoAttach, vid, pid, meta)` | Create a virtual DualSense gamepad |
 | `CreateDualSenseEdgeDevice(serverHandle, &handle, busID, autoAttach, vid, pid, meta)` | Create a virtual DualSense Edge gamepad |
 | `SetDualSenseDeviceState(handle, state)` | Push an input state to the device |
-| `SetDualSenseOutputCallback(handle, cb)` | Register a callback for rumble, lightbar and player LEDs |
+| `SetDualSenseOutputCallback(handle, cb)` | Register a callback for the full output state (rumble, trigger effects, lightbar, player LEDs) |
 | `RemoveDualSenseDevice(handle)` | Remove the device |
 
 Only one output callback may be active at a time; pass `NULL` to clear it.

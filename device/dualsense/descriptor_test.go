@@ -9,15 +9,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func reportBytes(t *testing.T, edge bool) []byte {
+func hidConfig(t *testing.T, edge bool) usb.InterfaceConfig {
 	t.Helper()
 	d, err := new(nil, edge)
 	require.NoError(t, err)
 	desc := d.GetDescriptor()
 	require.NotNil(t, desc)
-	require.Len(t, desc.Interfaces, 1)
-	require.NotNil(t, desc.Interfaces[0].HID)
-	rb, err := desc.Interfaces[0].HID.ReportBytes()
+	for _, iface := range desc.Interfaces {
+		if iface.HID != nil {
+			return iface
+		}
+	}
+	t.Fatal("no HID interface in descriptor")
+	return usb.InterfaceConfig{}
+}
+
+func reportBytes(t *testing.T, edge bool) []byte {
+	t.Helper()
+	iface := hidConfig(t, edge)
+	rb, err := iface.HID.ReportBytes()
 	require.NoError(t, err)
 	return []byte(rb)
 }
@@ -79,13 +89,66 @@ func TestDeviceDescriptorFields(t *testing.T) {
 }
 
 func TestHIDEndpointsInterval1(t *testing.T) {
-	d, err := new(nil, false)
-	require.NoError(t, err)
-	eps := d.GetDescriptor().Interfaces[0].Endpoints
+	iface := hidConfig(t, false)
+	assert.Equal(t, uint8(0x03), iface.Descriptor.BInterfaceNumber)
+	eps := iface.Endpoints
 	require.Len(t, eps, 2)
 	for _, ep := range eps {
 		assert.Equal(t, uint8(1), ep.BInterval)
 	}
+}
+
+func TestAudioInterfaces(t *testing.T) {
+	d, err := new(nil, false)
+	require.NoError(t, err)
+	desc := d.GetDescriptor()
+	assert.Equal(t, uint8(4), desc.NumInterfaces())
+	require.Len(t, desc.Interfaces, 6)
+
+	type ifID struct {
+		num, alt uint8
+	}
+	var got []ifID
+	for _, iface := range desc.Interfaces {
+		got = append(got, ifID{iface.Descriptor.BInterfaceNumber, iface.Descriptor.BAlternateSetting})
+	}
+	assert.Equal(t, []ifID{{0, 0}, {1, 0}, {1, 1}, {2, 0}, {2, 1}, {3, 0}}, got)
+
+	// IF1 alt1: EP1 OUT isoc adaptive 392B; IF2 alt1: EP2 IN isoc async 196B.
+	outEP := desc.Interfaces[2].Endpoints
+	require.Len(t, outEP, 1)
+	assert.Equal(t, uint8(0x01), outEP[0].BEndpointAddress)
+	assert.Equal(t, uint8(0x09), outEP[0].BMAttributes)
+	assert.Equal(t, uint16(392), outEP[0].WMaxPacketSize)
+	assert.Equal(t, uint8(1), outEP[0].BInterval)
+	inEP := desc.Interfaces[4].Endpoints
+	require.Len(t, inEP, 1)
+	assert.Equal(t, uint8(0x82), inEP[0].BEndpointAddress)
+	assert.Equal(t, uint8(0x05), inEP[0].BMAttributes)
+	assert.Equal(t, uint16(196), inEP[0].WMaxPacketSize)
+}
+
+// Class-specific audio blobs must total the reference sizes: AC header
+// block 73 (0x49) on IF0, 18 per streaming alt (7 AS general + 11 format).
+// Together with the fixed interface/endpoint/HID bytes this yields the
+// 227-byte configuration.
+func TestAudioClassBlobSizes(t *testing.T) {
+	d, err := new(nil, false)
+	require.NoError(t, err)
+	byAlt := map[[2]uint8]usb.InterfaceConfig{}
+	for _, iface := range d.GetDescriptor().Interfaces {
+		byAlt[[2]uint8{iface.Descriptor.BInterfaceNumber, iface.Descriptor.BAlternateSetting}] = iface
+	}
+	classBytes := func(iface usb.InterfaceConfig) int {
+		n := 0
+		for _, cd := range iface.ClassDescriptors {
+			n += len(cd.Bytes())
+		}
+		return n
+	}
+	assert.Equal(t, 73, classBytes(byAlt[[2]uint8{0, 0}]))
+	assert.Equal(t, 18, classBytes(byAlt[[2]uint8{1, 1}]))
+	assert.Equal(t, 18, classBytes(byAlt[[2]uint8{2, 1}]))
 }
 
 func TestSerialStringPerDevice(t *testing.T) {

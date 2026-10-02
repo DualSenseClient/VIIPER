@@ -3,6 +3,7 @@ package dualsense
 import (
 	"testing"
 
+	"github.com/DualSenseClient/VIIPER/usb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,7 +15,14 @@ func descriptorFeatureCounts(t *testing.T, edge bool) map[byte]int {
 	t.Helper()
 	d, err := new(nil, edge)
 	require.NoError(t, err)
-	rb, err := d.GetDescriptor().Interfaces[0].HID.ReportBytes()
+	var hidIF *usb.HIDFunction
+	for i := range d.GetDescriptor().Interfaces {
+		if d.GetDescriptor().Interfaces[i].HID != nil {
+			hidIF = d.GetDescriptor().Interfaces[i].HID
+		}
+	}
+	require.NotNil(t, hidIF)
+	rb, err := hidIF.ReportBytes()
 	require.NoError(t, err)
 	b := []byte(rb)
 

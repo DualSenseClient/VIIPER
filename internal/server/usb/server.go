@@ -813,10 +813,13 @@ func endpointInterval(desc *usb.Descriptor, ep uint32) time.Duration {
 	epAddr := uint8(ep) | 0x80
 	for i := range desc.Interfaces {
 		for _, epDesc := range desc.Interfaces[i].Endpoints {
-			if epDesc.BEndpointAddress != epAddr || epDesc.BMAttributes&0x03 != 0x03 {
+			if epDesc.BEndpointAddress != epAddr {
 				continue
 			}
-			return time.Duration(epDesc.BInterval) * time.Millisecond
+			switch epDesc.BMAttributes & 0x03 {
+			case 0x03, 0x01: // interrupt + isochronous
+				return time.Duration(epDesc.BInterval) * time.Millisecond
+			}
 		}
 	}
 	return 0
