@@ -46,7 +46,6 @@ var defaultDescriptor = usb.Descriptor{
 					hid.Collection{Kind: hid.CollectionApplication, Items: []hid.Item{
 
 						hid.ReportID{ID: ReportIDInput},
-						hid.UsagePage{Page: hid.UsagePageGenericDesktop},
 						hid.Usage{Usage: hid.UsageX},
 						hid.Usage{Usage: hid.UsageY},
 						hid.Usage{Usage: hid.UsageZ},
@@ -195,7 +194,7 @@ var defaultDescriptor = usb.Descriptor{
 
 						hid.ReportID{ID: 0x88},
 						hid.Usage{Usage: 0x28},
-						hid.ReportCount{Count: 63},
+						hid.ReportCount{Count: 34},
 						hid.Feature{Flags: hid.MainData | hid.MainVar | hid.MainAbs},
 
 						hid.ReportID{ID: 0x89},
@@ -223,11 +222,6 @@ var defaultDescriptor = usb.Descriptor{
 						hid.ReportCount{Count: 12},
 						hid.Feature{Flags: hid.MainData | hid.MainVar | hid.MainAbs},
 
-						hid.ReportID{ID: 0x94},
-						hid.Usage{Usage: 0x34},
-						hid.ReportCount{Count: 63},
-						hid.Feature{Flags: hid.MainData | hid.MainVar | hid.MainAbs},
-
 						hid.ReportID{ID: featureIDSubcommand},
 						hid.Usage{Usage: 0x40},
 						hid.ReportCount{Count: 6},
@@ -251,6 +245,16 @@ var defaultDescriptor = usb.Descriptor{
 						hid.ReportID{ID: featureIDTelemetry},
 						hid.Usage{Usage: 0x44},
 						hid.ReportCount{Count: 13},
+						hid.Feature{Flags: hid.MainData | hid.MainVar | hid.MainAbs},
+
+						hid.ReportID{ID: 0xA5},
+						hid.Usage{Usage: 0x45},
+						hid.ReportCount{Count: 21},
+						hid.Feature{Flags: hid.MainData | hid.MainVar | hid.MainAbs},
+
+						hid.ReportID{ID: 0xA6},
+						hid.Usage{Usage: 0x46},
+						hid.ReportCount{Count: 21},
 						hid.Feature{Flags: hid.MainData | hid.MainVar | hid.MainAbs},
 
 						hid.ReportID{ID: 0xF0},
@@ -318,6 +322,16 @@ var defaultDescriptor = usb.Descriptor{
 						hid.ReportCount{Count: 63},
 						hid.Feature{Flags: hid.MainData | hid.MainVar | hid.MainAbs},
 
+						hid.ReportID{ID: 0xB1},
+						hid.Usage{Usage: 0x55},
+						hid.ReportCount{Count: 2},
+						hid.Feature{Flags: hid.MainData | hid.MainVar | hid.MainAbs},
+
+						hid.ReportID{ID: 0xB2},
+						hid.Usage{Usage: 0x56},
+						hid.ReportCount{Count: 2},
+						hid.Feature{Flags: hid.MainData | hid.MainVar | hid.MainAbs},
+
 						hid.ReportID{ID: 0xE0},
 						hid.Usage{Usage: 0x57},
 						hid.ReportCount{Count: 2},
@@ -332,21 +346,6 @@ var defaultDescriptor = usb.Descriptor{
 						hid.Usage{Usage: 0x55},
 						hid.ReportCount{Count: 63},
 						hid.Feature{Flags: hid.MainData | hid.MainVar | hid.MainAbs},
-
-						hid.ReportID{ID: 0xB5},
-						hid.Usage{Usage: 0x56},
-						hid.ReportCount{Count: 63},
-						hid.Feature{Flags: hid.MainData | hid.MainVar | hid.MainAbs},
-
-						hid.ReportID{ID: 0xD0},
-						hid.Usage{Usage: 0x58},
-						hid.ReportCount{Count: 63},
-						hid.Feature{Flags: hid.MainData | hid.MainVar | hid.MainAbs},
-
-						hid.ReportID{ID: 0xD4},
-						hid.Usage{Usage: 0x59},
-						hid.ReportCount{Count: 63},
-						hid.Feature{Flags: hid.MainData | hid.MainVar | hid.MainAbs},
 					}},
 				}},
 			},
@@ -355,13 +354,13 @@ var defaultDescriptor = usb.Descriptor{
 					BEndpointAddress: EndpointIn,
 					BMAttributes:     0x03,
 					WMaxPacketSize:   64,
-					BInterval:        4,
+					BInterval:        5,
 				},
 				{
 					BEndpointAddress: EndpointOut,
 					BMAttributes:     0x03,
 					WMaxPacketSize:   64,
-					BInterval:        4,
+					BInterval:        5,
 				},
 			},
 		},
