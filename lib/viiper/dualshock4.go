@@ -72,12 +72,18 @@ typedef void (*DS4OutputCallback)(DS4DeviceHandle handle,uint8_t updateFlags, ui
 
 typedef void (*DS4AudioCallback)(DS4DeviceHandle handle, const uint8_t* pcm, size_t length);
 
+typedef void (*DS4SpeakerResetCallback)(DS4DeviceHandle handle);
+
 static void viiper_call_ds4_output(DS4OutputCallback fn, DS4DeviceHandle handle,uint8_t updateFlags, uint8_t rumbleSmall, uint8_t rumbleLarge, uint8_t ledRed, uint8_t ledGreen, uint8_t ledBlue, uint8_t flashOn, uint8_t flashOff) {
 	fn(handle, updateFlags, rumbleSmall, rumbleLarge, ledRed, ledGreen, ledBlue, flashOn, flashOff);
 }
 
 static void viiper_call_ds4_audio(DS4AudioCallback fn, DS4DeviceHandle handle, const uint8_t* pcm, size_t length) {
 	fn(handle, pcm, length);
+}
+
+static void viiper_call_ds4_speaker_reset(DS4SpeakerResetCallback fn, DS4DeviceHandle handle) {
+	fn(handle);
 }
 
 */
@@ -345,7 +351,62 @@ func RemoveDS4Device(handle C.DS4DeviceHandle) bool {
 		return h == deviceHandle(handle)
 	})
 	clearDS4AudioSub(deviceHandle(handle))
+	clearDS4ResetSub(deviceHandle(handle))
 	dh.Delete()
 
+	return true
+}
+
+// ds4ResetUnsubs tracks lib speaker-reset subscriptions per device handle.
+var (
+	ds4ResetUnsubs   = map[deviceHandle]func(){}
+	ds4ResetUnsubsMu sync.Mutex
+)
+
+func clearDS4ResetSub(h deviceHandle) {
+	ds4ResetUnsubsMu.Lock()
+	defer ds4ResetUnsubsMu.Unlock()
+	if unsub, ok := ds4ResetUnsubs[h]; ok {
+		unsub()
+		delete(ds4ResetUnsubs, h)
+	}
+}
+
+func trackDS4ResetSub(h deviceHandle, unsub func()) {
+	ds4ResetUnsubsMu.Lock()
+	defer ds4ResetUnsubsMu.Unlock()
+	ds4ResetUnsubs[h] = unsub
+}
+
+// SetDS4SpeakerResetCallback sets a callback invoked once per speaker
+// streaming generation change (host opened, closed, or re-alternated an
+// audio interface). Flush previous-generation PCM on fire. Pass NULL to
+// clear.
+//
+//export SetDS4SpeakerResetCallback
+func SetDS4SpeakerResetCallback(handle C.DS4DeviceHandle, cb C.DS4SpeakerResetCallback) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	ds4device, ok := dhw.device.(*dualshock4.DualShock4)
+	if !ok {
+		return false
+	}
+	clearDS4ResetSub(deviceHandle(handle))
+	if cb == nil {
+		return true
+	}
+	ch, unsub := ds4device.SubscribeSpeaker()
+	trackDS4ResetSub(deviceHandle(handle), unsub)
+	go func() {
+		for ev := range ch {
+			if !ev.Reset {
+				continue
+			}
+			C.viiper_call_ds4_speaker_reset(cb, handle)
+		}
+	}()
 	return true
 }

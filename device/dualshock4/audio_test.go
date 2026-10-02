@@ -203,6 +203,59 @@ func TestSpeakerUnsubscribeStops(t *testing.T) {
 	assert.False(t, ok)
 }
 
+func TestResetBarrierOnAltChange(t *testing.T) {
+	d, err := New(nil)
+	require.NoError(t, err)
+
+	ch, unsub := d.SubscribeSpeaker()
+	defer unsub()
+
+	// No barrier at init.
+	select {
+	case <-ch:
+		t.Fatal("barrier at init")
+	default:
+	}
+
+	// Speaker alt 0 -> 1 fires exactly one barrier.
+	_, handled := d.HandleControl(0x01, 0x0B, 1, 1, 0, nil)
+	require.True(t, handled)
+	select {
+	case ev := <-ch:
+		assert.True(t, ev.Reset)
+	default:
+		t.Fatal("no barrier on speaker alt change")
+	}
+
+	// Same value: no barrier.
+	_, handled = d.HandleControl(0x01, 0x0B, 1, 1, 0, nil)
+	require.True(t, handled)
+	select {
+	case <-ch:
+		t.Fatal("barrier without change")
+	default:
+	}
+
+	// Mic alt 0 -> 1 fires as well.
+	_, handled = d.HandleControl(0x01, 0x0B, 1, 2, 0, nil)
+	require.True(t, handled)
+	select {
+	case ev := <-ch:
+		assert.True(t, ev.Reset)
+	default:
+		t.Fatal("no barrier on mic alt change")
+	}
+
+	// Non-audio interface: no barrier.
+	_, handled = d.HandleControl(0x01, 0x0B, 1, 3, 0, nil)
+	require.True(t, handled)
+	select {
+	case <-ch:
+		t.Fatal("barrier on HID alt change")
+	default:
+	}
+}
+
 // Pipe-level: TCP audio ingest serves framed speaker PCM from EP1 OUT.
 func TestAudioStream_ServesFrames(t *testing.T) {
 	d, err := New(nil)

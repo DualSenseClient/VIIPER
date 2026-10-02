@@ -391,10 +391,17 @@ const uacSpkVolumeDefault uint16 = 0xFF00
 var micSilence = make([]byte, 32)
 
 func (d *DualShock4) setAltSetting(iface, alt uint8) {
+	changed := false
 	d.mtx.Lock()
-	defer d.mtx.Unlock()
 	if int(iface) < len(d.alts) {
+		changed = d.alts[iface] != alt
 		d.alts[iface] = alt
+	}
+	d.mtx.Unlock()
+	// Streaming generation change on either audio interface: subscribers
+	// flush previous-generation PCM.
+	if changed && (iface == 1 || iface == 2) {
+		d.fireSpeakerEvent(SpeakerEvent{Reset: true})
 	}
 }
 
