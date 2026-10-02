@@ -166,9 +166,12 @@ speaker-reset barrier (stream generation change) with no payload.
 
 The mic (`IF2`) streams 2ch S16LE @48kHz, exactly 192 bytes (48 frames)
 per transfer. `SetDualSenseMicrophonePCM` queues one feeder frame;
-anything else is rejected. The queue holds 32 frames drop-oldest;
-underruns serve silence. Over TCP, open `bus/{busId}/{deviceid}/audio/mic`
-and write raw 192B frames.
+anything else is rejected. Frames arriving while the host has not opened
+the mic interface are dropped (as on DS5Dongle); closing or reopening the
+interface flushes the queue, so a reopen never replays stale PCM. The
+queue holds 32 frames drop-oldest; underruns serve silence. Over TCP,
+open `bus/{busId}/{deviceid}/audio/mic` and write raw 192B frames
+(frames while closed are dropped, the stream stays open).
 
 ## Speaker reset
 

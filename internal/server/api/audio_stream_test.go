@@ -161,6 +161,10 @@ func TestMicStream_IngestToEndpoint(t *testing.T) {
 	dev, err := dualsense.New(nil)
 	require.NoError(t, err)
 
+	// The queue gates on the mic interface: host opens capture first.
+	_, handled := dev.HandleControl(0x01, 0x0B, 1, 2, 0, nil)
+	require.True(t, handled)
+
 	server, client := net.Pipe()
 	done := make(chan error, 1)
 	go func() {

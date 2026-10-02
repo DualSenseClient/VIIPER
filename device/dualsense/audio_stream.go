@@ -79,8 +79,9 @@ func HapticsStreamHandler(dev *DualSense, logger *slog.Logger) func(conn net.Con
 }
 
 // MicStreamHandler ingests fixed 192B feeder mic frames (2ch S16LE @48kHz)
-// for EP2 IN. Short reads end the stream; malformed sizes are rejected by
-// the queue and counted as errors.
+// for EP2 IN. Short reads end the stream. Frames arriving while the host
+// has not opened the mic interface are dropped (DS5Dongle mic_add_queue
+// gates the same way) and the stream stays open.
 func MicStreamHandler(dev *DualSense, logger *slog.Logger) func(conn net.Conn) error {
 	return func(conn net.Conn) error {
 		logger.Debug("dualsense mic stream begin")
@@ -90,9 +91,7 @@ func MicStreamHandler(dev *DualSense, logger *slog.Logger) func(conn net.Conn) e
 			if _, err := io.ReadFull(conn, frame[:]); err != nil {
 				return err
 			}
-			if !dev.QueueMicrophonePCM(frame[:]) {
-				return fmt.Errorf("mic queue rejected frame")
-			}
+			dev.QueueMicrophonePCM(frame[:])
 		}
 	}
 }

@@ -67,14 +67,20 @@ const micFrameSize = 192
 const micQueueDepth = 32
 
 // QueueMicrophonePCM enqueues one feeder mic frame for EP2 IN. Only exact
-// 192B frames are accepted; a full queue drops oldest first.
+// 192B frames are accepted, and only while the host has opened the mic
+// interface (IF2 alt != 0); frames arriving while closed are dropped,
+// mirroring DS5Dongle mic_add_queue gating on mic_active. A full queue
+// drops oldest first.
 func (d *DualSense) QueueMicrophonePCM(frame []byte) bool {
 	if len(frame) != micFrameSize {
 		return false
 	}
-	cp := append([]byte(nil), frame...)
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
+	if d.alts[2] == 0 {
+		return false
+	}
+	cp := append([]byte(nil), frame...)
 	d.micQueue = append(d.micQueue, cp)
 	for len(d.micQueue) > micQueueDepth {
 		d.micQueue = d.micQueue[1:]
@@ -635,6 +641,14 @@ func (d *DualSense) setAltSetting(iface, alt uint8) {
 	if int(iface) < len(d.alts) {
 		changed = d.alts[iface] != alt
 		d.alts[iface] = alt
+		if changed && iface == 2 {
+			// Mic generation change: drop queued feeder frames so a
+			// reopen never replays stale PCM. DS5Dongle gates ingest
+			// while closed but leaves queued Opus in place (up to
+			// ~80ms stale on reopen); the virtual device flushes
+			// instead.
+			d.micQueue = nil
+		}
 	}
 	d.mtx.Unlock()
 	// Streaming generation change on either audio interface: subscribers

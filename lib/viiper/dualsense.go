@@ -591,7 +591,9 @@ func SetDualSenseMetaState(handle C.DSDeviceHandle, meta *C.DSMetaState) bool {
 
 // SetDualSenseMicrophonePCM queues one feeder mic frame (exactly 192B:
 // 48 frames of 2ch S16LE @48kHz) for EP2 IN. Returns false for any other
-// length. Full queues drop oldest first; underruns serve silence.
+// length, or while the host has not opened the mic interface (frames
+// arriving while closed are dropped, as on DS5Dongle). Full queues drop
+// oldest first; underruns serve silence.
 //
 //export SetDualSenseMicrophonePCM
 func SetDualSenseMicrophonePCM(handle C.DSDeviceHandle, data *C.uint8_t, length C.size_t) bool {
