@@ -86,23 +86,42 @@ func new(o *device.CreateOptions, edge bool) (*DualSense, error) {
 		metaState.ShellColor = newMeta.ShellColor
 	}
 
-	d := &DualSense{
-		descriptor: defaultDescriptor,
-		metaState:  metaState,
-	}
-	d.descriptor.Device.IDProduct = DefaultPIDDS
+	devDesc := baseDeviceDescriptor()
+	devDesc.IDProduct = DefaultPIDDS
+	product := "DualSense Wireless Controller"
+	ifaces := []usb.InterfaceConfig{dsInterface}
 	if edge {
-		d.descriptor.Device.IDProduct = DefaultPIDDSEdge
-		d.descriptor.Strings[2] = "DualSense Edge Wireless Controller"
+		devDesc.IDProduct = DefaultPIDDSEdge
+		product = "DualSense Edge Wireless Controller"
+		ifaces = []usb.InterfaceConfig{dseInterface}
 	}
 
 	if o != nil {
 		if o.IDVendor != nil {
-			d.descriptor.Device.IDVendor = *o.IDVendor
+			devDesc.IDVendor = *o.IDVendor
 		}
 		if o.IDProduct != nil {
-			d.descriptor.Device.IDProduct = *o.IDProduct
+			devDesc.IDProduct = *o.IDProduct
 		}
+	}
+
+	// Strings are per-device: the map must be cloned so one device never
+	// mutates the shared template, and index 3 carries this unit's serial.
+	strings := map[uint8]string{
+		0: "\u0409", // LangID: en-US (0x0409)
+		1: "Sony Interactive Entertainment",
+		2: product,
+		3: metaState.SerialNumber,
+	}
+
+	d := &DualSense{
+		descriptor: usb.Descriptor{
+			Device:        devDesc,
+			Configuration: baseConfiguration(),
+			Interfaces:    ifaces,
+			Strings:       strings,
+		},
+		metaState: metaState,
 	}
 
 	slog.Info("DualSense device instantiated",
