@@ -131,8 +131,10 @@ Two paths:
 - **Host feedback** — output callbacks for rumble, LEDs (DualSense full output
   state incl. trigger effects and player LEDs;
   DualShock 4 `updateFlags` + flash), Xbox rumble, keyboard LEDs, Switch 2 HD
-  rumble/LEDs. DualSense speaker PCM is absorbed and the mic returns silence;
-  feeder PCM hooks are a follow-up.
+  rumble/LEDs. DualSense audio is feeder-driven: speaker PCM and the rear
+  voice-coil haptics pair are delivered to callbacks (with a per-generation
+  speaker-reset barrier), and `SetDualSenseMicrophonePCM` queues 192B mic
+  frames (silence on underrun).
 
 All functions return `bool` and are callable from any language with C FFI support. VIIPER takes care of all USBIP
 protocol details, so you can focus on implementing the device logic only. On `localhost`, libVIIPER also automatically

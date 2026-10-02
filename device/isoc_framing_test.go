@@ -94,13 +94,38 @@ func TestIsocFramingKeepsStreamInSync(t *testing.T) {
 	assert.Equal(t, uint32(0), micDescs[0].Status)
 	assert.Equal(t, uint32(192), micDescs[0].ActualLength)
 
-	// A multi-packet URB echoes one descriptor per packet; without frame
-	// pacing only the first packet carries device data here.
+	// Pipelined back-to-back mic IN URBs: the server must hold each reply for
+	// one USB frame per packet so the host cannot fast-forward the stream. Ten
+	// 1-packet URBs occupy ten frames (~10ms); a wall-clock budget of a few
+	// hundred microseconds for the same batch means the frame clock is not
+	// being honoured (which is exactly what makes games and video players run
+	// at high speed when the virtual device is the default audio output).
+	const urbs = 10
+	burstStart := time.Now()
+	var total uint32
+	for i := 0; i < urbs; i++ {
+		data, descs, err := usbipClient.SubmitIso(imp.Conn, usbip.DirIn, 2, nil, []uint32{192})
+		require.NoError(t, err)
+		require.Len(t, descs, 1)
+		assert.Equal(t, uint32(0), descs[0].Status)
+		total += uint32(len(data))
+	}
+	burst := time.Since(burstStart)
+	assert.Equal(t, uint32(urbs*192), total, "every pipelined URB must be served")
+	assert.GreaterOrEqual(t, burst, 9*time.Millisecond,
+		"%d one-packet URBs must occupy ~%d USB frames (took %v)", urbs, urbs, burst)
+	assert.Less(t, burst, 5*time.Second, "frame pacing must not wedge the stream")
+
+	// A multi-packet URB covers several USB frames, and each packet is its own
+	// service opportunity: every packet must carry a real mic frame (192B),
+	// not one frame followed by empty packets.
 	micMulti, multiDescs, err := usbipClient.SubmitIso(imp.Conn, usbip.DirIn, 2, nil, []uint32{192, 192, 192, 192})
 	require.NoError(t, err)
 	require.Len(t, multiDescs, 4)
-	require.Len(t, micMulti, 192)
-	assert.Equal(t, uint32(192), multiDescs[0].ActualLength)
+	require.Len(t, micMulti, 4*192)
+	for i, d := range multiDescs {
+		assert.Equal(t, uint32(192), d.ActualLength, "packet %d must carry a full frame", i)
+	}
 
 	// Plain control + interrupt traffic on the same stream proves framing held.
 	require.NoError(t, usbipClient.Submit(imp.Conn, usbip.DirIn, 0, nil, &setup))

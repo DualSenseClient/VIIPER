@@ -5,11 +5,11 @@ including sticks, triggers, buttons, touchpad, motion, lightbar, rumble,
 player LEDs, and the UAC1 speaker/microphone audio interfaces
 (IF0 control, IF1 4ch/48kHz OUT, IF2 2ch/48kHz IN, IF3 HID).
 
-This branch has no audio-only, gamepad-only, speaker/haptics PCM, or
-microphone variants: only `CreateDualSenseDevice` and
-`CreateDualSenseEdgeDevice` exist. Meta is create-time only.
-Speaker PCM is absorbed and the mic returns silence; feeder PCM hooks
-are a follow-up.
+This branch has no audio-only or gamepad-only variants: only
+`CreateDualSenseDevice` and `CreateDualSenseEdgeDevice` exist.
+Audio is feeder-driven: speaker PCM and the rear voice-coil haptics pair
+are delivered to callbacks, and `SetDualSenseMicrophonePCM` queues feeder
+mic frames (silence on underrun). See the sections below.
 
 All functions are part of the [libVIIPER C API](../libviiper/overview.md).
 
@@ -140,6 +140,15 @@ typedef void (*DSOutputCallback)(DSDeviceHandle handle, const DSOutputState* out
 ```
 
 Pass `NULL` to `SetDualSenseOutputCallback` to clear a previously registered callback.
+
+## Isochronous timing
+
+The isochronous audio endpoints are paced to the USB frame clock: one packet
+per 1ms frame. This is required for correct playback — without it the host
+audio engine consumes the stream as fast as it can submit URBs and anything
+slaved to the audio clock (games, video players) runs at high speed. URBs may
+be pipelined; each reply is held until its frames have elapsed, and a
+multi-packet URB carries one real frame per packet.
 
 ## Speaker audio
 

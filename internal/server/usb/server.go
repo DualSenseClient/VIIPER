@@ -660,6 +660,9 @@ func (s *Server) handleUrbStream(conn net.Conn, dev usb.Device) error {
 	var respMu sync.Mutex
 	lastInResp := map[uint32][]byte{}
 
+	// One frame clock per isochronous endpoint, shared by concurrent URBs.
+	var isocPacers sync.Map // uint32 (ep) -> *isocPacer
+
 	var outPayloadScratch []byte
 
 	for {
@@ -774,47 +777,73 @@ func (s *Server) handleUrbStream(conn net.Conn, dev usb.Device) error {
 			}
 		}
 
+		isoc := isIsochronousEndpoint(dev.GetDescriptor(), ep, dir)
+
 		if dir == usbip.DirIn && ep != 0 {
 			urbCtx, urbCancel := context.WithCancel(ctx)
 			pendingMu.Lock()
 			pending[seq] = urbCancel
 			pendingMu.Unlock()
 			interval := endpointInterval(dev.GetDescriptor(), ep)
+			var pacer *isocPacer
+			if isoc && nPkts > 0 {
+				p, _ := isocPacers.LoadOrStore(ep, &isocPacer{})
+				pacer = p.(*isocPacer)
+			}
 
 			go func(seq, ep, dir uint32, nPkts uint32, isoReq []byte) {
 				defer urbCancel()
 				var respData []byte
-				for {
-					attemptCtx, attemptCancel := urbCtx, context.CancelFunc(func() {})
-					if interval > 0 {
-						attemptCtx, attemptCancel = context.WithTimeout(urbCtx, interval)
+				if pacer != nil {
+					// Isochronous IN: one packet per USB frame. Each packet is a
+					// separate service opportunity, so the device is asked once
+					// per frame and the reply is held until that frame elapses.
+					// This keeps the host consuming the stream at its real rate
+					// and lets a multi-packet URB carry a real frame per packet
+					// instead of one frame followed by silence.
+					for i := uint32(0); i < nPkts; i++ {
+						if !pacer.wait(urbCtx, 1) {
+							return
+						}
+						part := s.processSubmit(urbCtx, dev, ep, dir, nil, nil)
+						if urbCtx.Err() != nil {
+							return
+						}
+						respData = append(respData, part...)
 					}
-					respData = s.processSubmit(attemptCtx, dev, ep, dir, nil, nil)
-					expired := respData == nil && errors.Is(attemptCtx.Err(), context.DeadlineExceeded)
-					attemptCancel()
+				} else {
+					for {
+						attemptCtx, attemptCancel := urbCtx, context.CancelFunc(func() {})
+						if interval > 0 {
+							attemptCtx, attemptCancel = context.WithTimeout(urbCtx, interval)
+						}
+						respData = s.processSubmit(attemptCtx, dev, ep, dir, nil, nil)
+						expired := respData == nil && errors.Is(attemptCtx.Err(), context.DeadlineExceeded)
+						attemptCancel()
 
-					if urbCtx.Err() != nil {
-						return
-					}
-					if respData != nil {
-						respMu.Lock()
-						lastInResp[ep] = append([]byte(nil), respData...)
-						respMu.Unlock()
-						break
-					}
-					if expired {
-						respMu.Lock()
-						cached, ok := lastInResp[ep]
-						respMu.Unlock()
-						if ok {
-							respData = cached
+						if urbCtx.Err() != nil {
+							return
+						}
+						if respData != nil {
+							respMu.Lock()
+							lastInResp[ep] = append([]byte(nil), respData...)
+							respMu.Unlock()
 							break
 						}
-						continue
+						if expired {
+							respMu.Lock()
+							cached, ok := lastInResp[ep]
+							respMu.Unlock()
+							if ok {
+								respData = cached
+								break
+							}
+							continue
+						}
+						// Device answered "no data" without blocking.
+						<-urbCtx.Done()
+						return
 					}
-					// Device answered "no data" without blocking.
-					<-urbCtx.Done()
-					return
 				}
 
 				pendingMu.Lock()
@@ -832,7 +861,44 @@ func (s *Server) handleUrbStream(conn net.Conn, dev usb.Device) error {
 			continue
 		}
 
-		// EP0 and OUT transfers never block and are handled in order.
+		// Isochronous OUT is paced to the USB frame clock like isochronous IN:
+		// the host must not be able to flush a whole audio buffer at CPU speed.
+		// The completion is deferred so the read loop keeps accepting
+		// pipelined URBs; the device sees each payload when its frame arrives.
+		if isoc && dir == usbip.DirOut && ep != 0 && nPkts > 0 {
+			p, _ := isocPacers.LoadOrStore(ep, &isocPacer{})
+			pacer := p.(*isocPacer)
+			// The payload aliases the reusable read scratch buffer, so the
+			// deferred completion needs its own copy.
+			payloadCopy := append([]byte(nil), outPayload...)
+			urbCtx, urbCancel := context.WithCancel(ctx)
+			pendingMu.Lock()
+			pending[seq] = urbCancel
+			pendingMu.Unlock()
+			go func(seq uint32, outPayload []byte, nPkts uint32, isoReq []byte) {
+				defer urbCancel()
+				if !pacer.wait(urbCtx, nPkts) {
+					return
+				}
+				if urbCtx.Err() != nil {
+					return
+				}
+				_ = s.processSubmit(urbCtx, dev, ep, dir, nil, outPayload)
+				pendingMu.Lock()
+				delete(pending, seq)
+				pendingMu.Unlock()
+				if err := writeRet(seq, uint32(len(outPayload)), nil, true, nPkts, isoReq, uint32(len(outPayload))); err != nil {
+					if isClientDisconnect(err) {
+						s.logger.Debug("URB completion after disconnect", "seq", seq, "error", err)
+					} else {
+						s.logger.Error("write async RET_SUBMIT", "seq", seq, "error", err)
+					}
+				}
+			}(seq, payloadCopy, nPkts, isoReq)
+			continue
+		}
+
+		// EP0 and non-isochronous OUT transfers never block and are handled in order.
 		respData := s.processSubmit(ctx, dev, ep, dir, setup, outPayload)
 		actualLen := uint32(len(respData))
 		isoActual := uint32(len(respData))
@@ -905,6 +971,57 @@ func endpointInterval(desc *usb.Descriptor, ep uint32) time.Duration {
 		}
 	}
 	return 0
+}
+
+// usbFrameInterval is one full-speed USB frame: the isochronous service
+// interval. A device with BInterval 1 is polled once per frame, so a URB
+// carrying N packets occupies N frames.
+const usbFrameInterval = time.Millisecond
+
+// isocPacer models the USB frame clock for isochronous transfers. Without it
+// URBs complete in microseconds: the host (usbaudio.sys) then consumes
+// audio as fast as it can submit, advancing its stream position at CPU speed.
+// Anything slaved to the audio clock — video players, games — runs fast.
+// One packet of a URB belongs to one USB frame; the reply may only be sent
+// after that frame has elapsed. URBs are tracked independently, so the host
+// can pipeline several while each is still held for its own frames.
+type isocPacer struct {
+	mu   sync.Mutex
+	last time.Time
+}
+
+// wait blocks until nPackets USB frames have elapsed since the previous
+// reservation, or until ctx is cancelled. Returns false when cancelled.
+func (p *isocPacer) wait(ctx context.Context, nPackets uint32) bool {
+	if nPackets == 0 {
+		return true
+	}
+	d := time.Duration(nPackets) * usbFrameInterval
+	p.mu.Lock()
+	now := time.Now()
+	start := p.last
+	if start.IsZero() || now.Sub(start) >= d {
+		// Idle (or backlogged by more than this URB's own duration): this
+		// URB is due immediately and anchors the next frame slot.
+		start = now
+	} else {
+		start = p.last
+	}
+	p.last = start.Add(d)
+	p.mu.Unlock()
+
+	wait := time.Until(start.Add(d))
+	if wait <= 0 {
+		return true
+	}
+	t := time.NewTimer(wait)
+	defer t.Stop()
+	select {
+	case <-t.C:
+		return true
+	case <-ctx.Done():
+		return false
+	}
 }
 
 // isClientDisconnect tests whether an error represents a normal client
