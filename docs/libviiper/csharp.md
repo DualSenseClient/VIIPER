@@ -613,8 +613,10 @@ static class LibVIIPER
 
 Only `Device` and `EdgeDevice` variants exist in this branch
 (no audio-only / gamepad-only / by-type / raw-input / meta-setter /
-output-state / realtime-haptics / atomic-audio / speaker-reset /
-audio-out / microphone APIs).
+realtime-haptics / atomic-audio / speaker-reset /
+audio-out / microphone PCM-feeder APIs).
+Output arrives as the full `DSOutputState` struct; speaker PCM is absorbed
+and the mic returns silence until feeder PCM hooks land.
 
 ```csharp
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
