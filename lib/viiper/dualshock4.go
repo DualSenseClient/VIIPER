@@ -33,6 +33,9 @@ typedef uintptr_t DS4DeviceHandle;
 #define DS4_DPAD_UP_LEFT   0x07u
 #define DS4_DPAD_NEUTRAL   0x08u
 
+// Exact size of a USB input report 0x01 (report ID + 63B payload).
+#define DS4_RAW_REPORT_SIZE 64
+
 #define DS4_OUTPUT_UPDATE_RUMBLE 0x01u
 #define DS4_OUTPUT_UPDATE_LED    0x02u
 #define DS4_OUTPUT_UPDATE_FLASH    0x04u
@@ -379,6 +382,47 @@ func SetDS4MicrophonePCM(handle C.DS4DeviceHandle, data *C.uint8_t, length C.siz
 	}
 	frame := C.GoBytes(unsafe.Pointer(data), C.int(length))
 	return ds4device.QueueMicrophonePCM(frame)
+}
+
+// SetDS4RawInputReport pipes one exact 64B USB input report 0x01
+// (real controller bytes). While set, interrupt IN and GET_REPORT serve it
+// verbatim; ClearDS4RawInputReport restores synthetic reports.
+// Returns false for any other length or wrong report ID.
+//
+//export SetDS4RawInputReport
+func SetDS4RawInputReport(handle C.DS4DeviceHandle, data *C.uint8_t, length C.size_t) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	ds4device, ok := dhw.device.(*dualshock4.DualShock4)
+	if !ok {
+		return false
+	}
+	if data == nil || length != C.DS4_RAW_REPORT_SIZE {
+		return false
+	}
+	raw := C.GoBytes(unsafe.Pointer(data), C.int(length))
+	return ds4device.SetRawInputReport(raw)
+}
+
+// ClearDS4RawInputReport drops the raw passthrough and restores
+// synthetic input reports.
+//
+//export ClearDS4RawInputReport
+func ClearDS4RawInputReport(handle C.DS4DeviceHandle) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	ds4device, ok := dhw.device.(*dualshock4.DualShock4)
+	if !ok {
+		return false
+	}
+	ds4device.ClearRawInputReport()
+	return true
 }
 
 // SetDS4MetaState merge-updates identity/battery metadata at runtime.

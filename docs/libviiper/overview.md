@@ -110,6 +110,8 @@ Each device family has its own create/state/callback functions documented on its
 | `CreateDS4Device(serverHandle, &handle, busID, autoAttach, vid, pid, meta)` | Create a virtual DualShock 4 |
 | `SetDS4DeviceState(handle, state)` | Push an input state to the device |
 | `SetDS4OutputCallback(handle, cb)` | Register a callback for rumble and LED output (`updateFlags` + rumble + LED + flash) |
+| `SetDS4RawInputReport(handle, data, length)` | Pipe one exact `DS4_RAW_REPORT_SIZE` (64B) USB input report 0x01, served verbatim while set |
+| `ClearDS4RawInputReport(handle)` | Drop the raw passthrough, restore synthetic reports |
 | `RemoveDS4Device(handle)` | Remove the device |
 
 #### DualSense (and Edge)
@@ -124,8 +126,16 @@ Each device family has its own create/state/callback functions documented on its
 | `SetDualSenseSpeakerResetCallback(handle, cb)` | Register a callback fired once per streaming generation change (flush PCM) |
 | `SetDualSenseRealtimeHapticsCallback(handle, cb)` | Register a callback for the rear voice-coil pair (2ch S16LE @48kHz, low latency) |
 | `SetDualSenseMetaState(handle, meta)` | Merge-update identity/battery metadata at runtime |
+| `SetDualSenseRawInputReport(handle, data, length)` | Pipe one exact `DS_RAW_REPORT_SIZE` (64B) USB input report 0x01, served verbatim while set |
+| `ClearDualSenseRawInputReport(handle)` | Drop the raw passthrough, restore synthetic reports |
 | `SetDualSenseMicrophonePCM(handle, data, length)` | Queue one 192B mic frame (2ch S16LE @48kHz) |
 | `RemoveDualSenseDevice(handle)` | Remove the device |
+
+Raw input reports are optional: never calling
+`SetDualSenseRawInputReport` keeps the synthetic reports described in the
+[device docs](../devices/dualsense.md). While a raw report is set the
+synthetic sequence counter and sensor timestamp freeze, so clearing it
+resumes synthetic reporting from the current (stale) values.
 
 #### Switch 2 Pro
 

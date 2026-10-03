@@ -33,6 +33,9 @@ typedef uintptr_t DSDeviceHandle;
 #define DS_DPAD_LEFT   0x04u
 #define DS_DPAD_RIGHT  0x08u
 
+// Exact size of a USB input report 0x01 (report ID + 63B payload).
+#define DS_RAW_REPORT_SIZE 64
+
 #define DS_SHELL_COLOR_WHITE                    "00"
 #define DS_SHELL_COLOR_BLACK                    "01"
 #define DS_SHELL_COLOR_COSMIC_RED               "02"
@@ -611,6 +614,47 @@ func SetDualSenseMicrophonePCM(handle C.DSDeviceHandle, data *C.uint8_t, length 
 	}
 	frame := C.GoBytes(unsafe.Pointer(data), C.int(length))
 	return dsDevice.QueueMicrophonePCM(frame)
+}
+
+// SetDualSenseRawInputReport pipes one exact 64B USB input report 0x01
+// (real controller bytes). While set, interrupt IN and GET_REPORT serve it
+// verbatim; ClearDualSenseRawInputReport restores synthetic reports.
+// Returns false for any other length or wrong report ID.
+//
+//export SetDualSenseRawInputReport
+func SetDualSenseRawInputReport(handle C.DSDeviceHandle, data *C.uint8_t, length C.size_t) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	dsDevice, ok := dhw.device.(*dualsense.DualSense)
+	if !ok {
+		return false
+	}
+	if data == nil || length != C.DS_RAW_REPORT_SIZE {
+		return false
+	}
+	raw := C.GoBytes(unsafe.Pointer(data), C.int(length))
+	return dsDevice.SetRawInputReport(raw)
+}
+
+// ClearDualSenseRawInputReport drops the raw passthrough and restores
+// synthetic input reports.
+//
+//export ClearDualSenseRawInputReport
+func ClearDualSenseRawInputReport(handle C.DSDeviceHandle) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	dsDevice, ok := dhw.device.(*dualsense.DualSense)
+	if !ok {
+		return false
+	}
+	dsDevice.ClearRawInputReport()
+	return true
 }
 
 // RemoveDualSenseDevice removes the DualSense device associated with the given handle from the server.

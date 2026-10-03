@@ -637,6 +637,16 @@ static class LibVIIPER
     [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool SetDS4MetaState(nuint deviceHandle, ref DS4MetaState meta);
 
+    // Raw input passthrough: report[] must be exactly 64 bytes with
+    // report[0] == 0x01 (see DS4_RAW_REPORT_SIZE in the C header).
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool SetDS4RawInputReport(nuint deviceHandle, [In] byte[] report, nuint length);
+
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool ClearDS4RawInputReport(nuint deviceHandle);
+
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool RemoveDS4Device(nuint deviceHandle);
@@ -690,6 +700,16 @@ the audio-out callback and mic frames queue at 192B.
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool SetDualSenseMicrophonePCM(nuint deviceHandle, [In] byte[] data, nuint length);
+
+    // Raw input passthrough: report[] must be exactly 64 bytes with
+    // report[0] == 0x01 (see DS_RAW_REPORT_SIZE in the C header).
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool SetDualSenseRawInputReport(nuint deviceHandle, [In] byte[] report, nuint length);
+
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool ClearDualSenseRawInputReport(nuint deviceHandle);
 
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.I1)]
@@ -874,6 +894,25 @@ LibVIIPER.SetDualSenseRealtimeHapticsCallback(dsHandle, hapticsCb);
 var micFrame = new byte[192];
 // ... fill from capture ...
 LibVIIPER.SetDualSenseMicrophonePCM(dsHandle, micFrame, (nuint)micFrame.Length);
+```
+
+### Raw input passthrough
+
+Pipe real controller bytes instead of synthesizing. The device serves the
+report verbatim on interrupt IN and `GET_REPORT` until you clear it.
+
+```csharp
+// Exactly 64 bytes (DS_RAW_REPORT_SIZE), report[0] == 0x01. Call once per
+// real report; anything else returns false.
+var report = new byte[64];
+report[0] = 0x01;
+// ... copy a captured/piped USB input report into report ...
+if (!LibVIIPER.SetDualSenseRawInputReport(dsHandle, report, (nuint)report.Length))
+    return 1;
+
+// Back to synthetic reports (the report counter resumes from its
+// current, frozen value).
+LibVIIPER.ClearDualSenseRawInputReport(dsHandle);
 ```
 
 ## DualShock 4 output example
