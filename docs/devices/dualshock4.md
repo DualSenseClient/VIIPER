@@ -17,6 +17,8 @@ All functions are part of the [libVIIPER C API](../libviiper/overview.md).
 | --- | --- |
 | `CreateDS4Device(serverHandle, &handle, busID, autoAttach, vid, pid, meta)` | Create a virtual DualShock 4 |
 | `SetDS4DeviceState(handle, state)` | Push an input state to the device |
+| `SetDS4RawInputReport(handle, data, length)` | Pipe one exact 64B USB input report 0x01 (real bytes verbatim while set) |
+| `ClearDS4RawInputReport(handle)` | Drop the raw passthrough, restore synthetic reports |
 | `SetDS4OutputCallback(handle, cb)` | Register a callback for rumble, LED and flash output (`updateFlags` selects which fields changed) |
 | `SetDS4SpeakerCallback(handle, cb)` | Register a callback for speaker PCM (exact host bytes, 2ch S16LE @32kHz) |
 | `SetDS4SpeakerResetCallback(handle, cb)` | Register a callback fired once per streaming generation change (flush PCM) |
@@ -110,6 +112,24 @@ with gravity downwards (`AccelZ = -5023`, i.e. `round(-9.81 * 512)`).
 | `b[33:35]` | Fixed `0x01` | Synthesized (forwarded from the controller on hardware) |
 | `b[35:43]` | Feeder touch | Coords; contact counter increments while active, `0x80` on release (unverified — DS4Dongle forwards controller bytes and documents no counter semantics) |
 | rest | Zero | Reserved |
+
+## Raw input passthrough
+
+Feeders with a real controller pipe the exact 64B USB input report `0x01`
+(report ID + 63B payload, matching DS4Dongle's BT `0x11` payload copy in
+`main.cpp on_bt_data`): `SetDS4RawInputReport` serves it verbatim on
+interrupt IN and `GET_REPORT` (real counter, timestamp, touch, battery);
+`ClearDS4RawInputReport` restores the synthetic builder above. Never
+setting raw keeps today's behavior; invalid lengths or IDs are rejected.
+Over TCP, open `bus/{busId}/{deviceid}/raw` and write exact 64B frames
+(`OpenRawStream`/`WriteFrame`); closing the stream keeps the last raw
+(clear explicitly), and an invalid frame is skipped without ending the
+stream.
+
+While a raw report is set the synthetic builder stops running, so the core
+report counter and sensor timestamp freeze and states pushed via
+`SetDS4DeviceState` are buffered but not reported. Clearing raw resumes
+synthetic reporting from those frozen values.
 
 ## Meta state
 
