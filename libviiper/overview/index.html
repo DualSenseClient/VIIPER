@@ -1619,14 +1619,6 @@ Pass <code>NULL</code> to discard all log output.</p>
 <td>Register a callback for rumble and LED output (<code>updateFlags</code> + rumble + LED + flash)</td>
 </tr>
 <tr>
-<td><code>SetDS4RawInputReport(handle, data, length)</code></td>
-<td>Pipe one exact <code>DS4_RAW_REPORT_SIZE</code> (64B) USB input report 0x01, served verbatim while set</td>
-</tr>
-<tr>
-<td><code>ClearDS4RawInputReport(handle)</code></td>
-<td>Drop the raw passthrough, restore synthetic reports</td>
-</tr>
-<tr>
 <td><code>RemoveDS4Device(handle)</code></td>
 <td>Remove the device</td>
 </tr>
@@ -1655,35 +1647,7 @@ Pass <code>NULL</code> to discard all log output.</p>
 </tr>
 <tr>
 <td><code>SetDualSenseOutputCallback(handle, cb)</code></td>
-<td>Register a callback for the full output state (rumble, trigger effects, lightbar, player LEDs)</td>
-</tr>
-<tr>
-<td><code>SetDualSenseAudioOutCallback(handle, cb)</code></td>
-<td>Register a callback for speaker PCM (exact host bytes, 4ch S16LE @48kHz)</td>
-</tr>
-<tr>
-<td><code>SetDualSenseSpeakerResetCallback(handle, cb)</code></td>
-<td>Register a callback fired once per streaming generation change (flush PCM)</td>
-</tr>
-<tr>
-<td><code>SetDualSenseRealtimeHapticsCallback(handle, cb)</code></td>
-<td>Register a callback for the rear voice-coil pair (2ch S16LE @48kHz, low latency)</td>
-</tr>
-<tr>
-<td><code>SetDualSenseMetaState(handle, meta)</code></td>
-<td>Merge-update identity/battery metadata at runtime</td>
-</tr>
-<tr>
-<td><code>SetDualSenseRawInputReport(handle, data, length)</code></td>
-<td>Pipe one exact <code>DS_RAW_REPORT_SIZE</code> (64B) USB input report 0x01, served verbatim while set</td>
-</tr>
-<tr>
-<td><code>ClearDualSenseRawInputReport(handle)</code></td>
-<td>Drop the raw passthrough, restore synthetic reports</td>
-</tr>
-<tr>
-<td><code>SetDualSenseMicrophonePCM(handle, data, length)</code></td>
-<td>Queue one 192B mic frame (2ch S16LE @48kHz)</td>
+<td>Register a callback for rumble, lightbar and player LEDs</td>
 </tr>
 <tr>
 <td><code>RemoveDualSenseDevice(handle)</code></td>
@@ -1691,11 +1655,6 @@ Pass <code>NULL</code> to discard all log output.</p>
 </tr>
 </tbody>
 </table>
-<p>Raw input reports are optional: never calling
-<code>SetDualSenseRawInputReport</code> keeps the synthetic reports described in the
-<a href="../../devices/dualsense/">device docs</a>. While a raw report is set the
-synthetic sequence counter and sensor timestamp freeze, so clearing it
-resumes synthetic reporting from the current (stale) values.</p>
 <h4 id="switch-2-pro">Switch 2 Pro</h4>
 <table>
 <thead>

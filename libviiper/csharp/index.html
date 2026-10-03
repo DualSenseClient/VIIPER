@@ -992,45 +992,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="DualSense output example">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#speaker-pcm-capture" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Speaker PCM capture
-      </span>
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#microphone-feed" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Microphone feed
-      </span>
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#raw-input-passthrough" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Raw input passthrough
-      </span>
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -1041,23 +1002,6 @@
       </span>
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="DualShock 4 output example">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#dualshock-4-speaker-and-microphone" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        DualShock 4 speaker and microphone
-      </span>
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -1647,45 +1591,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="DualSense output example">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#speaker-pcm-capture" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Speaker PCM capture
-      </span>
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#microphone-feed" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Microphone feed
-      </span>
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#raw-input-passthrough" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Raw input passthrough
-      </span>
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -1696,23 +1601,6 @@
       </span>
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="DualShock 4 output example">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#dualshock-4-speaker-and-microphone" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        DualShock 4 speaker and microphone
-      </span>
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -2105,38 +1993,36 @@ Zeroed fields select defaults; a zeroed meta struct is equivalent to passing <co
 <a id="__codelineno-10-36" name="__codelineno-10-36" href="#__codelineno-10-36"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">byte</span><span class="w">   </span><span class="n">L2</span><span class="p">,</span><span class="w"> </span><span class="n">R2</span><span class="p">;</span>
 <a id="__codelineno-10-37" name="__codelineno-10-37" href="#__codelineno-10-37"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">ushort</span><span class="w"> </span><span class="n">Touch1X</span><span class="p">,</span><span class="w"> </span><span class="n">Touch1Y</span><span class="p">;</span>
 <a id="__codelineno-10-38" name="__codelineno-10-38" href="#__codelineno-10-38"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">byte</span><span class="w">   </span><span class="n">Touch1Active</span><span class="p">;</span>
-<a id="__codelineno-10-39" name="__codelineno-10-39" href="#__codelineno-10-39"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">byte</span><span class="w">   </span><span class="n">Touch1Tracking</span><span class="p">;</span><span class="w"> </span><span class="c1">// contact ID, verbatim to USB</span>
-<a id="__codelineno-10-40" name="__codelineno-10-40" href="#__codelineno-10-40"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">ushort</span><span class="w"> </span><span class="n">Touch2X</span><span class="p">,</span><span class="w"> </span><span class="n">Touch2Y</span><span class="p">;</span>
-<a id="__codelineno-10-41" name="__codelineno-10-41" href="#__codelineno-10-41"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">byte</span><span class="w">   </span><span class="n">Touch2Active</span><span class="p">;</span>
-<a id="__codelineno-10-42" name="__codelineno-10-42" href="#__codelineno-10-42"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">byte</span><span class="w">   </span><span class="n">Touch2Tracking</span><span class="p">;</span>
-<a id="__codelineno-10-43" name="__codelineno-10-43" href="#__codelineno-10-43"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">short</span><span class="w">  </span><span class="n">GyroX</span><span class="p">,</span><span class="w"> </span><span class="n">GyroY</span><span class="p">,</span><span class="w"> </span><span class="n">GyroZ</span><span class="p">;</span>
-<a id="__codelineno-10-44" name="__codelineno-10-44" href="#__codelineno-10-44"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">short</span><span class="w">  </span><span class="n">AccelX</span><span class="p">,</span><span class="w"> </span><span class="n">AccelY</span><span class="p">,</span><span class="w"> </span><span class="n">AccelZ</span><span class="p">;</span>
-<a id="__codelineno-10-45" name="__codelineno-10-45" href="#__codelineno-10-45"></a><span class="p">}</span>
-<a id="__codelineno-10-46" name="__codelineno-10-46" href="#__codelineno-10-46"></a>
-<a id="__codelineno-10-47" name="__codelineno-10-47" href="#__codelineno-10-47"></a><span class="na">[StructLayout(LayoutKind.Sequential)]</span>
-<a id="__codelineno-10-48" name="__codelineno-10-48" href="#__codelineno-10-48"></a><span class="k">struct</span><span class="w"> </span><span class="nc">NS2ProDeviceState</span>
-<a id="__codelineno-10-49" name="__codelineno-10-49" href="#__codelineno-10-49"></a><span class="p">{</span>
-<a id="__codelineno-10-50" name="__codelineno-10-50" href="#__codelineno-10-50"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">uint</span><span class="w">   </span><span class="n">Buttons</span><span class="p">;</span>
-<a id="__codelineno-10-51" name="__codelineno-10-51" href="#__codelineno-10-51"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">ushort</span><span class="w"> </span><span class="n">LX</span><span class="p">,</span><span class="w"> </span><span class="n">LY</span><span class="p">,</span><span class="w"> </span><span class="n">RX</span><span class="p">,</span><span class="w"> </span><span class="n">RY</span><span class="p">;</span>
-<a id="__codelineno-10-52" name="__codelineno-10-52" href="#__codelineno-10-52"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">short</span><span class="w">  </span><span class="n">AccelX</span><span class="p">,</span><span class="w"> </span><span class="n">AccelY</span><span class="p">,</span><span class="w"> </span><span class="n">AccelZ</span><span class="p">;</span>
-<a id="__codelineno-10-53" name="__codelineno-10-53" href="#__codelineno-10-53"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">short</span><span class="w">  </span><span class="n">GyroX</span><span class="p">,</span><span class="w"> </span><span class="n">GyroY</span><span class="p">,</span><span class="w"> </span><span class="n">GyroZ</span><span class="p">;</span>
-<a id="__codelineno-10-54" name="__codelineno-10-54" href="#__codelineno-10-54"></a><span class="p">}</span>
-<a id="__codelineno-10-55" name="__codelineno-10-55" href="#__codelineno-10-55"></a>
-<a id="__codelineno-10-56" name="__codelineno-10-56" href="#__codelineno-10-56"></a><span class="na">[StructLayout(LayoutKind.Sequential)]</span>
-<a id="__codelineno-10-57" name="__codelineno-10-57" href="#__codelineno-10-57"></a><span class="k">struct</span><span class="w"> </span><span class="nc">KeyboardDeviceState</span>
-<a id="__codelineno-10-58" name="__codelineno-10-58" href="#__codelineno-10-58"></a><span class="p">{</span>
-<a id="__codelineno-10-59" name="__codelineno-10-59" href="#__codelineno-10-59"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">byte</span><span class="w"> </span><span class="n">Modifiers</span><span class="p">;</span>
-<a id="__codelineno-10-60" name="__codelineno-10-60" href="#__codelineno-10-60"></a><span class="w">    </span><span class="na">[MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]</span>
-<a id="__codelineno-10-61" name="__codelineno-10-61" href="#__codelineno-10-61"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">byte</span><span class="p">[]</span><span class="w"> </span><span class="n">KeyBitmap</span><span class="p">;</span><span class="w"> </span><span class="c1">// 256-bit bitmap, one bit per HID key code</span>
-<a id="__codelineno-10-62" name="__codelineno-10-62" href="#__codelineno-10-62"></a><span class="p">}</span>
-<a id="__codelineno-10-63" name="__codelineno-10-63" href="#__codelineno-10-63"></a>
-<a id="__codelineno-10-64" name="__codelineno-10-64" href="#__codelineno-10-64"></a><span class="na">[StructLayout(LayoutKind.Sequential)]</span>
-<a id="__codelineno-10-65" name="__codelineno-10-65" href="#__codelineno-10-65"></a><span class="k">struct</span><span class="w"> </span><span class="nc">MouseDeviceState</span>
-<a id="__codelineno-10-66" name="__codelineno-10-66" href="#__codelineno-10-66"></a><span class="p">{</span>
-<a id="__codelineno-10-67" name="__codelineno-10-67" href="#__codelineno-10-67"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">byte</span><span class="w">  </span><span class="n">Buttons</span><span class="p">;</span>
-<a id="__codelineno-10-68" name="__codelineno-10-68" href="#__codelineno-10-68"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">DX</span><span class="p">,</span><span class="w"> </span><span class="n">DY</span><span class="p">;</span>
-<a id="__codelineno-10-69" name="__codelineno-10-69" href="#__codelineno-10-69"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">Wheel</span><span class="p">,</span><span class="w"> </span><span class="n">Pan</span><span class="p">;</span>
-<a id="__codelineno-10-70" name="__codelineno-10-70" href="#__codelineno-10-70"></a><span class="p">}</span>
+<a id="__codelineno-10-39" name="__codelineno-10-39" href="#__codelineno-10-39"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">ushort</span><span class="w"> </span><span class="n">Touch2X</span><span class="p">,</span><span class="w"> </span><span class="n">Touch2Y</span><span class="p">;</span>
+<a id="__codelineno-10-40" name="__codelineno-10-40" href="#__codelineno-10-40"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">byte</span><span class="w">   </span><span class="n">Touch2Active</span><span class="p">;</span>
+<a id="__codelineno-10-41" name="__codelineno-10-41" href="#__codelineno-10-41"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">short</span><span class="w">  </span><span class="n">GyroX</span><span class="p">,</span><span class="w"> </span><span class="n">GyroY</span><span class="p">,</span><span class="w"> </span><span class="n">GyroZ</span><span class="p">;</span>
+<a id="__codelineno-10-42" name="__codelineno-10-42" href="#__codelineno-10-42"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">short</span><span class="w">  </span><span class="n">AccelX</span><span class="p">,</span><span class="w"> </span><span class="n">AccelY</span><span class="p">,</span><span class="w"> </span><span class="n">AccelZ</span><span class="p">;</span>
+<a id="__codelineno-10-43" name="__codelineno-10-43" href="#__codelineno-10-43"></a><span class="p">}</span>
+<a id="__codelineno-10-44" name="__codelineno-10-44" href="#__codelineno-10-44"></a>
+<a id="__codelineno-10-45" name="__codelineno-10-45" href="#__codelineno-10-45"></a><span class="na">[StructLayout(LayoutKind.Sequential)]</span>
+<a id="__codelineno-10-46" name="__codelineno-10-46" href="#__codelineno-10-46"></a><span class="k">struct</span><span class="w"> </span><span class="nc">NS2ProDeviceState</span>
+<a id="__codelineno-10-47" name="__codelineno-10-47" href="#__codelineno-10-47"></a><span class="p">{</span>
+<a id="__codelineno-10-48" name="__codelineno-10-48" href="#__codelineno-10-48"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">uint</span><span class="w">   </span><span class="n">Buttons</span><span class="p">;</span>
+<a id="__codelineno-10-49" name="__codelineno-10-49" href="#__codelineno-10-49"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">ushort</span><span class="w"> </span><span class="n">LX</span><span class="p">,</span><span class="w"> </span><span class="n">LY</span><span class="p">,</span><span class="w"> </span><span class="n">RX</span><span class="p">,</span><span class="w"> </span><span class="n">RY</span><span class="p">;</span>
+<a id="__codelineno-10-50" name="__codelineno-10-50" href="#__codelineno-10-50"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">short</span><span class="w">  </span><span class="n">AccelX</span><span class="p">,</span><span class="w"> </span><span class="n">AccelY</span><span class="p">,</span><span class="w"> </span><span class="n">AccelZ</span><span class="p">;</span>
+<a id="__codelineno-10-51" name="__codelineno-10-51" href="#__codelineno-10-51"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">short</span><span class="w">  </span><span class="n">GyroX</span><span class="p">,</span><span class="w"> </span><span class="n">GyroY</span><span class="p">,</span><span class="w"> </span><span class="n">GyroZ</span><span class="p">;</span>
+<a id="__codelineno-10-52" name="__codelineno-10-52" href="#__codelineno-10-52"></a><span class="p">}</span>
+<a id="__codelineno-10-53" name="__codelineno-10-53" href="#__codelineno-10-53"></a>
+<a id="__codelineno-10-54" name="__codelineno-10-54" href="#__codelineno-10-54"></a><span class="na">[StructLayout(LayoutKind.Sequential)]</span>
+<a id="__codelineno-10-55" name="__codelineno-10-55" href="#__codelineno-10-55"></a><span class="k">struct</span><span class="w"> </span><span class="nc">KeyboardDeviceState</span>
+<a id="__codelineno-10-56" name="__codelineno-10-56" href="#__codelineno-10-56"></a><span class="p">{</span>
+<a id="__codelineno-10-57" name="__codelineno-10-57" href="#__codelineno-10-57"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">byte</span><span class="w"> </span><span class="n">Modifiers</span><span class="p">;</span>
+<a id="__codelineno-10-58" name="__codelineno-10-58" href="#__codelineno-10-58"></a><span class="w">    </span><span class="na">[MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]</span>
+<a id="__codelineno-10-59" name="__codelineno-10-59" href="#__codelineno-10-59"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">byte</span><span class="p">[]</span><span class="w"> </span><span class="n">KeyBitmap</span><span class="p">;</span><span class="w"> </span><span class="c1">// 256-bit bitmap, one bit per HID key code</span>
+<a id="__codelineno-10-60" name="__codelineno-10-60" href="#__codelineno-10-60"></a><span class="p">}</span>
+<a id="__codelineno-10-61" name="__codelineno-10-61" href="#__codelineno-10-61"></a>
+<a id="__codelineno-10-62" name="__codelineno-10-62" href="#__codelineno-10-62"></a><span class="na">[StructLayout(LayoutKind.Sequential)]</span>
+<a id="__codelineno-10-63" name="__codelineno-10-63" href="#__codelineno-10-63"></a><span class="k">struct</span><span class="w"> </span><span class="nc">MouseDeviceState</span>
+<a id="__codelineno-10-64" name="__codelineno-10-64" href="#__codelineno-10-64"></a><span class="p">{</span>
+<a id="__codelineno-10-65" name="__codelineno-10-65" href="#__codelineno-10-65"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">byte</span><span class="w">  </span><span class="n">Buttons</span><span class="p">;</span>
+<a id="__codelineno-10-66" name="__codelineno-10-66" href="#__codelineno-10-66"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">DX</span><span class="p">,</span><span class="w"> </span><span class="n">DY</span><span class="p">;</span>
+<a id="__codelineno-10-67" name="__codelineno-10-67" href="#__codelineno-10-67"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">Wheel</span><span class="p">,</span><span class="w"> </span><span class="n">Pan</span><span class="p">;</span>
+<a id="__codelineno-10-68" name="__codelineno-10-68" href="#__codelineno-10-68"></a><span class="p">}</span>
 </code></pre></div>
 <p>Meta structs are passed <strong>by pointer</strong>; fields left at zero value keep defaults:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="na">[StructLayout(LayoutKind.Sequential)]</span>
@@ -2180,36 +2066,6 @@ struct NS2ProOutputState
     public byte[] RightRumble;
     public byte Flags;        // bit 0 = rumble update, bit 1 = player LED update
     public byte PlayerLedMask;
-}</p>
-<p>[StructLayout(LayoutKind.Sequential)]
-struct DSOutputState
-{
-    public byte Flags0;
-    public byte Flags1;
-    public byte RumbleSmall;
-    public byte RumbleLarge;
-    public byte VolumeHeadphones;
-    public byte VolumeSpeaker;
-    public byte VolumeMic;
-    public byte AudioControl;
-    public byte MuteLightMode;
-    public byte MuteControl;
-    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 11)]
-    public byte[] TriggerRight; // adaptive trigger effect mode + parameters
-    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 11)]
-    public byte[] TriggerLeft;
-    public uint HostTimestamp;
-    public byte MotorPower;
-    public byte AudioControl2;
-    public byte Flags3;
-    public byte HapticFilter;
-    public byte UnkByte;
-    public byte LightFade;
-    public byte LightBrightness;
-    public byte PlayerLeds;
-    public byte LedRed;
-    public byte LedGreen;
-    public byte LedBlue;
 }
 <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>## Callback delegates
 <a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
@@ -2228,25 +2084,11 @@ struct DSOutputState
 <a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a>    byte ledRed, byte ledGreen, byte ledBlue, byte flashOn, byte flashOff);
 <a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a>
 <a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a>[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-<a id="__codelineno-12-18" name="__codelineno-12-18" href="#__codelineno-12-18"></a>delegate void DSOutputCallbackDelegate(nuint handle, in DSOutputState output);
-<a id="__codelineno-12-19" name="__codelineno-12-19" href="#__codelineno-12-19"></a>
-<a id="__codelineno-12-20" name="__codelineno-12-20" href="#__codelineno-12-20"></a>// Speaker PCM: exact host-written bytes, 4ch S16LE @48kHz, up to 392B per
-<a id="__codelineno-12-21" name="__codelineno-12-21" href="#__codelineno-12-21"></a>// call. The pointer is only valid during the call — copy with Marshal.Copy.
-<a id="__codelineno-12-22" name="__codelineno-12-22" href="#__codelineno-12-22"></a>// Runs on the audio thread: never block.
-<a id="__codelineno-12-23" name="__codelineno-12-23" href="#__codelineno-12-23"></a>[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-<a id="__codelineno-12-24" name="__codelineno-12-24" href="#__codelineno-12-24"></a>delegate void DSAudioCallbackDelegate(nuint handle, IntPtr pcm, nuint length);
-<a id="__codelineno-12-25" name="__codelineno-12-25" href="#__codelineno-12-25"></a>
-<a id="__codelineno-12-26" name="__codelineno-12-26" href="#__codelineno-12-26"></a>// Generation barrier: flush buffered PCM on fire.
-<a id="__codelineno-12-27" name="__codelineno-12-27" href="#__codelineno-12-27"></a>[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-<a id="__codelineno-12-28" name="__codelineno-12-28" href="#__codelineno-12-28"></a>delegate void DSSpeakerResetCallbackDelegate(nuint handle);
-<a id="__codelineno-12-29" name="__codelineno-12-29" href="#__codelineno-12-29"></a>
-<a id="__codelineno-12-30" name="__codelineno-12-30" href="#__codelineno-12-30"></a>// Rear voice-coil pair, 2ch S16LE @48kHz per call. Same lifetime/thread
-<a id="__codelineno-12-31" name="__codelineno-12-31" href="#__codelineno-12-31"></a>// rules as the speaker callback; resampling to 3kHz is feeder-side.
-<a id="__codelineno-12-32" name="__codelineno-12-32" href="#__codelineno-12-32"></a>[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-<a id="__codelineno-12-33" name="__codelineno-12-33" href="#__codelineno-12-33"></a>delegate void DSRealtimeHapticsCallbackDelegate(nuint handle, IntPtr pcm, nuint length);
-<a id="__codelineno-12-34" name="__codelineno-12-34" href="#__codelineno-12-34"></a>
-<a id="__codelineno-12-35" name="__codelineno-12-35" href="#__codelineno-12-35"></a>[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-<a id="__codelineno-12-36" name="__codelineno-12-36" href="#__codelineno-12-36"></a>delegate void NS2ProOutputCallbackDelegate(nuint handle, NS2ProOutputState output);
+<a id="__codelineno-12-18" name="__codelineno-12-18" href="#__codelineno-12-18"></a>delegate void DSOutputCallbackDelegate(nuint handle, byte rumbleSmall, byte rumbleLarge,
+<a id="__codelineno-12-19" name="__codelineno-12-19" href="#__codelineno-12-19"></a>    byte ledRed, byte ledGreen, byte ledBlue, byte playerLeds);
+<a id="__codelineno-12-20" name="__codelineno-12-20" href="#__codelineno-12-20"></a>
+<a id="__codelineno-12-21" name="__codelineno-12-21" href="#__codelineno-12-21"></a>[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+<a id="__codelineno-12-22" name="__codelineno-12-22" href="#__codelineno-12-22"></a>delegate void NS2ProOutputCallbackDelegate(nuint handle, NS2ProOutputState output);
 </code></pre></div></p>
 <h2 id="pinvoke-declarations">P/Invoke declarations</h2>
 <h3 id="server-lifecycle">Server lifecycle</h3>
@@ -2307,40 +2149,13 @@ struct DSOutputState
 <a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a>
 <a id="__codelineno-15-15" name="__codelineno-15-15" href="#__codelineno-15-15"></a><span class="w">    </span><span class="na">[DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]</span>
 <a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a><span class="w">    </span><span class="na">[return: MarshalAs(UnmanagedType.I1)]</span>
-<a id="__codelineno-15-17" name="__codelineno-15-17" href="#__codelineno-15-17"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">SetDS4SpeakerCallback</span><span class="p">(</span><span class="k">nuint</span><span class="w"> </span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">DSAudioCallbackDelegate</span><span class="o">?</span><span class="w"> </span><span class="n">callback</span><span class="p">);</span>
-<a id="__codelineno-15-18" name="__codelineno-15-18" href="#__codelineno-15-18"></a>
-<a id="__codelineno-15-19" name="__codelineno-15-19" href="#__codelineno-15-19"></a><span class="w">    </span><span class="na">[DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]</span>
-<a id="__codelineno-15-20" name="__codelineno-15-20" href="#__codelineno-15-20"></a><span class="w">    </span><span class="na">[return: MarshalAs(UnmanagedType.I1)]</span>
-<a id="__codelineno-15-21" name="__codelineno-15-21" href="#__codelineno-15-21"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">SetDS4SpeakerResetCallback</span><span class="p">(</span><span class="k">nuint</span><span class="w"> </span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">DSSpeakerResetCallbackDelegate</span><span class="o">?</span><span class="w"> </span><span class="n">callback</span><span class="p">);</span>
-<a id="__codelineno-15-22" name="__codelineno-15-22" href="#__codelineno-15-22"></a>
-<a id="__codelineno-15-23" name="__codelineno-15-23" href="#__codelineno-15-23"></a><span class="w">    </span><span class="na">[DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]</span>
-<a id="__codelineno-15-24" name="__codelineno-15-24" href="#__codelineno-15-24"></a><span class="w">    </span><span class="na">[return: MarshalAs(UnmanagedType.I1)]</span>
-<a id="__codelineno-15-25" name="__codelineno-15-25" href="#__codelineno-15-25"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">SetDS4MicrophonePCM</span><span class="p">(</span><span class="k">nuint</span><span class="w"> </span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">In</span><span class="p">]</span><span class="w"> </span><span class="kt">byte</span><span class="p">[]</span><span class="w"> </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="k">nuint</span><span class="w"> </span><span class="n">length</span><span class="p">);</span>
-<a id="__codelineno-15-26" name="__codelineno-15-26" href="#__codelineno-15-26"></a>
-<a id="__codelineno-15-27" name="__codelineno-15-27" href="#__codelineno-15-27"></a><span class="w">    </span><span class="na">[DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]</span>
-<a id="__codelineno-15-28" name="__codelineno-15-28" href="#__codelineno-15-28"></a><span class="w">    </span><span class="na">[return: MarshalAs(UnmanagedType.I1)]</span>
-<a id="__codelineno-15-29" name="__codelineno-15-29" href="#__codelineno-15-29"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">SetDS4MetaState</span><span class="p">(</span><span class="k">nuint</span><span class="w"> </span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">DS4MetaState</span><span class="w"> </span><span class="n">meta</span><span class="p">);</span>
-<a id="__codelineno-15-30" name="__codelineno-15-30" href="#__codelineno-15-30"></a>
-<a id="__codelineno-15-31" name="__codelineno-15-31" href="#__codelineno-15-31"></a><span class="w">    </span><span class="c1">// Raw input passthrough: report[] must be exactly 64 bytes with</span>
-<a id="__codelineno-15-32" name="__codelineno-15-32" href="#__codelineno-15-32"></a><span class="w">    </span><span class="c1">// report[0] == 0x01 (see DS4_RAW_REPORT_SIZE in the C header).</span>
-<a id="__codelineno-15-33" name="__codelineno-15-33" href="#__codelineno-15-33"></a><span class="w">    </span><span class="na">[DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]</span>
-<a id="__codelineno-15-34" name="__codelineno-15-34" href="#__codelineno-15-34"></a><span class="w">    </span><span class="na">[return: MarshalAs(UnmanagedType.I1)]</span>
-<a id="__codelineno-15-35" name="__codelineno-15-35" href="#__codelineno-15-35"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">SetDS4RawInputReport</span><span class="p">(</span><span class="k">nuint</span><span class="w"> </span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">In</span><span class="p">]</span><span class="w"> </span><span class="kt">byte</span><span class="p">[]</span><span class="w"> </span><span class="n">report</span><span class="p">,</span><span class="w"> </span><span class="k">nuint</span><span class="w"> </span><span class="n">length</span><span class="p">);</span>
-<a id="__codelineno-15-36" name="__codelineno-15-36" href="#__codelineno-15-36"></a>
-<a id="__codelineno-15-37" name="__codelineno-15-37" href="#__codelineno-15-37"></a><span class="w">    </span><span class="na">[DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]</span>
-<a id="__codelineno-15-38" name="__codelineno-15-38" href="#__codelineno-15-38"></a><span class="w">    </span><span class="na">[return: MarshalAs(UnmanagedType.I1)]</span>
-<a id="__codelineno-15-39" name="__codelineno-15-39" href="#__codelineno-15-39"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">ClearDS4RawInputReport</span><span class="p">(</span><span class="k">nuint</span><span class="w"> </span><span class="n">deviceHandle</span><span class="p">);</span>
-<a id="__codelineno-15-40" name="__codelineno-15-40" href="#__codelineno-15-40"></a>
-<a id="__codelineno-15-41" name="__codelineno-15-41" href="#__codelineno-15-41"></a><span class="w">    </span><span class="na">[DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]</span>
-<a id="__codelineno-15-42" name="__codelineno-15-42" href="#__codelineno-15-42"></a><span class="w">    </span><span class="na">[return: MarshalAs(UnmanagedType.I1)]</span>
-<a id="__codelineno-15-43" name="__codelineno-15-43" href="#__codelineno-15-43"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">RemoveDS4Device</span><span class="p">(</span><span class="k">nuint</span><span class="w"> </span><span class="n">deviceHandle</span><span class="p">);</span>
+<a id="__codelineno-15-17" name="__codelineno-15-17" href="#__codelineno-15-17"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">RemoveDS4Device</span><span class="p">(</span><span class="k">nuint</span><span class="w"> </span><span class="n">deviceHandle</span><span class="p">);</span>
 </code></pre></div>
 <h3 id="dualsense-and-edge">DualSense (and Edge)</h3>
 <p>Only <code>Device</code> and <code>EdgeDevice</code> variants exist in this branch
-(no audio-only / gamepad-only / by-type / raw-input / atomic-audio
-APIs).
-Output arrives as the full <code>DSOutputState</code> struct; speaker PCM streams to
-the audio-out callback and mic frames queue at 192B.</p>
+(no audio-only / gamepad-only / by-type / raw-input / meta-setter /
+output-state / realtime-haptics / atomic-audio / speaker-reset /
+audio-out / microphone APIs).</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="w">    </span><span class="na">[DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]</span>
 <a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">    </span><span class="na">[return: MarshalAs(UnmanagedType.I1)]</span>
 <a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">CreateDualSenseDevice</span><span class="p">(</span><span class="k">nuint</span><span class="w"> </span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="k">nuint</span><span class="w"> </span><span class="n">outDeviceHandle</span><span class="p">,</span>
@@ -2363,37 +2178,7 @@ the audio-out callback and mic frames queue at 192B.</p>
 <a id="__codelineno-16-20" name="__codelineno-16-20" href="#__codelineno-16-20"></a>
 <a id="__codelineno-16-21" name="__codelineno-16-21" href="#__codelineno-16-21"></a><span class="w">    </span><span class="na">[DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]</span>
 <a id="__codelineno-16-22" name="__codelineno-16-22" href="#__codelineno-16-22"></a><span class="w">    </span><span class="na">[return: MarshalAs(UnmanagedType.I1)]</span>
-<a id="__codelineno-16-23" name="__codelineno-16-23" href="#__codelineno-16-23"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">SetDualSenseAudioOutCallback</span><span class="p">(</span><span class="k">nuint</span><span class="w"> </span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">DSAudioCallbackDelegate</span><span class="o">?</span><span class="w"> </span><span class="n">callback</span><span class="p">);</span>
-<a id="__codelineno-16-24" name="__codelineno-16-24" href="#__codelineno-16-24"></a>
-<a id="__codelineno-16-25" name="__codelineno-16-25" href="#__codelineno-16-25"></a><span class="w">    </span><span class="na">[DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]</span>
-<a id="__codelineno-16-26" name="__codelineno-16-26" href="#__codelineno-16-26"></a><span class="w">    </span><span class="na">[return: MarshalAs(UnmanagedType.I1)]</span>
-<a id="__codelineno-16-27" name="__codelineno-16-27" href="#__codelineno-16-27"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">SetDualSenseSpeakerResetCallback</span><span class="p">(</span><span class="k">nuint</span><span class="w"> </span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">DSSpeakerResetCallbackDelegate</span><span class="o">?</span><span class="w"> </span><span class="n">callback</span><span class="p">);</span>
-<a id="__codelineno-16-28" name="__codelineno-16-28" href="#__codelineno-16-28"></a>
-<a id="__codelineno-16-29" name="__codelineno-16-29" href="#__codelineno-16-29"></a><span class="w">    </span><span class="na">[DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]</span>
-<a id="__codelineno-16-30" name="__codelineno-16-30" href="#__codelineno-16-30"></a><span class="w">    </span><span class="na">[return: MarshalAs(UnmanagedType.I1)]</span>
-<a id="__codelineno-16-31" name="__codelineno-16-31" href="#__codelineno-16-31"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">SetDualSenseRealtimeHapticsCallback</span><span class="p">(</span><span class="k">nuint</span><span class="w"> </span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="n">DSRealtimeHapticsCallbackDelegate</span><span class="o">?</span><span class="w"> </span><span class="n">callback</span><span class="p">);</span>
-<a id="__codelineno-16-32" name="__codelineno-16-32" href="#__codelineno-16-32"></a>
-<a id="__codelineno-16-33" name="__codelineno-16-33" href="#__codelineno-16-33"></a><span class="w">    </span><span class="na">[DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]</span>
-<a id="__codelineno-16-34" name="__codelineno-16-34" href="#__codelineno-16-34"></a><span class="w">    </span><span class="na">[return: MarshalAs(UnmanagedType.I1)]</span>
-<a id="__codelineno-16-35" name="__codelineno-16-35" href="#__codelineno-16-35"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">SetDualSenseMetaState</span><span class="p">(</span><span class="k">nuint</span><span class="w"> </span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">DSMetaState</span><span class="w"> </span><span class="n">meta</span><span class="p">);</span>
-<a id="__codelineno-16-36" name="__codelineno-16-36" href="#__codelineno-16-36"></a>
-<a id="__codelineno-16-37" name="__codelineno-16-37" href="#__codelineno-16-37"></a><span class="w">    </span><span class="na">[DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]</span>
-<a id="__codelineno-16-38" name="__codelineno-16-38" href="#__codelineno-16-38"></a><span class="w">    </span><span class="na">[return: MarshalAs(UnmanagedType.I1)]</span>
-<a id="__codelineno-16-39" name="__codelineno-16-39" href="#__codelineno-16-39"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">SetDualSenseMicrophonePCM</span><span class="p">(</span><span class="k">nuint</span><span class="w"> </span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">In</span><span class="p">]</span><span class="w"> </span><span class="kt">byte</span><span class="p">[]</span><span class="w"> </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="k">nuint</span><span class="w"> </span><span class="n">length</span><span class="p">);</span>
-<a id="__codelineno-16-40" name="__codelineno-16-40" href="#__codelineno-16-40"></a>
-<a id="__codelineno-16-41" name="__codelineno-16-41" href="#__codelineno-16-41"></a><span class="w">    </span><span class="c1">// Raw input passthrough: report[] must be exactly 64 bytes with</span>
-<a id="__codelineno-16-42" name="__codelineno-16-42" href="#__codelineno-16-42"></a><span class="w">    </span><span class="c1">// report[0] == 0x01 (see DS_RAW_REPORT_SIZE in the C header).</span>
-<a id="__codelineno-16-43" name="__codelineno-16-43" href="#__codelineno-16-43"></a><span class="w">    </span><span class="na">[DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]</span>
-<a id="__codelineno-16-44" name="__codelineno-16-44" href="#__codelineno-16-44"></a><span class="w">    </span><span class="na">[return: MarshalAs(UnmanagedType.I1)]</span>
-<a id="__codelineno-16-45" name="__codelineno-16-45" href="#__codelineno-16-45"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">SetDualSenseRawInputReport</span><span class="p">(</span><span class="k">nuint</span><span class="w"> </span><span class="n">deviceHandle</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">In</span><span class="p">]</span><span class="w"> </span><span class="kt">byte</span><span class="p">[]</span><span class="w"> </span><span class="n">report</span><span class="p">,</span><span class="w"> </span><span class="k">nuint</span><span class="w"> </span><span class="n">length</span><span class="p">);</span>
-<a id="__codelineno-16-46" name="__codelineno-16-46" href="#__codelineno-16-46"></a>
-<a id="__codelineno-16-47" name="__codelineno-16-47" href="#__codelineno-16-47"></a><span class="w">    </span><span class="na">[DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]</span>
-<a id="__codelineno-16-48" name="__codelineno-16-48" href="#__codelineno-16-48"></a><span class="w">    </span><span class="na">[return: MarshalAs(UnmanagedType.I1)]</span>
-<a id="__codelineno-16-49" name="__codelineno-16-49" href="#__codelineno-16-49"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">ClearDualSenseRawInputReport</span><span class="p">(</span><span class="k">nuint</span><span class="w"> </span><span class="n">deviceHandle</span><span class="p">);</span>
-<a id="__codelineno-16-50" name="__codelineno-16-50" href="#__codelineno-16-50"></a>
-<a id="__codelineno-16-51" name="__codelineno-16-51" href="#__codelineno-16-51"></a><span class="w">    </span><span class="na">[DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]</span>
-<a id="__codelineno-16-52" name="__codelineno-16-52" href="#__codelineno-16-52"></a><span class="w">    </span><span class="na">[return: MarshalAs(UnmanagedType.I1)]</span>
-<a id="__codelineno-16-53" name="__codelineno-16-53" href="#__codelineno-16-53"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">RemoveDualSenseDevice</span><span class="p">(</span><span class="k">nuint</span><span class="w"> </span><span class="n">deviceHandle</span><span class="p">);</span>
+<a id="__codelineno-16-23" name="__codelineno-16-23" href="#__codelineno-16-23"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">RemoveDualSenseDevice</span><span class="p">(</span><span class="k">nuint</span><span class="w"> </span><span class="n">deviceHandle</span><span class="p">);</span>
 </code></pre></div>
 <h3 id="switch-2-pro">Switch 2 Pro</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="w">    </span><span class="na">[DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]</span>
@@ -2502,114 +2287,41 @@ zeroed field selects the device default, which is exactly what <code>NULL</code>
 <a id="__codelineno-20-44" name="__codelineno-20-44" href="#__codelineno-20-44"></a><span class="p">}</span>
 </code></pre></div>
 <h2 id="dualsense-output-example">DualSense output example</h2>
-<p>The DualSense reports the full output state (rumble, volumes, adaptive
-trigger effects, lightbar, player LEDs) through a single output callback:</p>
+<p>The DualSense reports rumble, lightbar color, and player LEDs through a single
+output callback. This branch has no speaker/haptics PCM or microphone APIs.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1">// Keep all delegates alive for the lifetime of the device!</span>
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="n">DSOutputCallbackDelegate</span><span class="w"> </span><span class="n">outputCb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">handle</span><span class="p">,</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">DSOutputState</span><span class="w"> </span><span class="n">output</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span>
-<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="p">{</span>
-<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="w">    </span><span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">$"&lt;- Rumble: {output.RumbleSmall}/{output.RumbleLarge}, "</span><span class="w"> </span><span class="o">+</span>
-<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="w">        </span><span class="s">$"LED: #{output.LedRed:X2}{output.LedGreen:X2}{output.LedBlue:X2}, "</span><span class="w"> </span><span class="o">+</span>
-<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="w">        </span><span class="s">$"Players: 0x{output.PlayerLeds:X2}, "</span><span class="w"> </span><span class="o">+</span>
-<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="w">        </span><span class="s">$"Triggers: R[0]={output.TriggerRight[0]} L[0]={output.TriggerLeft[0]}"</span><span class="p">);</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="n">DSOutputCallbackDelegate</span><span class="w"> </span><span class="n">outputCb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">handle</span><span class="p">,</span><span class="w"> </span><span class="n">rumbleSmall</span><span class="p">,</span><span class="w"> </span><span class="n">rumbleLarge</span><span class="p">,</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">    </span><span class="n">ledRed</span><span class="p">,</span><span class="w"> </span><span class="n">ledGreen</span><span class="p">,</span><span class="w"> </span><span class="n">ledBlue</span><span class="p">,</span><span class="w"> </span><span class="n">playerLeds</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="p">{</span>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="w">    </span><span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">$"&lt;- Rumble: {rumbleSmall}/{rumbleLarge}, "</span><span class="w"> </span><span class="o">+</span>
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="w">        </span><span class="s">$"LED: #{ledRed:X2}{ledGreen:X2}{ledBlue:X2}, "</span><span class="w"> </span><span class="o">+</span>
+<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="w">        </span><span class="s">$"Players: 0x{playerLeds:X2}"</span><span class="p">);</span>
 <a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="p">};</span>
-<a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a><span class="p">};</span>
-<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a>
-<a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a><span class="n">DSMetaState</span><span class="w"> </span><span class="n">meta</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">SerialNumber</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"MY-DS-0001"</span><span class="w"> </span><span class="p">};</span>
-<a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">CreateDualSenseDevice</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="k">nuint</span><span class="w"> </span><span class="n">dsHandle</span><span class="p">,</span><span class="w"> </span><span class="n">busID</span><span class="p">,</span>
-<a id="__codelineno-21-13" name="__codelineno-21-13" href="#__codelineno-21-13"></a><span class="w">        </span><span class="n">autoAttachLocalhost</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">meta</span><span class="p">))</span>
-<a id="__codelineno-21-14" name="__codelineno-21-14" href="#__codelineno-21-14"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
-<a id="__codelineno-21-15" name="__codelineno-21-15" href="#__codelineno-21-15"></a>
-<a id="__codelineno-21-16" name="__codelineno-21-16" href="#__codelineno-21-16"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">SetDualSenseOutputCallback</span><span class="p">(</span><span class="n">dsHandle</span><span class="p">,</span><span class="w"> </span><span class="n">outputCb</span><span class="p">);</span>
-</code></pre></div>
-<h3 id="speaker-pcm-capture">Speaker PCM capture</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="c1">// Keep the delegate alive for the lifetime of the device!</span>
-<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="n">DSAudioCallbackDelegate</span><span class="w"> </span><span class="n">audioCb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">handle</span><span class="p">,</span><span class="w"> </span><span class="n">pcm</span><span class="p">,</span><span class="w"> </span><span class="n">length</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span>
-<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="p">{</span>
-<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="w">    </span><span class="c1">// 4ch S16LE @48kHz: front L/R speaker + rear L/R haptics.</span>
-<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="w">    </span><span class="kt">var</span><span class="w"> </span><span class="n">bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">byte</span><span class="p">[(</span><span class="kt">int</span><span class="p">)</span><span class="n">length</span><span class="p">];</span>
-<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a><span class="w">    </span><span class="n">Marshal</span><span class="p">.</span><span class="n">Copy</span><span class="p">(</span><span class="n">pcm</span><span class="p">,</span><span class="w"> </span><span class="n">bytes</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">bytes</span><span class="p">.</span><span class="n">Length</span><span class="p">);</span>
-<a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="w">    </span><span class="c1">// hand bytes to your Opus encoder / ring — never block here.</span>
-<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a><span class="p">};</span>
-<a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a>
-<a id="__codelineno-22-10" name="__codelineno-22-10" href="#__codelineno-22-10"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">SetDualSenseAudioOutCallback</span><span class="p">(</span><span class="n">dsHandle</span><span class="p">,</span><span class="w"> </span><span class="n">audioCb</span><span class="p">);</span>
-<a id="__codelineno-22-11" name="__codelineno-22-11" href="#__codelineno-22-11"></a>
-<a id="__codelineno-22-12" name="__codelineno-22-12" href="#__codelineno-22-12"></a><span class="c1">// Flush previous-generation PCM on each barrier.</span>
-<a id="__codelineno-22-13" name="__codelineno-22-13" href="#__codelineno-22-13"></a><span class="n">DSSpeakerResetCallbackDelegate</span><span class="w"> </span><span class="n">resetCb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">handle</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="cm">/* flush */</span><span class="w"> </span><span class="p">};</span>
-<a id="__codelineno-22-14" name="__codelineno-22-14" href="#__codelineno-22-14"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">SetDualSenseSpeakerResetCallback</span><span class="p">(</span><span class="n">dsHandle</span><span class="p">,</span><span class="w"> </span><span class="n">resetCb</span><span class="p">);</span>
-<a id="__codelineno-22-15" name="__codelineno-22-15" href="#__codelineno-22-15"></a>
-<a id="__codelineno-22-16" name="__codelineno-22-16" href="#__codelineno-22-16"></a><span class="c1">// Low-latency rear haptics (bypasses speaker-path batching).</span>
-<a id="__codelineno-22-17" name="__codelineno-22-17" href="#__codelineno-22-17"></a><span class="n">DSRealtimeHapticsCallbackDelegate</span><span class="w"> </span><span class="n">hapticsCb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">handle</span><span class="p">,</span><span class="w"> </span><span class="n">pcm</span><span class="p">,</span><span class="w"> </span><span class="n">length</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span>
-<a id="__codelineno-22-18" name="__codelineno-22-18" href="#__codelineno-22-18"></a><span class="p">{</span>
-<a id="__codelineno-22-19" name="__codelineno-22-19" href="#__codelineno-22-19"></a><span class="w">    </span><span class="kt">var</span><span class="w"> </span><span class="n">rear</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">byte</span><span class="p">[(</span><span class="kt">int</span><span class="p">)</span><span class="n">length</span><span class="p">];</span>
-<a id="__codelineno-22-20" name="__codelineno-22-20" href="#__codelineno-22-20"></a><span class="w">    </span><span class="n">Marshal</span><span class="p">.</span><span class="n">Copy</span><span class="p">(</span><span class="n">pcm</span><span class="p">,</span><span class="w"> </span><span class="n">rear</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">rear</span><span class="p">.</span><span class="n">Length</span><span class="p">);</span>
-<a id="__codelineno-22-21" name="__codelineno-22-21" href="#__codelineno-22-21"></a><span class="w">    </span><span class="c1">// resample 48kHz -&gt; 3kHz and forward ...</span>
-<a id="__codelineno-22-22" name="__codelineno-22-22" href="#__codelineno-22-22"></a><span class="p">};</span>
-<a id="__codelineno-22-23" name="__codelineno-22-23" href="#__codelineno-22-23"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">SetDualSenseRealtimeHapticsCallback</span><span class="p">(</span><span class="n">dsHandle</span><span class="p">,</span><span class="w"> </span><span class="n">hapticsCb</span><span class="p">);</span>
-</code></pre></div>
-<h3 id="microphone-feed">Microphone feed</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="c1">// Exactly 192 bytes per call (48 frames of 2ch S16LE @48kHz); anything</span>
-<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="c1">// else returns false, as do calls while the host has not opened the mic</span>
-<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="c1">// (dropped, as on hardware). Opus-decode in your app, queue here.</span>
-<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="kt">var</span><span class="w"> </span><span class="n">micFrame</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">byte</span><span class="p">[</span><span class="mi">192</span><span class="p">];</span>
-<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="c1">// ... fill from capture ...</span>
-<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">SetDualSenseMicrophonePCM</span><span class="p">(</span><span class="n">dsHandle</span><span class="p">,</span><span class="w"> </span><span class="n">micFrame</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="k">nuint</span><span class="p">)</span><span class="n">micFrame</span><span class="p">.</span><span class="n">Length</span><span class="p">);</span>
-</code></pre></div>
-<h3 id="raw-input-passthrough">Raw input passthrough</h3>
-<p>Pipe real controller bytes instead of synthesizing. The device serves the
-report verbatim on interrupt IN and <code>GET_REPORT</code> until you clear it.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="c1">// Exactly 64 bytes (DS_RAW_REPORT_SIZE), report[0] == 0x01. Call once per</span>
-<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="c1">// real report; anything else returns false.</span>
-<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="kt">var</span><span class="w"> </span><span class="n">report</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">byte</span><span class="p">[</span><span class="mi">64</span><span class="p">];</span>
-<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="n">report</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x01</span><span class="p">;</span>
-<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a><span class="c1">// ... copy a captured/piped USB input report into report ...</span>
-<a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">SetDualSenseRawInputReport</span><span class="p">(</span><span class="n">dsHandle</span><span class="p">,</span><span class="w"> </span><span class="n">report</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="k">nuint</span><span class="p">)</span><span class="n">report</span><span class="p">.</span><span class="n">Length</span><span class="p">))</span>
-<a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
-<a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a>
-<a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a><span class="c1">// Back to synthetic reports (the report counter resumes from its</span>
-<a id="__codelineno-24-10" name="__codelineno-24-10" href="#__codelineno-24-10"></a><span class="c1">// current, frozen value).</span>
-<a id="__codelineno-24-11" name="__codelineno-24-11" href="#__codelineno-24-11"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">ClearDualSenseRawInputReport</span><span class="p">(</span><span class="n">dsHandle</span><span class="p">);</span>
+<a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a>
+<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a><span class="n">DSMetaState</span><span class="w"> </span><span class="n">meta</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">SerialNumber</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"MY-DS-0001"</span><span class="w"> </span><span class="p">};</span>
+<a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">CreateDualSenseDevice</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="k">nuint</span><span class="w"> </span><span class="n">dsHandle</span><span class="p">,</span><span class="w"> </span><span class="n">busID</span><span class="p">,</span>
+<a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a><span class="w">        </span><span class="n">autoAttachLocalhost</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">meta</span><span class="p">))</span>
+<a id="__codelineno-21-13" name="__codelineno-21-13" href="#__codelineno-21-13"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<a id="__codelineno-21-14" name="__codelineno-21-14" href="#__codelineno-21-14"></a>
+<a id="__codelineno-21-15" name="__codelineno-21-15" href="#__codelineno-21-15"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">SetDualSenseOutputCallback</span><span class="p">(</span><span class="n">dsHandle</span><span class="p">,</span><span class="w"> </span><span class="n">outputCb</span><span class="p">);</span>
 </code></pre></div>
 <h2 id="dualshock-4-output-example">DualShock 4 output example</h2>
 <p>The DualShock 4 output callback adds an <code>updateFlags</code> byte selecting which
 groups changed (<code>0x01</code> rumble, <code>0x02</code> LED, <code>0x04</code> flash).</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="c1">// Keep all delegates alive for the lifetime of the device!</span>
-<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="n">DS4OutputCallbackDelegate</span><span class="w"> </span><span class="n">outputCb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">handle</span><span class="p">,</span><span class="w"> </span><span class="n">updateFlags</span><span class="p">,</span><span class="w"> </span><span class="n">rumbleSmall</span><span class="p">,</span><span class="w"> </span><span class="n">rumbleLarge</span><span class="p">,</span>
-<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="w">    </span><span class="n">ledRed</span><span class="p">,</span><span class="w"> </span><span class="n">ledGreen</span><span class="p">,</span><span class="w"> </span><span class="n">ledBlue</span><span class="p">,</span><span class="w"> </span><span class="n">flashOn</span><span class="p">,</span><span class="w"> </span><span class="n">flashOff</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span>
-<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="p">{</span>
-<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="w">    </span><span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">$"&lt;- Rumble: {rumbleSmall}/{rumbleLarge}, "</span><span class="w"> </span><span class="o">+</span>
-<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a><span class="w">        </span><span class="s">$"LED: #{ledRed:X2}{ledGreen:X2}{ledBlue:X2}, Flash: {flashOn}/{flashOff}"</span><span class="p">);</span>
-<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a><span class="p">};</span>
-<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a>
-<a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a><span class="n">DS4MetaState</span><span class="w"> </span><span class="n">meta</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">SerialNumber</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"MY-DS4-0001"</span><span class="w"> </span><span class="p">};</span>
-<a id="__codelineno-25-10" name="__codelineno-25-10" href="#__codelineno-25-10"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">CreateDS4Device</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="k">nuint</span><span class="w"> </span><span class="n">ds4Handle</span><span class="p">,</span><span class="w"> </span><span class="n">busID</span><span class="p">,</span>
-<a id="__codelineno-25-11" name="__codelineno-25-11" href="#__codelineno-25-11"></a><span class="w">        </span><span class="n">autoAttachLocalhost</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">meta</span><span class="p">))</span>
-<a id="__codelineno-25-12" name="__codelineno-25-12" href="#__codelineno-25-12"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
-<a id="__codelineno-25-13" name="__codelineno-25-13" href="#__codelineno-25-13"></a>
-<a id="__codelineno-25-14" name="__codelineno-25-14" href="#__codelineno-25-14"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">SetDS4OutputCallback</span><span class="p">(</span><span class="n">ds4Handle</span><span class="p">,</span><span class="w"> </span><span class="n">outputCb</span><span class="p">);</span>
-</code></pre></div>
-<h3 id="dualshock-4-speaker-and-microphone">DualShock 4 speaker and microphone</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c1">// Keep the delegate alive for the lifetime of the device!</span>
-<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="n">DSAudioCallbackDelegate</span><span class="w"> </span><span class="n">ds4AudioCb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">handle</span><span class="p">,</span><span class="w"> </span><span class="n">pcm</span><span class="p">,</span><span class="w"> </span><span class="n">length</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span>
-<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="p">{</span>
-<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="w">    </span><span class="c1">// 2ch S16LE @32kHz, up to 132 bytes: the DS4's native rate, no</span>
-<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="w">    </span><span class="c1">// resampling on either side.</span>
-<a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a><span class="w">    </span><span class="kt">var</span><span class="w"> </span><span class="n">bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">byte</span><span class="p">[(</span><span class="kt">int</span><span class="p">)</span><span class="n">length</span><span class="p">];</span>
-<a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a><span class="w">    </span><span class="n">Marshal</span><span class="p">.</span><span class="n">Copy</span><span class="p">(</span><span class="n">pcm</span><span class="p">,</span><span class="w"> </span><span class="n">bytes</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">bytes</span><span class="p">.</span><span class="n">Length</span><span class="p">);</span>
-<a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a><span class="w">    </span><span class="c1">// hand bytes to your SBC encoder / ring — never block here.</span>
-<a id="__codelineno-26-9" name="__codelineno-26-9" href="#__codelineno-26-9"></a><span class="p">};</span>
-<a id="__codelineno-26-10" name="__codelineno-26-10" href="#__codelineno-26-10"></a>
-<a id="__codelineno-26-11" name="__codelineno-26-11" href="#__codelineno-26-11"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">SetDS4SpeakerCallback</span><span class="p">(</span><span class="n">ds4Handle</span><span class="p">,</span><span class="w"> </span><span class="n">ds4AudioCb</span><span class="p">);</span>
-<a id="__codelineno-26-12" name="__codelineno-26-12" href="#__codelineno-26-12"></a>
-<a id="__codelineno-26-13" name="__codelineno-26-13" href="#__codelineno-26-13"></a><span class="c1">// Flush previous-generation PCM on each barrier.</span>
-<a id="__codelineno-26-14" name="__codelineno-26-14" href="#__codelineno-26-14"></a><span class="n">DSSpeakerResetCallbackDelegate</span><span class="w"> </span><span class="n">ds4ResetCb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">handle</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="cm">/* flush */</span><span class="w"> </span><span class="p">};</span>
-<a id="__codelineno-26-15" name="__codelineno-26-15" href="#__codelineno-26-15"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">SetDS4SpeakerResetCallback</span><span class="p">(</span><span class="n">ds4Handle</span><span class="p">,</span><span class="w"> </span><span class="n">ds4ResetCb</span><span class="p">);</span>
-<a id="__codelineno-26-16" name="__codelineno-26-16" href="#__codelineno-26-16"></a>
-<a id="__codelineno-26-17" name="__codelineno-26-17" href="#__codelineno-26-17"></a><span class="c1">// Exactly 32 bytes per call (16 frames of mono S16LE @16kHz); anything</span>
-<a id="__codelineno-26-18" name="__codelineno-26-18" href="#__codelineno-26-18"></a><span class="c1">// else returns false, as do calls while the host has not opened the mic</span>
-<a id="__codelineno-26-19" name="__codelineno-26-19" href="#__codelineno-26-19"></a><span class="c1">// (dropped, as on hardware). SBC-decode in your app, queue here.</span>
-<a id="__codelineno-26-20" name="__codelineno-26-20" href="#__codelineno-26-20"></a><span class="kt">var</span><span class="w"> </span><span class="n">ds4MicFrame</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">byte</span><span class="p">[</span><span class="mi">32</span><span class="p">];</span>
-<a id="__codelineno-26-21" name="__codelineno-26-21" href="#__codelineno-26-21"></a><span class="c1">// ... fill from capture ...</span>
-<a id="__codelineno-26-22" name="__codelineno-26-22" href="#__codelineno-26-22"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">SetDS4MicrophonePCM</span><span class="p">(</span><span class="n">ds4Handle</span><span class="p">,</span><span class="w"> </span><span class="n">ds4MicFrame</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="k">nuint</span><span class="p">)</span><span class="n">ds4MicFrame</span><span class="p">.</span><span class="n">Length</span><span class="p">);</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="c1">// Keep all delegates alive for the lifetime of the device!</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="n">DS4OutputCallbackDelegate</span><span class="w"> </span><span class="n">outputCb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">handle</span><span class="p">,</span><span class="w"> </span><span class="n">updateFlags</span><span class="p">,</span><span class="w"> </span><span class="n">rumbleSmall</span><span class="p">,</span><span class="w"> </span><span class="n">rumbleLarge</span><span class="p">,</span>
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">    </span><span class="n">ledRed</span><span class="p">,</span><span class="w"> </span><span class="n">ledGreen</span><span class="p">,</span><span class="w"> </span><span class="n">ledBlue</span><span class="p">,</span><span class="w"> </span><span class="n">flashOn</span><span class="p">,</span><span class="w"> </span><span class="n">flashOff</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span>
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="p">{</span>
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="w">    </span><span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">$"&lt;- Rumble: {rumbleSmall}/{rumbleLarge}, "</span><span class="w"> </span><span class="o">+</span>
+<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a><span class="w">        </span><span class="s">$"LED: #{ledRed:X2}{ledGreen:X2}{ledBlue:X2}, Flash: {flashOn}/{flashOff}"</span><span class="p">);</span>
+<a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="p">};</span>
+<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a>
+<a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a><span class="n">DS4MetaState</span><span class="w"> </span><span class="n">meta</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">SerialNumber</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"MY-DS4-0001"</span><span class="w"> </span><span class="p">};</span>
+<a id="__codelineno-22-10" name="__codelineno-22-10" href="#__codelineno-22-10"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">CreateDS4Device</span><span class="p">(</span><span class="n">serverHandle</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="k">nuint</span><span class="w"> </span><span class="n">ds4Handle</span><span class="p">,</span><span class="w"> </span><span class="n">busID</span><span class="p">,</span>
+<a id="__codelineno-22-11" name="__codelineno-22-11" href="#__codelineno-22-11"></a><span class="w">        </span><span class="n">autoAttachLocalhost</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">meta</span><span class="p">))</span>
+<a id="__codelineno-22-12" name="__codelineno-22-12" href="#__codelineno-22-12"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<a id="__codelineno-22-13" name="__codelineno-22-13" href="#__codelineno-22-13"></a>
+<a id="__codelineno-22-14" name="__codelineno-22-14" href="#__codelineno-22-14"></a><span class="n">LibVIIPER</span><span class="p">.</span><span class="n">SetDS4OutputCallback</span><span class="p">(</span><span class="n">ds4Handle</span><span class="p">,</span><span class="w"> </span><span class="n">outputCb</span><span class="p">);</span>
 </code></pre></div>
 <div class="admonition warning">
 <p class="admonition-title">Never call into libVIIPER from a callback</p>
