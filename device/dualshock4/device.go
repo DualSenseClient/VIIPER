@@ -570,6 +570,11 @@ var featureGetHandlers = map[byte]func(*DualShock4) []byte{
 	featureIDBoardInfo:     (*DualShock4).featureReportBoardInfo,
 }
 
+// parseOutputReport decodes USB output report 0x05 (report ID + 31B
+// payload). The feeder surface is rumble/LED/flash; bytes data[2:4] and
+// data[11:32] carry headset/speaker/mic volumes on real hardware
+// (DS4Dongle bt.cpp ds4_set_volume/ds4_enable_mic) with no feeder channel
+// here, so they are accepted but ignored.
 func parseOutputReport(data []byte) OutputState {
 	return OutputState{
 		UpdateFlags: data[1],
