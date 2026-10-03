@@ -89,6 +89,7 @@ D-pad bits are **Up** `0x01`, **Down** `0x02`, **Left** `0x04`, **Right** `0x08`
 | `b[11:16]` | Zero | Touch timestamps (no hardware capture) |
 | `b[16:28]` | Feeder gyro/accel | Raw counts |
 | `b[28:32]` | Core timestamp | µs since boot × 3 |
+| `b[32]` | Meta temperature | int8 Celsius from metadata (controller-populated on hardware) |
 | `b[33:41]` | Feeder touch | Coords + verbatim tracking IDs, inactive mask |
 | `b[41:48]` | Zero | Trigger-effect echo (no hardware capture) |
 | `b[49]` | Fixed `0x10` | Historical reserved marker |
@@ -131,7 +132,8 @@ typedef struct {
 
 The callback delivers the full 0x02 output state: flags, rumble, volumes,
 adaptive trigger effects (11 bytes per trigger: mode + curve parameters),
-lightbar, player LEDs, and mic-mute light. Pointer valid during the call:
+lightbar, player LEDs, and mic-mute light. Pointer valid during the call.
+Edge hosts send ID+63B; the trailing 16 reserved bytes are ignored.
 
 ```c
 typedef struct {
