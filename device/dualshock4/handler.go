@@ -146,3 +146,17 @@ func (h *handler) MicStreamHandler() api.StreamHandlerFunc {
 		return MicStreamHandler(ds4, logger)(conn)
 	}
 }
+
+// RawStreamHandler ingests feeder raw 64B input reports over TCP.
+func (h *handler) RawStreamHandler() api.StreamHandlerFunc {
+	return func(conn net.Conn, devPtr *usb.Device, logger *slog.Logger) error {
+		if devPtr == nil || *devPtr == nil {
+			return fmt.Errorf("nil device")
+		}
+		ds4, ok := (*devPtr).(*DualShock4)
+		if !ok {
+			return fmt.Errorf("%w: expected DualShock4", device.ErrWrongDeviceType)
+		}
+		return RawStreamHandler(ds4, logger)(conn)
+	}
+}

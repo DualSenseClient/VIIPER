@@ -195,3 +195,17 @@ func (h *dshandler) MicStreamHandler() api.StreamHandlerFunc {
 		return MicStreamHandler(dse, logger)(conn)
 	}
 }
+
+// RawStreamHandler ingests feeder raw 64B input reports over TCP.
+func (h *dshandler) RawStreamHandler() api.StreamHandlerFunc {
+	return func(conn net.Conn, devPtr *usb.Device, logger *slog.Logger) error {
+		if devPtr == nil || *devPtr == nil {
+			return fmt.Errorf("nil device")
+		}
+		dse, ok := (*devPtr).(*DualSense)
+		if !ok {
+			return fmt.Errorf("%w: expected DualSense", device.ErrWrongDeviceType)
+		}
+		return RawStreamHandler(dse, logger)(conn)
+	}
+}

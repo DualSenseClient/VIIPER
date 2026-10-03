@@ -31,6 +31,13 @@ type MicStreamProvider interface {
 	MicStreamHandler() StreamHandlerFunc
 }
 
+// RawStreamProvider is the raw-input ingest counterpart: feeders with a
+// real controller write exact 64B USB input reports 0x01; the core serves
+// them verbatim while set and synthesizes otherwise.
+type RawStreamProvider interface {
+	RawStreamHandler() StreamHandlerFunc
+}
+
 // DeviceAudioStreamHandler dispatches audio streams to device handlers
 // implementing AudioStreamProvider.
 func DeviceAudioStreamHandler(srv *usb.Server) StreamHandlerFunc {
@@ -64,6 +71,18 @@ func DeviceMicStreamHandler(srv *usb.Server) StreamHandlerFunc {
 			return nil, false
 		}
 		return provider.MicStreamHandler(), true
+	})
+}
+
+// DeviceRawStreamHandler dispatches raw-input ingest streams to device
+// handlers implementing RawStreamProvider.
+func DeviceRawStreamHandler(srv *usb.Server) StreamHandlerFunc {
+	return deviceSubStreamHandler(srv, "raw", func(reg DeviceHandler) (StreamHandlerFunc, bool) {
+		provider, ok := reg.(RawStreamProvider)
+		if !ok {
+			return nil, false
+		}
+		return provider.RawStreamHandler(), true
 	})
 }
 
