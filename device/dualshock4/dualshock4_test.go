@@ -328,6 +328,14 @@ func TestInputReports(t *testing.T) {
 	pollInputReport := func(want []byte, timeout time.Duration) ([]byte, error) {
 		deadline := time.Now().Add(timeout)
 		var last []byte
+		maskVolatile := func(b []byte) {
+			b[7] &= 0x03
+			b[10], b[11] = 0, 0
+			// Touch packet counters increment per report while active;
+			// compare active/inactive only here (dedicated test covers sequencing).
+			b[35] &= 0x80
+			b[39] &= 0x80
+		}
 		for {
 			got, err := readInputReport(250 * time.Millisecond)
 			if err != nil {
@@ -337,10 +345,8 @@ func TestInputReports(t *testing.T) {
 			if len(got) == len(want) {
 				gg := append([]byte(nil), got...)
 				ww := append([]byte(nil), want...)
-				gg[7] &= 0x03
-				ww[7] &= 0x03
-				gg[10], gg[11] = 0, 0
-				ww[10], ww[11] = 0, 0
+				maskVolatile(gg)
+				maskVolatile(ww)
 				if assert.ObjectsAreEqual(ww, gg) {
 					return got, nil
 				}
@@ -366,6 +372,10 @@ func TestInputReports(t *testing.T) {
 			exp[7] &= 0x03
 			bb[10], bb[11] = 0, 0
 			exp[10], exp[11] = 0, 0
+			bb[35] &= 0x80
+			exp[35] &= 0x80
+			bb[39] &= 0x80
+			exp[39] &= 0x80
 			assert.Equal(t, exp, bb)
 
 			if !assert.NoError(t, stream.WriteBinary(&tc.inputState)) {
@@ -381,6 +391,8 @@ func TestInputReports(t *testing.T) {
 			gg := append([]byte(nil), got...)
 			gg[7] &= 0x03
 			gg[10], gg[11] = 0, 0
+			gg[35] &= 0x80
+			gg[39] &= 0x80
 			assert.Equal(t, exp, gg)
 		})
 	}

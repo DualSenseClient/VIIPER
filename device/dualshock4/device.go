@@ -736,7 +736,8 @@ func (d *DualShock4) buildUSBInputReport(s *InputState, m *MetaState) []byte {
 	b[5] = (usbDPad & DPadMask) | (uint8(s.Buttons) & 0xF0)
 	b[6] = uint8(s.Buttons >> 8)
 
-	counter := atomic.AddUint32(&d.usbPacketCounter, 1) & 0x3F
+	counterRaw := atomic.AddUint32(&d.usbPacketCounter, 1)
+	counter := counterRaw & 0x3F
 
 	psTouch := uint8(0)
 	if s.Buttons&ButtonPS != 0 {
@@ -766,16 +767,23 @@ func (d *DualShock4) buildUSBInputReport(s *InputState, m *MetaState) []byte {
 	b[33] = 0x01            // nvslocked
 	b[34] = 0x01
 
-	touch1Counter := uint8(0)
+	// Touch packet counters increment per report while active; inactive
+	// stays 0x80. The increment follows community DS4 captures, not
+	// DS4Dongle: that firmware forwards BT bytes verbatim and its neutral
+	// init (main.cpp:41) leaves these bytes zero, so nothing in-repo
+	// describes the counter semantics. Derived from the report counter so
+	// no extra state is needed.
+	touchCnt := uint8(counterRaw & 0x7F)
+	touch1Counter := touchCnt
 	if !s.Touch1Active {
-		touch1Counter |= TouchInactiveMask
+		touch1Counter = TouchInactiveMask
 	}
 	b[35] = touch1Counter
 	encodeTouchCoords(b[36:39], s.Touch1X, s.Touch1Y)
 
-	touch2Counter := uint8(0)
+	touch2Counter := touchCnt
 	if !s.Touch2Active {
-		touch2Counter |= TouchInactiveMask
+		touch2Counter = TouchInactiveMask
 	}
 	b[39] = touch2Counter
 	encodeTouchCoords(b[40:43], s.Touch2X, s.Touch2Y)
