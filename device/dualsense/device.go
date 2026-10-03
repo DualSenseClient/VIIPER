@@ -962,10 +962,10 @@ func (d *DualSense) noteOutputMuteLight(fb OutputState) {
 // buildUSBInputReport encodes the 64B USB input report 0x01.
 //
 // Populated from feeder state: sticks, triggers, seq, buttons, gyro/accel,
-// sensor timestamp, touch contacts, battery status.
+// sensor timestamp, touch contacts, temperature, battery status.
 //
 // Deliberately left zero (need a real-hardware capture to fill correctly,
-// not sample constants): b[11:16] touch timestamps, b[32], b[41:48] trigger
+// not sample constants): b[11:16] touch timestamps, b[41:48] trigger
 // effect state echo, b[49] reserved marker (kept at the historical 0x10),
 // b[50:52], b[54] except the mute-light bit (bit 0 headset-plugged and
 // bits 1,3-7 stay zero: controller-side knowledge with no feeder
@@ -1019,6 +1019,11 @@ func (d *DualSense) buildUSBInputReport(s *InputState, m *MetaState) []byte {
 
 	ts := uint32(time.Since(d.timestampBase).Microseconds() * 3)
 	binary.LittleEndian.PutUint32(b[28:32], ts)
+
+	// b[32] is the int8 temperature byte: the controller populates it (the
+	// DS5Dongle neutral report at main.cpp:48 carries payload[31] = 0xfc,
+	// i.e. -4C), and hid-playstation reads the same offset as Celsius.
+	b[32] = byte(int8(min(max(math.Round(m.TemperatureCelsius), -128), 127)))
 
 	// Contact bytes carry the feeder-supplied tracking IDs verbatim (real
 	// controller IDs preserved end-to-end); feeders that do not track

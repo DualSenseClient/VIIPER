@@ -94,6 +94,16 @@ func TestInputReportSeqAdvances(t *testing.T) {
 	assert.Equal(t, a[7]+1, b[7])
 }
 
+func TestInputReportTemperatureByte(t *testing.T) {
+	d, err := new(nil, false)
+	require.NoError(t, err)
+	// Default 28C from metadata lands in b[32] as int8.
+	assert.Equal(t, uint8(28), neutralReport(t, d)[32])
+
+	d.MergeMetaState(MetaState{TemperatureCelsius: -5})
+	assert.Equal(t, uint8(0xFB), neutralReport(t, d)[32])
+}
+
 // The input report echoes the host-driven mute LED in b[54] bit 2,
 // synthesized from the last output report (the dongle forwards the
 // controller bit; the virtual device has no backing controller).
