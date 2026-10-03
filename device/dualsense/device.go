@@ -792,8 +792,10 @@ func (d *DualSense) getFeatureReport(id byte) []byte {
 	return b
 }
 
-// parseOutputReport decodes the 48B USB output report 0x02 (report ID +
-// 47B payload, matching DS5Dongle SetStateData) into feeder semantics.
+// parseOutputReport decodes the USB output report 0x02 (report ID + 47B
+// payload on DS, ID + 63B on Edge) into feeder semantics. Edge appends
+// 16 reserved bytes after the LED (DS5Dongle SetStateData reserved[16]);
+// they carry no feeder state and are ignored.
 func parseOutputReport(out []byte) OutputState {
 	var feedback OutputState
 	if len(out) < 48 {

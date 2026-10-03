@@ -78,6 +78,20 @@ func TestParseOutputReportShort(t *testing.T) {
 	assert.Equal(t, OutputState{}, fb)
 }
 
+func TestParseOutputReportEdgeReservedIgnored(t *testing.T) {
+	ds := make([]byte, 48)
+	ds[0] = ReportIDOutput
+	for i := 1; i < 48; i++ {
+		ds[i] = byte(i)
+	}
+	edge := make([]byte, 64)
+	copy(edge, ds)
+	for i := 48; i < 64; i++ {
+		edge[i] = byte(0xA0 + i)
+	}
+	assert.Equal(t, parseOutputReport(ds), parseOutputReport(edge))
+}
+
 func TestTriggerEffectDecode(t *testing.T) {
 	out := make([]byte, 48)
 	out[0] = ReportIDOutput
