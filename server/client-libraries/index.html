@@ -1409,8 +1409,24 @@ the virtual devices, exactly like <a href="../../libviiper/overview/">libVIIPER<
 <td>Remove a device</td>
 </tr>
 <tr>
+<td><code>bus/{id}/meta &lt;devId&gt; &lt;meta-json&gt;</code></td>
+<td>Merge-update a device's metadata (returns updated entry)</td>
+</tr>
+<tr>
 <td><code>bus/{busId}/{deviceid}</code></td>
 <td>Open the binary device stream</td>
+</tr>
+<tr>
+<td><code>bus/{busId}/{deviceid}/audio</code></td>
+<td>Open the speaker PCM stream (u16 LE length + PCM; <code>0xFFFF</code> = reset barrier). DualSense: 4ch S16LE @48kHz up to 392B; DualShock 4: 2ch S16LE @32kHz up to 132B. Fails for devices without audio. Streams end on disconnect; removing the device does not close open feeder streams</td>
+</tr>
+<tr>
+<td><code>bus/{busId}/{deviceid}/audio/haptics</code></td>
+<td>Open the DualSense rear-haptics PCM stream (2ch S16LE @48kHz, same framing, barriers included)</td>
+</tr>
+<tr>
+<td><code>bus/{busId}/{deviceid}/audio/mic</code></td>
+<td>Write raw mic frames: 192B DualSense frames (2ch S16LE @48kHz) or 32B DualShock 4 frames (mono S16LE @16kHz)</td>
 </tr>
 </tbody>
 </table>
