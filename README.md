@@ -21,6 +21,28 @@ This repository is a fork of [Alia5/VIIPER](https://github.com/Alia5/VIIPER) and
 for the **DualSense Client** project, providing virtual controller output. DualSense Client embeds VIIPER directly as a library
 instead of running it as a separate app.
 
+## 🍴 What this fork adds
+
+This fork brings full DualShock 4 and DualSense (including DualSense Edge) support:
+
+- **Complete report handling** — separate DualSense / DualSense Edge HID descriptors, the
+  full 64B input report (touch contact and tracking IDs, temperature byte, host mute-light
+  echo, Edge firmware echo) and the full 48B output report decode including trigger effects,
+  plus the whole feature-report table served over `GET_REPORT`; on DualShock 4, a DS4-reference
+  HID descriptor, feature-report parity with payload-only `GET_REPORT`, correct touch packet
+  counters and the full 32B output report tolerance.
+- **USB audio** — UAC1 speaker and microphone with isochronous endpoints for both controllers,
+  feeder-driven speaker PCM with a per-generation reset barrier, microphone PCM queues, and a
+  realtime haptics lane from the DualSense rear voice-coil channels.
+- **USBIP isochronous transport** — completions paced to the USB frame clock and corrected
+  audio descriptors, so audio survives the trip to the host.
+- **Raw input passthrough** — a feeder can forward a real controller's exact input report
+  (`SetDualSenseRawInputReport` / `SetDS4RawInputReport`, or the `bus/{id}/{deviceid}/raw`
+  TCP stream) instead of the synthesized one; synthetic reports stay the default.
+- **Runtime metadata merge-update** — serial, battery and color changes applied to a live
+  device without recreating it.
+- **Conformance tests** — descriptor/report sweeps for both devices.
+
 ## ✨ Features
 
 - Runs on Linux and Windows.
@@ -268,6 +290,12 @@ and this fork builds on this project alongside another fork created by Hunter As
     - [usbip-win2](https://github.com/vadimgrn/usbip-win2)
 - [SDL](https://www.libsdl.org/)
   for their excellent work on input device handling, reducing reversing efforts to a minimum.
+- [DS5Dongle](https://github.com/awalol/DS5Dongle) — protocol research behind this fork's
+  DualSense and DualSense Edge support.
+- [DS4Dongle](https://github.com/snipem/DS4Dongle) — protocol research behind this fork's
+  DualShock 4 support.
+- [Linux's kernel driver for Sony PlayStation controllers](https://github.com/torvalds/linux/blob/master/drivers/hid/hid-playstation.c) — Used as a reference for
+  protocol behavior.
 
 It also depends on controller/audio protocol research shared by SAxense, DualSense reverse-engineering projects, and
 the wider open-source community.
