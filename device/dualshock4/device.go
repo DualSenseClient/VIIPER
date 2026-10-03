@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -48,6 +47,11 @@ type DualShock4 struct {
 	// guarded by mtx. Fed by the feeder, drained by EP2 IN; silence on
 	// underrun mirrors the DS4Dongle underrun guard.
 	micQueue [][]byte
+
+	// Raw input passthrough (see raw.go): exact 64B USB report served
+	// verbatim while set; nil means synthesize. Immutable snapshots, so
+	// the interrupt path reads without locking.
+	rawReport atomic.Pointer[rawSnapshot]
 
 	mtx sync.Mutex
 }
@@ -213,9 +217,7 @@ func New(o *device.CreateOptions) (*DualShock4, error) {
 			// Serials are hex; short values zero-pad left so they still
 			// decode (Sprintf %016s pads strings with spaces, which would
 			// fail hex decode to zeros).
-			if len(d.metaState.SerialNumber) < 16 {
-				d.metaState.SerialNumber = strings.Repeat("0", 16-len(d.metaState.SerialNumber)) + d.metaState.SerialNumber
-			}
+			d.metaState.SerialNumber = serialsNormalize(d.metaState.SerialNumber)
 		}
 	}
 
@@ -309,6 +311,10 @@ func (d *DualShock4) HandleTransfer(ctx context.Context, ep uint32, dir uint32, 
 	if dir == usbip.DirIn {
 		switch ep {
 		case 4:
+			// Raw passthrough wins when a feeder pipes real reports.
+			if raw := d.rawInputReport(); raw != nil {
+				return raw
+			}
 			select {
 			case <-ctx.Done():
 				if errors.Is(ctx.Err(), context.DeadlineExceeded) {
@@ -381,6 +387,13 @@ func (d *DualShock4) HandleControl(bmRequestType, bRequest uint8, wValue, wIndex
 		switch bRequest {
 		case hidGetReport:
 			if reportType == reportTypeInput && reportID == ReportIDInput {
+				if raw := d.rawInputReport(); raw != nil {
+					b := raw
+					if wLength > 0 && int(wLength) < len(b) {
+						b = b[:wLength]
+					}
+					return b, true
+				}
 				d.mtx.Lock()
 				is := *d.inputState
 				ms := *d.metaState

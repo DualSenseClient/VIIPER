@@ -3,7 +3,18 @@ package dualshock4
 import (
 	"encoding/hex"
 	"math"
+	"strings"
 )
+
+// serialsNormalize left-pads short hex serials with zeros so they still
+// decode. Sprintf "%016s" pads strings with spaces instead, which makes
+// hex.DecodeString fail and silently zero the MAC-derived feature reports.
+func serialsNormalize(s string) string {
+	if len(s) > 0 && len(s) < 16 {
+		return strings.Repeat("0", 16-len(s)) + s
+	}
+	return s
+}
 
 // GyroDpsToRaw converts a gyro angular velocity value in degrees/second (°/s)
 // into the fixed-point raw int16 wire/report representation.

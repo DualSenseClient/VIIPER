@@ -35,7 +35,7 @@ func (h *handler) CreateDevice(o *device.CreateOptions) (usb.Device, error) {
 	if metaState.SerialNumber != "" {
 		serial = metaState.SerialNumber
 	}
-	serial = fmt.Sprintf("%016s", serial)
+	serial = serialsNormalize(serial)
 	if _, ok := serials[serial]; ok {
 		for i := 1; i < 16; i++ {
 			newSerial := fmt.Sprintf("%s%02X", serial[:len(serial)-2], i)
