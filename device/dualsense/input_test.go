@@ -104,6 +104,78 @@ func TestInputReportTemperatureByte(t *testing.T) {
 	assert.Equal(t, uint8(0xFB), neutralReport(t, d)[32])
 }
 
+func TestRawInputPassthroughPrecedence(t *testing.T) {
+	d, err := new(nil, false)
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	// Invalid raws rejected, synthetic still served.
+	assert.False(t, d.SetRawInputReport(nil))
+	assert.False(t, d.SetRawInputReport(make([]byte, 10)))
+	bad := make([]byte, InputReportSize)
+	bad[0] = 0x02
+	assert.False(t, d.SetRawInputReport(bad))
+	assert.Equal(t, uint8(ReportIDInput), neutralReport(t, d)[0])
+
+	// Valid raw served verbatim on interrupt and GET_REPORT.
+	raw := make([]byte, InputReportSize)
+	raw[0] = ReportIDInput
+	for i := 1; i < InputReportSize; i++ {
+		raw[i] = byte(i)
+	}
+	require.True(t, d.SetRawInputReport(raw))
+	raw[1] = 0xFF // caller scratch: core copied
+	got := d.HandleTransfer(ctx, 4, usbip.DirIn, nil)
+	require.Len(t, got, InputReportSize)
+	assert.Equal(t, byte(0x01), got[1])
+	b, handled := d.HandleControl(hidClassIN, hidGetReport,
+		uint16(reportTypeInput)<<8|uint16(ReportIDInput), 0, 64, nil)
+	require.True(t, handled)
+	assert.Equal(t, got, b)
+
+	// Clear restores synthetic.
+	d.ClearRawInputReport()
+	assert.Equal(t, uint8(128), neutralReport(t, d)[1])
+}
+
+// The interrupt path hands out the published snapshot without allocating:
+// it runs at up to 1kHz, so a copy per poll would be measurable.
+func TestRawInputReadPathDoesNotAllocate(t *testing.T) {
+	d, err := new(nil, false)
+	require.NoError(t, err)
+	raw := make([]byte, InputReportSize)
+	raw[0] = ReportIDInput
+	raw[1] = 0x7F
+	require.True(t, d.SetRawInputReport(raw))
+	ctx := context.Background()
+
+	allocs := testing.AllocsPerRun(200, func() {
+		got := d.HandleTransfer(ctx, 4, usbip.DirIn, nil)
+		if len(got) != InputReportSize {
+			t.Fatalf("bad length %d", len(got))
+		}
+	})
+	assert.Zero(t, allocs)
+}
+
+// While raw is set the synthetic sequence counter freezes; clearing raw
+// resumes synthetic reporting from that stale counter.
+func TestRawPassthroughFreezesSyntheticSeq(t *testing.T) {
+	d, err := new(nil, false)
+	require.NoError(t, err)
+	ctx := context.Background()
+	before := neutralReport(t, d)[7]
+	raw := make([]byte, InputReportSize)
+	raw[0] = ReportIDInput
+	raw[7] = 0x5A
+	require.True(t, d.SetRawInputReport(raw))
+	// Two polls, same frozen seq, and the raw byte is what is served.
+	assert.Equal(t, byte(0x5A), d.HandleTransfer(ctx, 4, usbip.DirIn, nil)[7])
+	assert.Equal(t, byte(0x5A), d.HandleTransfer(ctx, 4, usbip.DirIn, nil)[7])
+	d.ClearRawInputReport()
+	assert.Equal(t, before+1, neutralReport(t, d)[7])
+}
+
 // The input report echoes the host-driven mute LED in b[54] bit 2,
 // synthesized from the last output report (the dongle forwards the
 // controller bit; the virtual device has no backing controller).
