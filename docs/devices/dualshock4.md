@@ -108,7 +108,7 @@ with gravity downwards (`AccelZ = -5023`, i.e. `round(-9.81 * 512)`).
 | `b[19:25]` | Feeder accel | Raw counts |
 | `b[30]` | Meta battery | Level nibble + cable/charging flag |
 | `b[33:35]` | Fixed `0x01` | Synthesized (forwarded from the controller on hardware) |
-| `b[35:43]` | Feeder touch | Derived contact counter + coords, inactive mask |
+| `b[35:43]` | Feeder touch | Coords; contact counter increments while active, `0x80` on release (unverified — DS4Dongle forwards controller bytes and documents no counter semantics) |
 | rest | Zero | Reserved |
 
 ## Meta state
@@ -125,7 +125,7 @@ their zero value (`NULL`/`0`) use defaults.
 
 ```c
 typedef struct {
-    const char* SerialNumber;       // NULL = use default
+    const char* SerialNumber;       // NULL = use default (short hex zero-pads left)
     const char* Board;              // NULL = use default
     uint8_t     BatteryStatus;      // 0 = use default
     double      TemperatureCelsius; // 0 = use default
@@ -135,7 +135,9 @@ typedef struct {
 
 ## Output callback
 
-Called when the host sends rumble or LED commands to the device.
+Called when the host sends rumble or LED commands to the device. The host
+sends ID+31B; headset/speaker/mic volume bytes are accepted but ignored
+(no feeder channel, BT-side on the dongle).
 
 ```c
 #define DS4_OUTPUT_UPDATE_RUMBLE 0x01u
