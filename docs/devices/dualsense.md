@@ -25,6 +25,8 @@ All functions are part of the [libVIIPER C API](../libviiper/overview.md).
 | `SetDualSenseSpeakerResetCallback(handle, cb)` | Register a callback fired once per streaming generation change (flush PCM) |
 | `SetDualSenseRealtimeHapticsCallback(handle, cb)` | Register a callback for the rear voice-coil pair (2ch S16LE @48kHz, low latency) |
 | `SetDualSenseMetaState(handle, meta)` | Merge-update identity/battery metadata at runtime (USB serial refreshes too) |
+| `SetDualSenseRawInputReport(handle, data, length)` | Pipe one exact 64B USB input report 0x01 (real bytes verbatim while set) |
+| `ClearDualSenseRawInputReport(handle)` | Drop the raw passthrough, restore synthetic reports |
 | `SetDualSenseMicrophonePCM(handle, data, length)` | Queue one 192B mic frame (2ch S16LE @48kHz) |
 | `RemoveDualSenseDevice(handle)` | Remove the device |
 Only one output callback may be active at a time; pass `NULL` to clear it.
@@ -103,6 +105,24 @@ The mute LED bit follows the host-converged value: the last output with
 `DoNothing`/`NoAction` leave it unchanged. The dongle forwards the
 controller-reported bit over BT; the virtual device has no backing
 controller, so it echoes what the host asked for.
+
+## Raw input passthrough
+
+Feeders with a real controller pipe the exact 64B USB input report `0x01`
+(report ID + 63B payload, e.g. captured hardware or DS5Dongle `main.cpp`
+passthrough): `SetDualSenseRawInputReport` serves it verbatim on interrupt
+IN and `GET_REPORT` (real seq, timestamps, touch, trigger echo, headset,
+AES all preserved). `ClearDualSenseRawInputReport` restores the synthetic
+builder above. Never setting raw keeps today's behavior; invalid lengths or
+IDs are rejected. Over TCP, open `bus/{busId}/{deviceid}/raw` and write
+exact 64B frames (`OpenRawStream`/`WriteFrame`); closing the stream keeps
+the last raw (clear explicitly), and an invalid frame is skipped without
+ending the stream.
+
+While a raw report is set the synthetic builder stops running, so the core
+sequence counter and sensor timestamp freeze and states pushed via
+`SetDualSenseDeviceState` are buffered but not reported. Clearing raw
+resumes synthetic reporting from those frozen values.
 
 ## Meta state
 
