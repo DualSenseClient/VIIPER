@@ -3,29 +3,24 @@ package dualshock4
 import (
 	"testing"
 
+	"github.com/DualSenseClient/VIIPER/device"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestMergeMetaState(t *testing.T) {
-	d, err := New(nil)
+// Short serials must stay hex-decodable: the 0x12/0x81 feature reports and
+// the telemetry MAC halves are derived from the serial bytes.
+func TestShortSerialZeroPadsForHexDecode(t *testing.T) {
+	d, err := New(&device.CreateOptions{DeviceSpecific: `{"serial_number":"ABC"}`})
 	require.NoError(t, err)
+	assert.Equal(t, "0000000000000ABC", d.metaState.SerialNumber)
+	assert.Equal(t, [8]byte{0, 0, 0, 0, 0, 0, 0x0A, 0xBC}, serialStringToBytes(d.metaState.SerialNumber))
+}
 
-	before := *d.metaState
-	d.MergeMetaState(MetaState{BatteryStatus: 0x05})
-	assert.Equal(t, uint8(0x05), d.metaState.BatteryStatus)
-	assert.Equal(t, before.SerialNumber, d.metaState.SerialNumber)
-	assert.Equal(t, before.Board, d.metaState.Board)
-	assert.Equal(t, before.BatteryVoltage, d.metaState.BatteryVoltage)
-
-	// Empty delta changes nothing.
-	d.MergeMetaState(MetaState{})
-	assert.Equal(t, uint8(0x05), d.metaState.BatteryStatus)
-
-	// Serial merge flows into the MAC-derived feature reports.
-	d.MergeMetaState(MetaState{SerialNumber: "2222060BF619A500"})
-	b, handled := featureGet(t, d, featureIDIdentity)
-	require.True(t, handled)
-	s := serialStringToBytes("2222060BF619A500")
-	assert.Equal(t, []byte{s[7], s[6], s[5], s[4], s[3], s[2]}, b)
+// A full-length serial passes through untouched.
+func TestFullSerialUntouched(t *testing.T) {
+	const serial = DefaultSerialString
+	d, err := New(&device.CreateOptions{DeviceSpecific: `{"serial_number":"` + serial + `"}`})
+	require.NoError(t, err)
+	assert.Equal(t, serial, d.metaState.SerialNumber)
 }

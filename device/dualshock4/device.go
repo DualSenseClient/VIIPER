@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -209,7 +210,12 @@ func New(o *device.CreateOptions) (*DualShock4, error) {
 			d.descriptor.Device.IDProduct = *o.IDProduct
 		}
 		if len(d.metaState.SerialNumber) > 0 && len(d.metaState.SerialNumber) <= 16 {
-			d.metaState.SerialNumber = fmt.Sprintf("%016s", d.metaState.SerialNumber)
+			// Serials are hex; short values zero-pad left so they still
+			// decode (Sprintf %016s pads strings with spaces, which would
+			// fail hex decode to zeros).
+			if len(d.metaState.SerialNumber) < 16 {
+				d.metaState.SerialNumber = strings.Repeat("0", 16-len(d.metaState.SerialNumber)) + d.metaState.SerialNumber
+			}
 		}
 	}
 
