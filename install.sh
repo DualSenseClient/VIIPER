@@ -2,7 +2,7 @@
 
 set -e
 
-VIIPER_VERSION="v1.0.0"
+VIIPER_VERSION="dev-snapshot"
 
 REPO="DualSenseClient/VIIPER"
 API_URL="https://api.github.com/repos/${REPO}/releases/tags/${VIIPER_VERSION}"
