@@ -81,7 +81,10 @@ jobs:
                       echo "Processing artifact: $(basename "$dir")"
                       for file in "$dir"/*; do
                         if [ -f "$file" ]; then
-                          cp "$file" "release_files/$(basename "$file")"
+                          filename="$(basename "$file")"
+                          # Strip build suffix so release and snapshot assets share names
+                          filename="${filename/-Snapshot./.}"
+                          cp "$file" "release_files/$filename"
                         fi
                       done
                     fi

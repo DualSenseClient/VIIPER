@@ -54,24 +54,12 @@ jobs:
                   mkdir -p release_files
                   for dir in artifacts/*; do
                     if [ -d "$dir" ]; then
-                      base="$(basename "$dir")"
-                      # Strip optional suffix from artifact name for filenames
-                      name_no_suffix="${base%-Release}"
                       for file in "$dir"/*; do
                         if [ -f "$file" ]; then
                           filename="$(basename "$file")"
-                          if [[ "$filename" == *.tar.gz ]]; then
-                            ext="tar.gz"
-                          else
-                            ext="${filename##*.}"
-                          fi
-                          fname="viiper-${name_no_suffix#VIIPER-}"
-                          # Preserve extension (avoid duplicating extension for non-dot cases)
-                          if [[ "$filename" == *.* ]]; then
-                            cp "$file" "release_files/${fname}.${ext}"
-                          else
-                            cp "$file" "release_files/${fname}"
-                          fi
+                          # Strip build suffix so release and snapshot assets share names
+                          filename="${filename/-Release./.}"
+                          cp "$file" "release_files/$filename"
                         fi
                       done
                     fi
