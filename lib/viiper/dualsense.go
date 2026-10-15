@@ -657,6 +657,47 @@ func ClearDualSenseRawInputReport(handle C.DSDeviceHandle) bool {
 	return true
 }
 
+// SetDualSenseFeatureReport stores a verbatim GET_REPORT response for one
+// feature ID (report ID at data[0], exact descriptor length), e.g. Edge
+// profile snapshots 0x70-0x7B pushed from a physical controller.
+// Returns false for unknown IDs, Edge-only IDs on standard devices, or
+// wrong lengths.
+//
+//export SetDualSenseFeatureReport
+func SetDualSenseFeatureReport(handle C.DSDeviceHandle, data *C.uint8_t, length C.size_t) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	dsDevice, ok := dhw.device.(*dualsense.DualSense)
+	if !ok {
+		return false
+	}
+	if data == nil || length == 0 {
+		return false
+	}
+	report := C.GoBytes(unsafe.Pointer(data), C.int(length))
+	return dsDevice.SetFeatureReport(report)
+}
+
+// ClearDualSenseFeatureReport drops a feeder feature override, restoring
+// the built-in handler or zero stub.
+//
+//export ClearDualSenseFeatureReport
+func ClearDualSenseFeatureReport(handle C.DSDeviceHandle, reportID C.uint8_t) bool {
+	dh := cgo.Handle(handle)
+	dhw, ok := dh.Value().(*deviceHandleWrapper)
+	if !ok {
+		return false
+	}
+	dsDevice, ok := dhw.device.(*dualsense.DualSense)
+	if !ok {
+		return false
+	}
+	return dsDevice.ClearFeatureReport(byte(reportID))
+}
+
 // RemoveDualSenseDevice removes the DualSense device associated with the given handle from the server.
 // @param handle Handle to the DualSense device to remove.
 //

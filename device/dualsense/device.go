@@ -69,6 +69,10 @@ type DualSense struct {
 	// underrun mirrors the DS5Dongle underrun guard.
 	micQueue [][]byte
 
+	// Feeder-driven feature-report overrides (Edge profile proxy, see
+	// feature_override.go), guarded by mtx.
+	featureOverrides map[byte][]byte
+
 	mtx sync.Mutex
 }
 
@@ -787,11 +791,14 @@ var edgeFeatureLengths = map[byte]int{
 }
 
 // getFeatureReport serves a GET_REPORT for any descriptor-listed feature ID.
-// IDs with real content use their handler; the rest return a zero stub of
-// exact length with the report ID set. Edge profile reports (0x60-0x7B)
-// are static stubs — without a backing physical controller there is no
-// unlock handshake or NAK-until-ready sequence to perform.
+// Feeder overrides (Edge profile proxy) win; IDs with real content use
+// their handler; the rest return a zero stub of exact length with the
+// report ID set. Edge profile reports (0x60-0x7B) are static stubs until
+// a feeder pushes physical snapshots.
 func (d *DualSense) getFeatureReport(id byte) []byte {
+	if b := d.featureOverride(id); b != nil {
+		return b
+	}
 	if fn, ok := featureGetHandlers[id]; ok {
 		return fn(d)
 	}
