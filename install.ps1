@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$viiperVersion = "v1.0.0"
+$viiperVersion = "v1.0.1"
 
 $repo = "DualSenseClient/VIIPER"
 $apiUrl = "https://api.github.com/repos/$repo/releases/tags/$viiperVersion"
