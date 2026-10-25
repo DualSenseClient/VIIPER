@@ -7,6 +7,8 @@
 [![Issues](https://img.shields.io/github/issues/DualSenseClient/VIIPER)](https://github.com/DualSenseClient/VIIPER/issues)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/DualSenseClient/VIIPER/pulls)
 
+>**This repository is archived and no longer maintained.** Development has moved to a custom-built solution. No further updates or bug fixes are planned. The code remains available for reference.
+
 # VIIPER 🐍
 
 **Virtual** **I**nput over **IP** **E**mulato**R**
